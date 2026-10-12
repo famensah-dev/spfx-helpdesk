@@ -1,0 +1,41 @@
+﻿{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "deskpilot-client-side-solution",
+    "id": "8ae06fc9-4e24-458f-8cb8-4572de54a363",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "skipFeatureDeployment": true,
+    "isDomainIsolated": false,
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.23.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "DeskPilot internal IT support portal"
+      },
+      "longDescription": {
+        "default": "DeskPilot internal IT support portal"
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "DeskPilot Feature",
+        "description": "The feature that activates the DeskPilot support portal.",
+        "id": "8557e5be-11f9-40d8-858b-d7baf0c4b3d6",
+        "version": "1.0.0.0"
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/spfx-helpdesk.sppkg"
+  }
+}
+
