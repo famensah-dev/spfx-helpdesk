@@ -1,0 +1,43 @@
+Account Access
+Password Reset
+Account Locked
+Login Failure
+New Account Creation
+Account Deactivation
+Access Permission Change
+Multi-Factor Authentication Issue
+System Unavailable
+Slow Performance
+Application Error
+Feature Not Working
+Installation
+Configuration / Setup
+Software Update
+License Activation / Renewal
+Malfunction / Fault
+Not Powering On
+Printing Failure
+Scanning Failure
+Paper Jam
+Toner / Cartridge Replacement
+Equipment Replacement
+Equipment Request
+Connectivity Failure
+Intermittent Connection
+Slow Internet / Network
+Email Not Sending
+Email Not Receiving
+Email Configuration
+Suspicious Email / Phishing
+Malware / Virus
+Unauthorized Access
+Data Missing / Incorrect
+Data Correction
+Data Extraction
+Report Generation
+Dashboard Issue
+System Integration / Synchronization
+Technical Assistance
+User Guidance / Training
+General Enquiry
+Other

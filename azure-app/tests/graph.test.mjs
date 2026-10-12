@@ -1,4 +1,4 @@
-﻿import test from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
@@ -14,6 +14,31 @@ function load(relative) {
 const {GraphClient} = load('../src/services/GraphClient.ts');
 const {GraphTicketService} = load('../src/services/GraphTicketService.ts');
 const response = body => new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
+
+test('Issue history targets the configured list and sorts real version metadata newest first', async () => {
+  const paths = [];
+  const service = new GraphTicketService({ getAll: async path => {
+    paths.push(path);
+    return [
+      { id: '1.0', lastModifiedDateTime: '2026-10-01T10:00:00Z', lastModifiedBy: { user: { displayName: 'Requester' } } },
+      { id: '2.0', lastModifiedDateTime: '2026-10-02T10:00:00Z', lastModifiedBy: { application: { displayName: 'Workflow' } } }
+    ];
+  } }, {});
+  service.context = { sitePath: '/sites/site-id', listId: 'issue-list', lists: [] };
+  assert.deepEqual(await service.getHistory(42), [
+    { id: '2.0', modified: '2026-10-02T10:00:00Z', author: 'Workflow' },
+    { id: '1.0', modified: '2026-10-01T10:00:00Z', author: 'Requester' }
+  ]);
+  assert.deepEqual(paths, ['/sites/site-id/lists/issue-list/items/42/versions']);
+  await assert.rejects(service.getHistory(-1), /Invalid ticket ID/);
+  assert.equal(paths.length, 1);
+});
+
+test('Issue history propagates permission failures instead of returning an empty timeline', async () => {
+  const service = new GraphTicketService({ getAll: async () => { throw new Error('403: Access denied'); } }, {});
+  service.context = { sitePath: '/sites/site-id', listId: 'issue-list', lists: [] };
+  await assert.rejects(service.getHistory(42), /403: Access denied/);
+});
 
 test('Default transport calls browser fetch with the global receiver', async () => {
   const originalFetch = globalThis.fetch;
@@ -72,6 +97,39 @@ const columns = [
   {name: 'Escalated', displayName: 'Escalated', boolean: {}}
 ];
 const config = {siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'};
+test('Inline priority changes patch only the verified priority field and report denied writes', async () => {
+  const graph = fakeGraph();
+  const writes = [];
+  graph.patch = async (path, fields) => { writes.push({path, fields}); };
+  const service = new GraphTicketService(graph, config);
+  assert.deepEqual(await service.updateTickets([7], {kind: 'priority', priority: 'Critical'}), {succeeded: [7], failed: []});
+  assert.deepEqual(writes, [{path: '/sites/site-id/lists/tickets-id/items/7/fields', fields: {Urgency: 'Critical'}}]);
+  await assert.rejects(service.updateTickets([7], {kind: 'priority', priority: 'Invalid'}), /priority is not configured/);
+  assert.equal(writes.length, 1);
+  graph.patch = async () => { throw new Error('Access denied'); };
+  assert.deepEqual(await service.updateTickets([7], {kind: 'priority', priority: 'Low'}), {succeeded: [], failed: [{id: 7, message: 'Access denied'}]});
+});
+test('Lifecycle writes keep Assigned separate from In Progress and preserve legacy choice aliases', async () => {
+  const lifecycle = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed'];
+  const graph = fakeGraph({schema: columns.map(column => column.name === 'State' ? {...column, choice: {choices: lifecycle}} : column)});
+  const writes = [];
+  graph.patch = async (path, fields) => { writes.push(fields); };
+  const service = new GraphTicketService(graph, config);
+  for (const status of lifecycle) await service.updateTickets([7], {kind: 'status', status});
+  assert.deepEqual(writes.map(fields => fields.State), lifecycle);
+  const legacy = fakeGraph();
+  legacy.patch = async (path, fields) => { assert.equal(fields.State, 'Pending'); };
+  assert.deepEqual(await new GraphTicketService(legacy, config).updateTickets([7], {kind: 'status', status: 'On Hold'}), {succeeded: [7], failed: []});
+});
+test('Explicit site ID bypasses site-path lookup and still discovers the configured list schema', async () => {
+  const graph = fakeGraph();
+  graph.get = async () => { throw new Error('Site-path lookup must not run'); };
+  const service = new GraphTicketService(graph, {...config, siteId: 'site-id', listId: 'tickets-id'});
+  const result = await service.getTickets();
+  assert(Array.isArray(result.tickets));
+  assert.equal(service.context.sitePath, '/sites/site-id');
+  assert.equal(service.context.listId, 'tickets-id');
+});
 test('Single-ticket editing maps fields and preserves an unchanged rich description', async () => {
   const graph = fakeGraph({schema: [...columns, {name: 'Details', displayName: 'Issue description', text: {}}]});
   const writes = [];
@@ -174,7 +232,7 @@ test('Tickets resolve real internal names, person identity and optional capabili
   const result = await new GraphTicketService(fakeGraph(), config).getTickets();
   assert.equal(result.tickets[0].Id, 7);
   assert.equal(result.tickets[0].AssignedTo.Email, 'agent@example.com');
-  assert.equal(result.tickets[0].Status, 'Pending');
+  assert.equal(result.tickets[0].Status, 'On Hold');
   assert.equal(result.tickets[0].Category, 'IT');
   assert.equal(result.tickets[0].Created, '2026-10-01T08:00:00Z');
   assert.equal(result.hasPending, true);

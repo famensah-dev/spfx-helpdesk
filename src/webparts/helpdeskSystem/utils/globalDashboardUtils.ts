@@ -1,13 +1,14 @@
 import type { ITicket } from '../interfaces/ITicket';
 import type { IChartDataset } from '../interfaces/IDashboard';
+import { isResolved, normalizeStatus } from './ticketStatuses';
 
 export interface IGlobalSummary { total: number; open: number; pending: number; closed: number; escalated: number; overdue: number; }
 export function getGlobalSummary(tickets: ITicket[], now: Date = new Date()): IGlobalSummary {
   return tickets.reduce<IGlobalSummary>((result, ticket) => {
-    const unresolved = ticket.Status !== 'Completed' && ticket.Status !== 'Closed';
+    const unresolved = !isResolved(ticket.Status);
     result.total++;
     if (unresolved) result.open++;
-    if (ticket.Status === 'Pending') result.pending++;
+    if (normalizeStatus(ticket.Status) === 'On Hold') result.pending++;
     if (ticket.Status === 'Closed') result.closed++;
     if (ticket.Escalated || ticket.Status === 'Escalated') result.escalated++;
     if (unresolved && ticket.DueDate && new Date(ticket.DueDate).getTime() < now.getTime()) result.overdue++;

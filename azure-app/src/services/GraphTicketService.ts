@@ -1,5 +1,5 @@
 import type { ITicketDataSource } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
-import type { TicketBulkAction, ITicketBulkResult, ITicketEdit, ITicketComment } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
+import type { TicketBulkAction, ITicketBulkResult, ITicketEdit, ITicketComment, ITicketVersion } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 import type { ITicketQueryResult } from '../../../src/webparts/helpdeskSystem/interfaces/IDashboard';
 import type { ITicket, IUserLookup, TicketStatus, TicketPriority } from '../../../src/webparts/helpdeskSystem/interfaces/ITicket';
 import type { IAppConfig } from '../config';
@@ -8,7 +8,7 @@ import { GraphClient } from './GraphClient';
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
 interface IGraphColumn { name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; }
 interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
-const statuses: TicketStatus[] = ['New', 'Assigned', 'Completed', 'Closed', 'Pending', 'Escalated'];
+const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
 const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Critical'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
@@ -19,6 +19,14 @@ export class GraphTicketService implements ITicketDataSource {
   private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig) {}
+  public async getHistory(id: number): Promise<ITicketVersion[]> {
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
+    if (!this.context) await this.getTickets();
+    const path = `${this.context!.sitePath}/lists/${encodeURIComponent(this.context!.listId)}/items/${id}/versions`;
+    const versions = await this.graph.getAll<{ id: string; lastModifiedDateTime: string; lastModifiedBy?: { user?: { displayName?: string }; application?: { displayName?: string } } }>(path);
+    return versions.map(version => ({ id: version.id, modified: version.lastModifiedDateTime, author: version.lastModifiedBy?.user?.displayName || version.lastModifiedBy?.application?.displayName || 'Unknown author' }))
+      .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+  }
   public async updateTicket(id: number, input: ITicketEdit): Promise<void> {
     if (!this.editSchema || !this.updateSchema) await this.getTickets();
     const schema = this.editSchema!;
@@ -26,7 +34,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
     if (!input.title.trim() || input.title.trim().length > 255) throw new Error('Enter an issue title of 1–255 characters.');
     if (!schema.priorities.includes(input.priority)) throw new Error('This priority is not configured in the list.');
-    const status = workflow.choices.includes(input.status) ? input.status : input.status === 'Assigned' && workflow.choices.includes('In Progress') ? 'In Progress' : input.status === 'Completed' && workflow.choices.includes('Resolved') ? 'Resolved' : undefined;
+    const status = workflow.choices.includes(input.status) ? input.status : input.status === 'On Hold' && workflow.choices.includes('Pending') ? 'Pending' : input.status === 'Resolved' && workflow.choices.includes('Completed') ? 'Completed' : undefined;
     if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
@@ -71,9 +79,13 @@ export class GraphTicketService implements ITicketDataSource {
     } else if (action.kind === 'assign') {
       if (action.userId !== null && (!Number.isSafeInteger(action.userId) || action.userId <= 0)) throw new Error('Select a valid SharePoint person.');
       fields[`${schema.assigned}LookupId`] = action.userId === null ? null : String(action.userId);
+    } else if (action.kind === 'priority') {
+      if (!this.editSchema) await this.getTickets();
+      if (!priorities.includes(action.priority) || !this.editSchema!.priorities.includes(action.priority)) throw new Error('This priority is not configured in the list.');
+      fields[this.editSchema!.priority] = action.priority;
     } else {
       if (!statuses.includes(action.status)) throw new Error('Select a valid ticket status.');
-      const value = schema.choices.includes(action.status) ? action.status : action.status === 'Assigned' && schema.choices.includes('In Progress') ? 'In Progress' : action.status === 'Completed' && schema.choices.includes('Resolved') ? 'Resolved' : undefined;
+      const value = schema.choices.includes(action.status) ? action.status : action.status === 'On Hold' && schema.choices.includes('Pending') ? 'Pending' : action.status === 'Resolved' && schema.choices.includes('Completed') ? 'Completed' : undefined;
       if (!value) throw new Error(`Add ${action.status} to the list’s Status choices before using this action.`);
       fields[schema.status] = value;
       // Do not invent resolution timestamps when changing workflow status.
@@ -100,7 +112,7 @@ export class GraphTicketService implements ITicketDataSource {
   }
   public async getTickets(): Promise<ITicketQueryResult> {
     const url = new URL(this.config.siteUrl);
-    const site = await this.graph.get<{ id: string }>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
+    const site = this.config.siteId ? { id: this.config.siteId } : await this.graph.get<{ id: string }>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
     const sitePath = `/sites/${encodeURIComponent(site.id)}`;
     const lists = await this.graph.getAll<IGraphList>(`${sitePath}/lists?$select=id,displayName,webUrl,system`);
     const list = this.config.listId ? lists.find(value => value.id.toLowerCase() === this.config.listId?.toLowerCase()) : lists.find(value => value.displayName === this.config.listName);
@@ -109,7 +121,7 @@ export class GraphTicketService implements ITicketDataSource {
     this.context = { sitePath, listId: list.id, lists };
     const columns = await this.graph.getAll<IGraphColumn>(`${listPath}/columns`);
     const normalize = (name: string): string => name.replace(/\s+/g, '').toLowerCase();
-    const aliases: Record<string, string[]> = { Title: ['Issue'], AssignedTo: ['Assigned To'] };
+    const aliases: Record<string, string[]> = { Title: ['Issue'], AssignedTo: ['Assigned To'], Category: ['Issue Category'], ResolvedAt: ['Resolved At', 'Completed At'], DueDate: ['Expected Resolution Date', 'Expected Resolution Date (New)'] };
     const resolve = (name: string, kind: 'choice' | 'text' | 'dateTime' | 'boolean' | 'personOrGroup', optional = false): IGraphColumn | undefined => {
       const names = [name, ...(aliases[name] || [])].map(normalize);
       const column = columns.find(value => value.name === name) || columns.find(value => names.includes(normalize(value.displayName)) || names.includes(normalize(value.name)));
@@ -127,14 +139,21 @@ export class GraphTicketService implements ITicketDataSource {
     if (status.choice?.choices.includes('New')) this.creationSchema = { path: listPath, title: title.name, status: status.name, priority: priority.name, description: description?.name, choices: priority.choice?.choices || [] };
     else this.creationSchema = undefined;
     if (assigned.personOrGroup?.allowMultipleSelection) throw new Error('AssignedTo must allow a single person.');
-    const categoryColumn = columns.find(value => value.name === 'Category') || columns.find(value => value.displayName === 'Category');
+    const categoryColumn = columns.find(value => value.name === 'Category') || columns.find(value => ['Category', 'Issue Category'].includes(value.displayName));
     const category = categoryColumn ? resolve('Category', categoryColumn.choice ? 'choice' : 'text', true) : undefined;
     const resolved = resolve('ResolvedAt', 'dateTime', true);
     const due = resolve('DueDate', 'dateTime', true);
     const escalated = resolve('Escalated', 'boolean', true);
     const archived = resolve('Archived', 'boolean', true);
     this.updateSchema = { path: listPath, status: status.name, choices: status.choice?.choices || [], assigned: assigned.name, archived: archived?.name, resolved: resolved?.name };
-    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, due, escalated, archived].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const optionalDisplay = (names: string[], types: Array<'text' | 'choice' | 'dateTime' | 'personOrGroup'>): IGraphColumn | undefined => columns.find(column => names.map(normalize).includes(normalize(column.displayName)) && types.some(type => Boolean(column[type])));
+    const subcategory = optionalDisplay(['Issue Subcategory'], ['text', 'choice']);
+    const issueType = optionalDisplay(['Issue Type'], ['text', 'choice']);
+    const department = optionalDisplay(['Department', 'Department / Unit', 'Unit'], ['text', 'choice']);
+    const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
+    const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
+    const resolutionSummary = optionalDisplay(['Resolution Summary'], ['text']);
+    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, due, escalated, archived, subcategory, issueType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -156,7 +175,7 @@ export class GraphTicketService implements ITicketDataSource {
     const tickets: ITicket[] = items.map(item => {
       const values = item.fields;
       const rawState = text(values[status.name]);
-      const state = (rawState === 'In Progress' ? 'Assigned' : rawState === 'Resolved' ? 'Completed' : rawState) as TicketStatus;
+      const state = (rawState === 'Pending' ? 'On Hold' : rawState === 'Completed' ? 'Resolved' : rawState) as TicketStatus;
       const urgency = text(values[priority.name]) as TicketPriority;
       if (statuses.indexOf(state) < 0 || priorities.indexOf(urgency) < 0) throw new Error(`Ticket ${item.id} has an unsupported status or priority.`);
       const userId = Number(values[`${assigned.name}LookupId`]);
@@ -166,6 +185,13 @@ export class GraphTicketService implements ITicketDataSource {
         Created: item.createdDateTime, Modified: item.lastModifiedDateTime,
         AssignedTo: userId ? users.get(userId) || { Id: userId, Title: text(values[assigned.name]) || `User #${userId}` } : undefined,
         Category: category ? text(values[category.name]) : undefined,
+        Subcategory: subcategory ? text(values[subcategory.name]) : undefined,
+        IssueType: issueType ? text(values[issueType.name]) : undefined,
+        Department: department ? text(values[department.name]) : undefined,
+        Requester: item.createdBy?.user?.displayName ? { Title: item.createdBy.user.displayName } : undefined,
+        StartedAt: started ? text(values[started.name]) || undefined : undefined,
+        ClosedAt: closed ? text(values[closed.name]) || undefined : undefined,
+        ResolutionSummary: resolutionSummary ? text(values[resolutionSummary.name]) : undefined,
         DueDate: due ? text(values[due.name]) || undefined : undefined,
         Escalated: escalated ? values[escalated.name] === true : undefined,
         ResolvedAt: resolved ? text(values[resolved.name]) || null : null };

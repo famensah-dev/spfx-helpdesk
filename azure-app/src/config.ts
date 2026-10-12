@@ -2,6 +2,7 @@ export interface IAppConfig {
   tenantId: string;
   clientId: string;
   siteUrl: string;
+  siteId?: string;
   listName: string;
   listId?: string;
   userInformationListId?: string;
@@ -21,8 +22,15 @@ export function readConfig(): IAppConfig {
     throw new Error('Use an HTTPS SharePoint Online site URL without query parameters or a fragment.');
   }
   const scope = import.meta.env.VITE_GRAPH_SITE_SCOPE?.trim() || 'Sites.Selected';
+  const siteId = import.meta.env.VITE_SHAREPOINT_SITE_ID?.trim();
+  if (siteId) {
+    const parts = siteId.split(',');
+    if (parts.length !== 3 || parts[0].toLowerCase() !== site.hostname.toLowerCase() || !guid.test(parts[1]) || !guid.test(parts[2])) {
+      throw new Error('VITE_SHAREPOINT_SITE_ID must contain the configured SharePoint hostname and two GUIDs, separated by commas.');
+    }
+  }
   if (scope !== 'Sites.Selected' && scope !== 'Sites.Read.All') throw new Error('Unsupported Graph site permission.');
-  return { tenantId, clientId, siteUrl: site.href.replace(/\/$/, ''),
+  return { tenantId, clientId, siteUrl: site.href.replace(/\/$/, ''), siteId: siteId || undefined,
     listName: import.meta.env.VITE_TICKETS_LIST_NAME?.trim() || 'Tickets',
     listId: import.meta.env.VITE_TICKETS_LIST_ID?.trim() || undefined,
     userInformationListId: import.meta.env.VITE_USER_INFORMATION_LIST_ID?.trim() || undefined,

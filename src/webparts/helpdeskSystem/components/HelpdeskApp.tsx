@@ -15,6 +15,19 @@ const appTheme = createTheme({
   palette: { themePrimary: '#2855b6', themeDarkAlt: '#234a9c', themeDark: '#1b385c', themeLight: '#d5e2fb', themeLighter: '#eff4ff', white: '#ffffff', neutralPrimary: '#252939' },
   effects: { roundedCorner2: '2px', roundedCorner4: '2px' },
   components: {
+    Dropdown: { styles: {
+      title: { height: 34, lineHeight: '32px', border: '1px solid #d6e1ee', borderRadius: 4, background: '#fff', color: '#293d58', fontSize: 13, padding: '0 34px 0 11px', selectors: { ':hover': { borderColor: '#a9bfd9', background: '#fbfdff' } } },
+      dropdown: { selectors: { ':focus::after': { border: '2px solid #789ac4', borderRadius: 4 } } },
+      caretDownWrapper: { height: 34, lineHeight: '34px', right: 11 },
+      caretDown: { color: '#526e93', fontSize: 10 },
+      callout: { borderRadius: 4, border: '1px solid #dce5f1', boxShadow: '0 8px 24px rgba(27,56,92,.12)', overflow: 'hidden' },
+      dropdownItems: { padding: 4 },
+      dropdownItem: { fontSize: 13, borderRadius: 3, color: '#293d58', selectors: { ':hover': { background: '#edf3fc' } } },
+      dropdownItemSelected: { fontSize: 13, fontWeight: 600, background: '#e8effa', color: '#1b385c', borderRadius: 3, selectors: { ':hover': { background: '#dce7f7' } } }
+    } },
+    DatePicker: { styles: { root: { marginBottom: 0 }, icon: { color: '#415f88', background: '#edf3fc', borderLeft: '1px solid #e0e8f4', borderRadius: '0 5px 5px 0', width: 32, height: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0, bottom: 0, top: 0, right: 0, fontSize: 14 }, callout: { borderRadius: 4, border: '1px solid #dce5f1', boxShadow: '0 8px 24px rgba(27,56,92,.12)', overflow: 'hidden' } } },
+    TextField: { styles: { fieldGroup: { borderColor: '#d6e1ee', borderRadius: 4 }, field: { fontSize: 13 }, subComponentStyles: { label: { root: { color: '#415575', fontWeight: 500 } } } } },
+    Calendar: { styles: { root: { background: '#fff', borderRadius: 4 }, goTodayButton: { color: '#1b385c', fontWeight: 600 } } },
     PrimaryButton: { styles: { root: { background: '#1b385c', border: '1px solid #1b385c', borderRadius: 2, color: '#fff' }, rootHovered: { background: '#152d50', borderColor: '#152d50', color: '#fff' }, rootPressed: { background: '#101e32', color: '#fff' }, rootDisabled: { background: '#e7e9ef', borderColor: '#e7e9ef', color: '#9297a5' } } },
     DefaultButton: { styles: { root: { background: '#eaf0ff', border: '1px solid #cedaf2', borderRadius: 2, color: '#244a91' }, rootHovered: { background: '#dce7fc', borderColor: '#a8bee8', color: '#152d50' }, rootPressed: { background: '#adc5f0', color: '#152d50' }, rootDisabled: { background: '#f0f1f5', borderColor: '#e7e9ef', color: '#9297a5' } } },
     IconButton: { styles: { root: { background: '#eaf0ff', color: '#2855b6', borderRadius: 2 }, rootHovered: { background: '#dce7fc', color: '#1b385c' }, rootDisabled: { background: '#f0f1f5', color: '#9297a5' } } }

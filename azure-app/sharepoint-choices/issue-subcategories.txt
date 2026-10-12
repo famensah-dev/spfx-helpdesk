@@ -1,0 +1,52 @@
+Outlook
+Microsoft Teams
+SharePoint / Microsoft Lists
+OneDrive
+Word
+Excel
+PowerPoint
+Microsoft Forms
+Power Automate
+Other Microsoft 365 Services
+HealthPro
+PACS / Sectra
+Laboratory Information System
+Medical Device Integration
+Other Clinical Systems
+Desktop Computer
+Laptop
+Printer
+Scanner
+Monitor
+Keyboard / Mouse
+UPS / Power Backup
+Other Peripherals
+Wi-Fi
+Wired Network (LAN)
+Internet
+VPN / Remote Access
+Network Cabling / Ports
+Network Equipment
+Internally Developed Applications
+Third-Party Applications
+Operating System
+Software Licensing
+Other Software
+Email Security
+Account Security
+Endpoint / Device Security
+Data Security
+Network Security
+Workstation Setup
+Equipment Installation
+Equipment Request
+Device Configuration
+Equipment Relocation
+Meeting / Presentation Support
+Reports
+Dashboards
+Data Extraction
+Data Quality
+Data Integration
+General IT Support
+Unclassified Issue

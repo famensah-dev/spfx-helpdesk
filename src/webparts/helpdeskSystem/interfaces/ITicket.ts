@@ -1,4 +1,4 @@
-export type TicketStatus = 'New' | 'Assigned' | 'Completed' | 'Closed' | 'Pending' | 'Escalated';
+export type TicketStatus = 'New' | 'Assigned' | 'In Progress' | 'On Hold' | 'Resolved' | 'Closed' | 'Completed' | 'Pending' | 'Escalated';
 export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Critical';
 
 export interface IUserLookup {
@@ -19,6 +19,13 @@ export interface ITicket {
   Modified: string;
   AssignedTo?: IUserLookup;
   Category?: string;
+  Subcategory?: string;
+  IssueType?: string;
+  Requester?: IUserLookup;
+  Department?: string;
+  StartedAt?: string;
+  ClosedAt?: string;
+  ResolutionSummary?: string;
   Escalated?: boolean;
   DueDate?: string;
   ResolvedAt?: string | null;

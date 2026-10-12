@@ -1,7 +1,8 @@
 import type { IDashboardStats, IChartDataset } from '../interfaces/IDashboard';
 import type { ITicket, TicketPriority, TicketStatus } from '../interfaces/ITicket';
+import { ticketStatuses, normalizeStatus, isResolved, statusColors } from './ticketStatuses';
 
-const statusOrder: TicketStatus[] = ['New', 'Assigned', 'Completed', 'Closed'];
+const statusOrder: TicketStatus[] = ticketStatuses;
 const priorityOrder: TicketPriority[] = ['Critical', 'High', 'Medium', 'Low'];
 
 export const chartColors = {
@@ -21,7 +22,7 @@ export function filterTickets(tickets: ITicket[], filters: { startDate?: Date | 
       return false;
     }
 
-    if (filters.status && ticket.Status !== filters.status) {
+    if (filters.status && normalizeStatus(ticket.Status) !== normalizeStatus(filters.status)) {
       return false;
     }
 
@@ -38,17 +39,17 @@ export function filterTickets(tickets: ITicket[], filters: { startDate?: Date | 
 }
 
 export function getDashboardStats(tickets: ITicket[]): IDashboardStats {
-  const openTickets = tickets.filter((ticket) => ticket.Status === 'New' || ticket.Status === 'Assigned');
-  const criticalTickets = tickets.filter((ticket) => (ticket.Status === 'New' || ticket.Status === 'Assigned') && ticket.Priority === 'Critical');
+  const openTickets = tickets.filter((ticket) => !isResolved(ticket.Status));
+  const criticalTickets = openTickets.filter((ticket) => ticket.Priority === 'Critical');
 
   const now = new Date();
   const resolvedThisMonth = tickets.filter((ticket) => {
     const resolutionDate = ticket.ResolvedAt ? new Date(ticket.ResolvedAt) : null;
-    return (ticket.Status === 'Completed' || ticket.Status === 'Closed') && resolutionDate && resolutionDate.getMonth() === now.getMonth() && resolutionDate.getFullYear() === now.getFullYear();
+    return isResolved(ticket.Status) && resolutionDate && resolutionDate.getMonth() === now.getMonth() && resolutionDate.getFullYear() === now.getFullYear();
   });
 
   const resolutionHours: number[] = tickets
-    .filter((ticket) => (ticket.Status === 'Completed' || ticket.Status === 'Closed') && ticket.ResolvedAt)
+    .filter((ticket) => isResolved(ticket.Status) && ticket.ResolvedAt)
     .map((ticket) => {
       const created = new Date(ticket.Created);
       const resolved = new Date(ticket.ResolvedAt!);
@@ -69,9 +70,9 @@ export function getDashboardStats(tickets: ITicket[]): IDashboardStats {
 }
 
 export function getStatusChartData(tickets: ITicket[]): IChartDataset {
-  const displayedStatuses = statusOrder.concat((['Pending', 'Escalated'] as TicketStatus[]).filter(status => tickets.some(ticket => ticket.Status === status)));
+  const displayedStatuses = statusOrder.concat((['Escalated'] as TicketStatus[]).filter(status => tickets.some(ticket => ticket.Status === status)));
   const counts = displayedStatuses.reduce<Record<string, number>>((result, status) => {
-    result[status] = tickets.filter((ticket) => ticket.Status === status).length;
+    result[status] = tickets.filter((ticket) => normalizeStatus(ticket.Status) === status).length;
     return result;
   }, {} as Record<string, number>);
 
@@ -80,8 +81,8 @@ export function getStatusChartData(tickets: ITicket[]): IChartDataset {
     datasets: [{
       label: 'Tickets',
       data: displayedStatuses.map((status) => counts[status] ?? 0),
-      backgroundColor: chartColors.status.concat(['#e7a500', '#de5c85']),
-      borderColor: chartColors.status.concat(['#e7a500', '#de5c85']),
+      backgroundColor: displayedStatuses.map(status => statusColors[status]),
+      borderColor: displayedStatuses.map(status => statusColors[status]),
       borderWidth: 1
     }]
   };
