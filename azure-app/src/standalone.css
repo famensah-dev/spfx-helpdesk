@@ -16,8 +16,7 @@ button:focus-visible { outline: 2px solid #337fe5; outline-offset: 3px; }
 .auth-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; color: #1b385c; background: #edf4ff; }
 .auth-icon i { font-size: 20px; }
 .landing h1 { font-size: 20px; line-height: 1.3; font-weight: 500; margin: 0 0 12px; }
-.landing p { color: #6c7b9c; font-size: 16px; line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
-.landing p[role="status"] { font-size: 14px; color: #415575; }
+.landing p { color: #415575; font-size: 14px; line-height: 1.5; margin: 0; overflow-wrap: anywhere; }
 .auth-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .landing button { min-width: 148px; min-height: 44px; border: 1px solid #1b385c; border-radius: 5px; background: #1b385c; color: white; padding: 10px 20px; font-size: 14px; font-weight: 600; }
 .landing p + button { margin-top: 28px; }
