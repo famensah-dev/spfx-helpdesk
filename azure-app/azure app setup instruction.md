@@ -1,6 +1,6 @@
 # DeskPilot Azure App Setup Instructions
 
-These steps record the setup completed from Microsoft Entra app registration through successful local sign-in. Microsoft Lists remain the data store. Azure hosting deployment is the next stage and is not covered by this record.
+These instructions cover Microsoft Entra registration, local sign-in, organization user search, and ticket write permissions. Initial local sign-in was confirmed; later permission changes must be verified in your tenant. Microsoft Lists remain the data store. Azure hosting deployment is the next stage and is not covered by this record.
 
 ## 1. Register DeskPilot in Microsoft Entra ID
 
@@ -82,7 +82,7 @@ Keep `VITE_GRAPH_SITE_SCOPE=Sites.Selected` in `.env.local`.
 
 [Microsoft selected-permissions guidance](https://learn.microsoft.com/en-us/graph/permissions-selected-overview)
 
-## 4. Grant DeskPilot read access to the IT Helpdesk site
+## 4. Grant DeskPilot write access to the IT Helpdesk site
 
 Use [Microsoft Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer).
 
@@ -107,7 +107,7 @@ This step requires a **SharePoint Administrator or higher who is also a member o
 
    ```json
    {
-     "roles": ["read"],
+     "roles": ["write"],
      "grantedToIdentities": [
        {
          "application": {
@@ -121,7 +121,7 @@ This step requires a **SharePoint Administrator or higher who is also a member o
 
 7. Replace `YOUR_DESKPILOT_CLIENT_ID` with the value of `VITE_ENTRA_CLIENT_ID` from `.env.local`.
 8. Click **Run query**.
-9. Confirm the response is **201 Created**. This was the successful result during setup.
+9. Confirm the response is **201 Created** and the returned roles include **write**. The original setup used a read grant; existing installations should follow section 10 to upgrade that grant instead of creating a duplicate.
 
 [Microsoft site-permission API requirements](https://learn.microsoft.com/en-us/graph/api/site-post-permissions?view=graph-rest-1.0)
 
@@ -187,3 +187,124 @@ Validation after the fix:
 With `npm run dev` still running, press **Ctrl + Shift + R** at `http://localhost:5173/`, then try signing in again.
 
 **Confirmed outcome:** local sign-in succeeded. Azure deployment and live ticket-data verification remain separate next steps.
+
+## 8. Enable organization user search
+
+The assignment picker searches Microsoft Entra users directly, including people who have never been assigned a ticket. It searches by the beginning of a name or email address. The optional department filter uses the exact department name stored in the user's Entra profile; it is separate from a ticket's Department column.
+
+1. Open [Microsoft Entra admin center](https://entra.microsoft.com/).
+2. Go to **Entra ID > App registrations > DeskPilot > API permissions**.
+3. Click **Add a permission > Microsoft Graph > Delegated permissions**.
+4. Search for the complete name **User.Read.All**.
+5. Expand the **User** category and check **User.Read.All**. Do not select a permission under IdentityRiskyUser.
+6. Click **Add permissions**.
+7. Back on API permissions, click **Grant admin consent for your organization** and confirm. If unavailable, ask your tenant administrator to do this.
+8. Confirm **Microsoft Graph / User.Read.All / Delegated** shows **Granted**.
+
+Keep the existing **User.Read** and **Sites.Selected** permissions. No change to `VITE_GRAPH_SITE_SCOPE=Sites.Selected` is required.
+
+`User.Read.All` permits directory profile reading, including department data; it does not grant ticket write access. DeskPilot requests this permission separately when organization search is used.
+
+[Microsoft Graph user-list API](https://learn.microsoft.com/en-us/graph/api/user-list?view=graph-rest-1.0)
+
+## 9. Enable SharePoint person resolution for assignments
+
+Finding a person in Entra and saving that person in a SharePoint Person column are separate operations. SharePoint requires its own numeric user lookup ID, not the user's Entra GUID. DeskPilot resolves the selected person through the configured site's `/_api/web/ensureuser` endpoint before saving an assignment.
+
+1. In **DeskPilot > API permissions**, click **Add a permission**.
+2. Select **APIs my organization uses**.
+3. Search for **Office 365 SharePoint Online** and select it. If the picker offers a direct **SharePoint** tile, that is also the SharePoint API.
+4. Select **Delegated permissions**.
+5. Search for **AllSites.Write**, expand **AllSites** if necessary, and check **AllSites.Write**.
+6. Click **Add permissions**.
+7. Click **Grant admin consent for your organization** and confirm.
+8. Confirm the permission appears under **SharePoint**, has type **Delegated**, and shows **Granted**.
+
+This is broader delegated SharePoint access across sites the signed-in user can access, subject to that user's permissions. In this implementation, it is used for person resolution on the configured ticket site. It does not add the selected person to a site membership group. Review this scope with your administrator; a backend alternative is needed if this broader delegated permission is not acceptable.
+
+Do not select Application permissions. **SharePoint AllSites.Write** is different from **Microsoft Graph Sites.Selected**. Adding it does not replace the Graph site write grant in section 10. DeskPilot acquires a separate SharePoint token; Graph tokens cannot authorize SharePoint REST calls.
+
+[Microsoft SharePoint ensureUser reference](https://learn.microsoft.com/en-us/previous-versions/office/sharepoint-visio/jj245233%28v%3Doffice.15%29)
+
+## 10. Fix ticket creation or editing denied with 403
+
+If DeskPilot can read tickets but creation fails with `403 / accessDenied`, check both the application's site grant and your account's list permissions. The original setup used **read**, which is insufficient for ticket creation and editing.
+
+### 10.1 Check your account's list permissions
+
+1. Open the configured ticket list directly in Microsoft Lists or SharePoint.
+2. Try creating a test ticket and editing it.
+3. If either operation fails there too, ask the site owner to grant your account permission to add and edit list items. Fixing the application's grant alone will not fix your account's access.
+
+### 10.2 Inspect the existing application grant
+
+Use the administrator's Graph Explorer connection described in section 4, with delegated **Sites.FullControl.All** consent for **Graph Explorer**. This administrative permission does not belong on the DeskPilot app.
+
+1. Obtain the configured site's complete `SITE_ID` as described in section 4. Use the actual site URL from `.env.local` if it differs from the example.
+2. In Graph Explorer, select **GET**, **v1.0**, and run:
+
+   ```text
+   https://graph.microsoft.com/v1.0/sites/SITE_ID/permissions
+   ```
+
+3. Find the entry whose application ID matches **VITE_ENTRA_CLIENT_ID** in `azure-app/.env.local`. Check `grantedToIdentitiesV2` or `grantedToIdentities` in the response. Do not choose an entry by display name alone.
+4. Copy that entry's top-level **id** as `PERMISSION_ID` and inspect **roles**.
+5. If it already contains **write**, leave it unchanged and check the signed-in user's list access, tenant, and configured site/list instead.
+
+### 10.3 Upgrade an existing read grant
+
+1. Select **PATCH** and enter:
+
+   ```text
+   https://graph.microsoft.com/v1.0/sites/SITE_ID/permissions/PERMISSION_ID
+   ```
+
+2. Replace both placeholders with the values obtained above.
+3. Set **Request body** to:
+
+   ```json
+   {
+     "roles": ["write"]
+   }
+   ```
+
+4. Click **Run query**.
+5. Confirm **200 OK** and that the returned roles contain **write**.
+6. Run the GET permissions query again to verify the grant for the correct DeskPilot client ID.
+
+If no grant exists for this client ID on the configured site, use section 4 to create a new **write** grant. Do not create another grant merely because an existing one says read.
+
+[Microsoft update-site-permission API](https://learn.microsoft.com/en-us/graph/api/site-update-permission?view=graph-rest-1.0) · [Selected permissions and delegated access](https://learn.microsoft.com/en-us/graph/permissions-selected-overview)
+
+## 11. Verify the completed setup in DeskPilot
+
+The API permissions page should contain:
+
+| API | Permission | Type | Purpose |
+|---|---|---|---|
+| Microsoft Graph | User.Read | Delegated | Signed-in user's profile |
+| Microsoft Graph | Sites.Selected | Delegated | Ticket access on the explicitly granted site |
+| Microsoft Graph | User.Read.All | Delegated | Organization user search and department data |
+| SharePoint | AllSites.Write | Delegated | Resolve the selected person to a SharePoint lookup ID |
+
+In addition, the correct DeskPilot client ID must have a **write** grant on the configured ticket site, and the signed-in user must be allowed to add/edit items in the ticket list.
+
+1. Sign out of DeskPilot, then sign back in at `http://localhost:5173/` with your organization account.
+2. On **Tickets**, double-click an **Assigned to** field. A single click deliberately does not open assignment.
+3. Search with at least two characters from the beginning of a user's name or email.
+4. Optionally enter the exact Entra department name. You can also search a department without entering a name. Leave it blank for organization-wide search.
+5. Select a person. If Microsoft redirects you for additional consent, complete it, then reopen the assignment picker and repeat the selection.
+6. Confirm the assignment is saved, refresh, and confirm it remains. In the ticket edit form, selecting a person updates the draft; click **Save** to persist it.
+7. Test creating and editing a ticket separately to verify the Graph write grant.
+
+Search shows up to 50 matches. Refine the name or department if needed. Empty or inaccurate Entra department values will affect department filtering.
+
+| Symptom | Check |
+|---|---|
+| Organization search returns 403 | Microsoft Graph delegated User.Read.All consent for the correct DeskPilot app and tenant |
+| No users match | Name/email prefix, exact department spelling, and department values in Entra profiles |
+| Person resolution fails with 401/403 | SharePoint delegated AllSites.Write consent and the signed-in user's site access |
+| Ticket creation or update returns 403 | Correct Graph site write grant and the account's list add/edit permissions; follow section 10 |
+| Consent appears again or redirects back to the app | Complete consent, then reopen the picker; directory and SharePoint permissions use separate token requests |
+
+These instructions document the required setup, not a confirmation that all live tenant permissions have been changed or verified. The local build and automated tests cannot prove live directory search or SharePoint write access.

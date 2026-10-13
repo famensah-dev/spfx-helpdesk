@@ -13,7 +13,7 @@ const pages = ['Dashboard', 'Tickets', 'FAQs', 'Administration'] as const;
 type Page = typeof pages[number] | 'My Assigned Tickets' | 'My Dashboard';
 const appTheme = createTheme({
   defaultFontStyle: { fontFamily: "'Segoe UI', sans-serif" },
-  semanticColors: { infoBackground: '#edf4ff', infoIcon: '#2855b6', warningBackground: '#fff4d6', warningIcon: '#946200' },
+  semanticColors: { infoBackground: '#deebff', infoIcon: '#2855b6', warningBackground: '#fff4d6', warningIcon: '#946200' },
   palette: { themePrimary: '#2855b6', themeDarkAlt: '#234a9c', themeDark: '#1b385c', themeLight: '#d5e2fb', themeLighter: '#eff4ff', white: '#ffffff', neutralPrimary: '#252939' },
   effects: { roundedCorner2: '2px', roundedCorner4: '2px' },
   components: {

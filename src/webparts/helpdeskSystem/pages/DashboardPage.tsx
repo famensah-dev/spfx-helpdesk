@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Bar, Doughnut, Line } from 'react-chartjs-2';
+import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip } from 'chart.js';
 import { DatePicker, DefaultButton, Dropdown, Icon, IconButton, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
 import type { IDashboardStats, IChartDataset } from '../interfaces/IDashboard';
@@ -135,16 +135,29 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     y: { beginAtZero: true, ticks: { precision: 0, color: '#718099', font: { size: 12 } }, border: { display: false }, grid: { color: '#edf2f8' } },
     x: { ticks: { color: '#526580', font: { size: 12 } }, border: { display: false }, grid: { display: false } }
   } };
-  const recent = [...visible].sort((a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime() || b.Id - a.Id).slice(0, 5);
+  const assignedCounts = new Map<string, { name: string; count: number }>();
+  visible.forEach(ticket => {
+    const person = ticket.AssignedTo;
+    if (!person) return;
+    const key = person.Id ? String(person.Id) : person.Email?.toLowerCase() || 'unresolved-assignee';
+    const current = assignedCounts.get(key);
+    if (current) current.count++;
+    else assignedCounts.set(key, { name: person.Title || person.Email || 'Assigned user', count: 1 });
+  });
+  const topAssignees = Array.from(assignedCounts.entries()).map(([id, value]) => ({ id, ...value }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)).slice(0, 10);
+  const assigneeColors = ['#afd396', '#c49cb8', '#fac49e', '#89afd9', '#e5ec94', '#99d5ed', '#ba98ae', '#c5b3df', '#aba7ba', '#cbd294', '#dce3ed', '#b7c1ce'];
+  const assignedTotal = Array.from(assignedCounts.values()).reduce((sum, user) => sum + user.count, 0);
+  const otherCount = assignedTotal - topAssignees.reduce((sum, user) => sum + user.count, 0);
+  const unassignedCount = visible.filter(ticket => !ticket.AssignedTo).length;
+  const assigneeTotal = assignedTotal + unassignedCount;
+  const assigneeSlices = [...topAssignees, ...(otherCount ? [{ id: 'other', name: 'Other assignees', count: otherCount }] : []), ...(unassignedCount ? [{ id: 'unassigned', name: 'Unassigned', count: unassignedCount }] : [])];
+  const sliceColors = assigneeSlices.map((slice, index) => slice.id === 'unassigned' ? '#b7c1ce' : assigneeColors[index]);
+  const recent = [...visible].sort((a, b) => new Date(b.Created).getTime() - new Date(a.Created).getTime() || b.Id - a.Id).slice(0, 6);
   const hasDepartment = tickets.some(ticket => Boolean(ticket.Department?.trim()));
   const hasIssueType = tickets.some(ticket => Boolean(ticket.IssueType?.trim()));
   const clear = (): void => { setFilters({}); setDepartment(''); };
   return <section className={styles.analyticsDashboard} aria-label={props.title || 'Admin Dashboard'}>
-    {(error || invalidDates || (!loading && lastUpdated && visible.length === 0)) && <div className={styles.pageAlerts}>
-    {error && <MessageBar messageBarType={MessageBarType.error}>{error} {lastUpdated ? 'Showing the last successful snapshot.' : 'No ticket data has been loaded.'}</MessageBar>}
-    {invalidDates && <MessageBar messageBarType={MessageBarType.error}>The end date must be on or after the start date.</MessageBar>}
-      {!loading && lastUpdated && visible.length === 0 && <MessageBar>No tickets match these filters. Try a wider date range or clear filters.</MessageBar>}
-    </div>}
     <div className={styles.dashboardTopRow}>
       <div className={styles.dashboardTitle}><h2>{props.title || 'Admin Dashboard'}</h2><p>Overview of IT support requests, status and performance.</p></div>
       <div className={styles.dashboardTopFilters}>
@@ -160,6 +173,11 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <IconButton iconProps={{ iconName: 'Refresh' }} title="Refresh dashboard" ariaLabel="Refresh dashboard" disabled={loading} onClick={() => { void refresh(); }} />
       </div>
     </div>
+    {(error || invalidDates || (!loading && lastUpdated && visible.length === 0)) && <div className={styles.pageAlerts}>
+    {error && <MessageBar messageBarType={MessageBarType.error}>{error} {lastUpdated ? 'Showing the last successful snapshot.' : 'No ticket data has been loaded.'}</MessageBar>}
+    {invalidDates && <MessageBar messageBarType={MessageBarType.error}>The end date must be on or after the start date.</MessageBar>}
+      {!loading && lastUpdated && visible.length === 0 && <MessageBar>No tickets match these filters. Try a wider date range or clear filters.</MessageBar>}
+    </div>}
     {filtersOpen && <div className={styles.dashboardAdvancedFilters}>
       <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created from" placeholder="Start date" value={filters.startDate || undefined} maxDate={filters.endDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, startDate: date || null }))} />
       <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created to" placeholder="End date" value={filters.endDate || undefined} minDate={filters.startDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, endDate: date || null }))} />
@@ -196,11 +214,19 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <ChartCard title="Tickets by Department / Unit"><Breakdown rows={hasDepartment ? groupTicketCounts(visible, 'Department') : []} empty={hasDepartment ? 'No tickets in this view.' : 'Department information is not available yet.'} /></ChartCard>
         <ChartCard title="Average Resolution Time by Category" note="Days from creation to recorded resolution."><Breakdown rows={hasResolvedAt ? getResolutionByCategory(visible) : []} unit="days" colors={['#9a75f2', '#f45663', '#ff962e', '#28b47d', '#2d88ff', '#ffc329', '#a6b1c2', '#62a0f9']} empty="No recorded resolution dates in this view." /></ChartCard>
         <ChartCard title="Open Tickets by Aging" className={styles.dashboardAgingCard} note="Elapsed time since creation, as of today."><Breakdown rows={getOpenTicketAging(visible, now)} colors={['#28b47d', '#2d88ff', '#ffc329', '#ff962e', '#f45663']} /></ChartCard>
+        <div className={styles.dashboardTicketsRow}>
         <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.dashboardTextLink} onClick={props.onViewTickets}>View all</button>}>
           <div className={styles.dashboardRecentScroll}><table className={styles.dashboardRecentTable}><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>{recent.map(ticket => <tr key={ticket.Id}>
             <td>#{ticket.Id}</td><td>{props.onOpenTicket ? <button title={ticket.Title} onClick={() => props.onOpenTicket!(ticket.Id)}>{ticket.Title}</button> : ticket.Title}</td><td title={ticket.Category}>{ticket.Category || '—'}</td><td><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></td><td><span className={styles.dashboardPriorityBadge} data-priority={ticket.Priority}>{ticket.Priority}</span></td><td>{formatDate(new Date(ticket.Created))}</td>
           </tr>)}</tbody></table>{!recent.length && <div className={styles.dashboardChartEmpty}>No recent tickets in this view.</div>}</div>
         </ChartCard>
+        <ChartCard title="Tickets by Assignee" note="Top 10 users by assigned tickets; remaining users are grouped as Other assignees, with a separate Unassigned slice. Follows the current filters.">
+          {assigneeSlices.length ? <div className={styles.dashboardAssigneeDistribution}>
+            <div><div className={styles.dashboardAssigneePie}><Pie role="img" aria-label={assigneeSlices.map(user => `${user.name}: ${user.count} tickets`).join(', ')} data={{ labels: assigneeSlices.map(user => user.name), datasets: [{ data: assigneeSlices.map(user => user.count), backgroundColor: sliceColors, borderColor: '#fff', borderWidth: 1.5 }] }} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => `${context.label}: ${context.parsed} tickets (${(context.parsed / assigneeTotal * 100).toFixed(1)}%)` } } } }} /></div><div className={styles.dashboardAssigneeTotal}>Total: {assigneeTotal.toLocaleString()}</div></div>
+            <ul className={styles.dashboardAssigneeLegend}>{assigneeSlices.map((user, index) => <li key={user.id}><i style={{ background: sliceColors[index] }} aria-hidden="true" /><span>{user.name}: <strong>{user.count.toLocaleString()}</strong></span></li>)}</ul>
+          </div> : <div className={styles.dashboardChartEmpty}>No tickets in this view.</div>}
+        </ChartCard>
+        </div>
       </div>
       <footer className={styles.pageFooter}><span>{visible.length.toLocaleString()} matching tickets</span><span>Last refreshed {lastUpdated.toLocaleString()}</span></footer>
     </>}

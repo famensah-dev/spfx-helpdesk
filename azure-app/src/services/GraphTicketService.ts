@@ -4,6 +4,7 @@ import type { ITicketQueryResult } from '../../../src/webparts/helpdeskSystem/in
 import type { ITicket, IUserLookup, TicketStatus, TicketPriority } from '../../../src/webparts/helpdeskSystem/interfaces/ITicket';
 import type { IAppConfig } from '../config';
 import { GraphClient } from './GraphClient';
+import type { IOrganizationUser } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
 interface IGraphColumn { name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; }
@@ -18,7 +19,32 @@ export class GraphTicketService implements ITicketDataSource {
   private commentSchema?: { path: string; key: string; content: string };
   private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
-  public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig) {}
+  public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
+    private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>) {}
+  public async searchUsers(query: string, department?: string): Promise<IOrganizationUser[]> {
+    if (!this.directory) throw new Error('Organization user search is not configured.');
+    const escape = (value: string): string => value.replace(/'/g, "''");
+    const term = query.trim();
+    if (term.length < 2 && !department?.trim()) return [];
+    const filters = [];
+    if (term) filters.push(`(startswith(displayName,'${escape(term)}') or startswith(mail,'${escape(term)}') or startswith(userPrincipalName,'${escape(term)}'))`);
+    if (department?.trim()) filters.push(`department eq '${escape(department.trim())}'`);
+    const params = new URLSearchParams({ '$select': 'id,displayName,mail,userPrincipalName,department', '$filter': filters.join(' and '), '$top': '50' });
+    const result = await this.directory.get<{ value: Array<{ id: string; displayName: string; mail?: string; userPrincipalName: string; department?: string }> }>(`/users?${params}`);
+    return result.value.filter(user => user.userPrincipalName).map(user => ({ id: user.id, displayName: user.displayName || user.userPrincipalName, email: user.mail || user.userPrincipalName, userPrincipalName: user.userPrincipalName, department: user.department }));
+  }
+  public async resolveUser(user: IOrganizationUser): Promise<IUserLookup> {
+    if (!this.getSharePointToken) throw new Error('SharePoint person resolution is not configured.');
+    const token = await this.getSharePointToken();
+    const response = await fetch(`${this.config.siteUrl}/_api/web/ensureuser`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;odata=nometadata', 'Content-Type': 'application/json;odata=nometadata' },
+      body: JSON.stringify({ logonName: `i:0#.f|membership|${user.userPrincipalName}` }), signal: AbortSignal.timeout(30000)
+    });
+    if (!response.ok) throw new Error(`Unable to resolve this person in SharePoint (${response.status}). Check SharePoint delegated AllSites.Write consent and your site access.`);
+    const person = await response.json() as { Id: number; Title?: string; Email?: string };
+    if (!Number.isSafeInteger(person.Id) || person.Id <= 0) throw new Error('SharePoint did not return a valid person ID.');
+    return { Id: person.Id, Title: person.Title || user.displayName, Email: person.Email || user.email };
+  }
   public async getHistory(id: number): Promise<ITicketVersion[]> {
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
     if (!this.context) await this.getTickets();
@@ -79,6 +105,9 @@ export class GraphTicketService implements ITicketDataSource {
     } else if (action.kind === 'assign') {
       if (action.userId !== null && (!Number.isSafeInteger(action.userId) || action.userId <= 0)) throw new Error('Select a valid SharePoint person.');
       fields[`${schema.assigned}LookupId`] = action.userId === null ? null : String(action.userId);
+      const status = action.userId === null ? 'New' : 'Assigned';
+      if (!schema.choices.includes(status)) throw new Error(`Add ${status} to the list’s Status choices before assigning tickets.`);
+      fields[schema.status] = status;
     } else if (action.kind === 'priority') {
       if (!this.editSchema) await this.getTickets();
       if (!priorities.includes(action.priority) || !this.editSchema!.priorities.includes(action.priority)) throw new Error('This priority is not configured in the list.');

@@ -1,3 +1,6 @@
+import { cancelButtonStyles } from './cancelButtonStyles';
+import { OrganizationUserPicker } from './OrganizationUserPicker';
+import { Label } from '@fluentui/react';
 import * as React from 'react';
 import { DefaultButton, PrimaryButton, Icon, IconButton, Panel, PanelType, TextField, Dropdown, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
 import type { ITicket, TicketPriority, TicketStatus } from '../interfaces/ITicket';
@@ -17,6 +20,11 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const [description, setDescription] = React.useState(plainDescription);
   const [priority, setPriority] = React.useState<TicketPriority>(ticket.Priority);
   const [status, setStatus] = React.useState<TicketStatus>(normalizeStatus(ticket.Status));
+  const [assignmentMessage, setAssignmentMessage] = React.useState('');
+  const [assignmentBusy, setAssignmentBusy] = React.useState(false);
+  const [assignAnchor, setAssignAnchor] = React.useState<HTMLElement | null>(null);
+  const [assignOpen, setAssignOpen] = React.useState(false);
+  const [assignedName, setAssignedName] = React.useState(ticket.AssignedTo?.Title || 'Unassigned');
   const [assigned, setAssigned] = React.useState(ticket.AssignedTo?.Id || 0);
   const [comments, setComments] = React.useState<ITicketComment[]>([]);
   const [commentsLoading, setCommentsLoading] = React.useState(false);
@@ -62,8 +70,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   }, [service, ticket.Id]);
   React.useEffect(() => { heading.current?.focus(); void loadComments(); return () => { commentRequest.current++; }; }, [loadComments]);
   const date = (value?: string | null): string => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString() : 'Not provided';
-  const people = props.tickets.map(value => value.AssignedTo).filter((person, index, all) => person?.Id && all.findIndex(other => other?.Id === person.Id) === index);
-  const beginEdit = (): void => { setTitle(ticket.Title); setDescription(plainDescription); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setError(''); setSaved(false); setEditing(true); };
+  const beginEdit = (): void => { setTitle(ticket.Title); setDescription(plainDescription); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
   const save = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault(); if (!service?.updateTicket || lock.current) return;
     lock.current = true; setSaving(true); setError('');
@@ -86,6 +93,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
       <div className={styles.detailToolbarTitle}><DefaultButton text={props.backLabel || 'Back to Tickets'} iconProps={{ iconName: 'Back' }} disabled={saving || posting} onClick={props.onBack} /><h2 className={styles.srOnly} ref={heading} tabIndex={-1}>Ticket #{ticket.Id}</h2></div>
       <div className={styles.detailTopActions}>{!editing ? <PrimaryButton text="Edit Ticket" iconProps={{ iconName: 'Edit' }} disabled={!service?.updateTicket} onClick={beginEdit} /> : <span className={styles.editingIndicator}>Editing ticket</span>}<IconButton iconProps={{ iconName: 'History' }} title="Issue history" ariaLabel="Open issue history" onClick={() => setHistoryOpen(true)} /></div>
     </div>
+    {assignmentMessage && <MessageBar messageBarType={assignmentBusy ? MessageBarType.info : MessageBarType.success} onDismiss={assignmentBusy ? undefined : () => setAssignmentMessage('')}>{assignmentMessage}</MessageBar>}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {saved && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setSaved(false)}>Ticket changes saved.</MessageBar>}
     <Panel isOpen={historyOpen} type={PanelType.custom} customWidth="360px" headerText="Ticket History" closeButtonAriaLabel="Close issue history" isLightDismiss onDismiss={() => setHistoryOpen(false)} styles={{ main: { maxWidth: '100vw', background: '#fbfdff' }, commands: { paddingTop: 0, background: '#f3f7ff', borderBottom: '1px solid #dce5f1' }, navigation: { alignItems: 'center', minHeight: 54 }, header: { padding: '14px 20px', alignSelf: 'center' }, closeButton: { margin: '0 12px 0 0', width: 32, height: 32, background: 'transparent', color: '#526783' }, headerText: { fontSize: 16, fontWeight: 600 }, content: { padding: '0 20px 20px' } }}>
@@ -118,9 +126,10 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
           <div className={styles.detailFormGrid}>
             <Dropdown label="Priority" selectedKey={priority} disabled={saving} options={['Critical', 'High', 'Medium', 'Low'].map(value => ({key: value, text: value}))} onChange={(_, option) => setPriority(option?.key as TicketPriority)} />
             <Dropdown label="Status" selectedKey={status} disabled={saving} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
+            <div><Label htmlFor="edit-ticket-assignee">Assigned to</Label><DefaultButton styles={{ root: { display: 'flex', background: 'transparent', border: 0, minWidth: 0, height: 34, padding: '0 2px', color: '#1b385c' }, rootHovered: { background: 'transparent', color: '#152d50', textDecoration: 'underline' }, rootPressed: { background: 'transparent', color: '#101e32' }, label: { fontSize: 14, fontWeight: 400, margin: 0 } }} id="edit-ticket-assignee" ariaLabel={`Change assignee: ${assignedName}`} text={assignedName} disabled={saving || assignmentBusy} onClick={event => { setAssignAnchor(event.currentTarget as HTMLElement); setAssignOpen(true); }} />{assignmentBusy && <Spinner ariaLabel="Updating assignment" />}</div>
           </div>
-          <Dropdown label="Assigned to" selectedKey={assigned} disabled={saving} options={[{key: 0, text: 'Unassigned'}, ...people.map(person => ({key: person!.Id!, text: person!.Title || person!.Email || `User #${person!.Id}`}))]} onChange={(_, option) => setAssigned(Number(option?.key || 0))} />
-          <div className={styles.detailSaveBar}><DefaultButton text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || !title.trim()} /></div>
+          {assignOpen && assignAnchor && <OrganizationUserPicker onStart={() => { setAssignOpen(false); setAssignmentBusy(true); setAssignmentMessage(''); }} onComplete={message => { setAssignmentBusy(false); if (message) { setAssignmentMessage(''); setError(message); } else setAssignmentMessage('Assignment updated in this form. Save the ticket to keep your changes.'); }} currentUser={assigned ? { Id: assigned, Title: assignedName } : undefined} target={assignAnchor} service={service} onDismiss={() => setAssignOpen(false)} onSelect={async person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />}
+          <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form> : <>
           <section ref={descriptionSection} className={styles.detailSection}><div className={styles.detailSectionHeading}><Icon iconName="AlignLeft" /><h3>Description</h3></div><p className={styles.ticketDescription}>{plainDescription || 'No description has been added to this ticket.'}</p></section>
         </>}

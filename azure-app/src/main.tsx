@@ -22,7 +22,7 @@ function Failure(props: { error: unknown; auth?: MicrosoftAuth }): React.ReactEl
 }
 function renderFailure(error: unknown, auth?: MicrosoftAuth): void { ReactDOM.render(<Failure error={error} auth={auth} />, root); }
 async function start(): Promise<void> {
-  ReactDOM.render(<Landing title="Connecting to Microsoft 365"><p role="status">Please wait while we connect to your support workspace.</p></Landing>, root);
+  ReactDOM.render(<Landing title="Connecting to Microsoft 365"><p role="status">Please wait while we connect to your support workspace.</p><div className="auth-loading-dots" aria-hidden="true"><span /><span /><span /><span /></div></Landing>, root);
   const config = readConfig();
   const auth = new MicrosoftAuth(config);
   try {
@@ -33,7 +33,7 @@ async function start(): Promise<void> {
     }
     const graph = new GraphClient(() => auth.getToken());
     const profile = await graph.get<{ displayName: string; mail: string | null; userPrincipalName: string }>('/me?$select=displayName,mail,userPrincipalName');
-    const service = new GraphTicketService(graph, config);
+    const service = new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken());
     const { default: HelpdeskApp } = await import('../../src/webparts/helpdeskSystem/components/HelpdeskApp');
     const actions = <AccountMenu displayName={profile.displayName} email={profile.mail || profile.userPrincipalName} auth={auth} onError={error => renderFailure(error, auth)} />;
     ReactDOM.render(<HelpdeskApp service={service} currentUserEmail={profile.mail || profile.userPrincipalName} accountActions={actions} />, root);

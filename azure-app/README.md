@@ -62,6 +62,20 @@ The administration tooling needs its own elevated consent; do not add Sites.Full
 
 The browser's static HTML/JS assets are public hosting assets. Ticket data is fetched only after sign-in and protected by Graph authorization. This implementation uses MSAL directly rather than Azure Static Web Apps' built-in /.auth providers. It contains no server API or secret-bearing backend.
 
+## Organization user search and assignment
+
+The assignment picker searches Microsoft Entra users by name/email prefix, with an optional exact department filter. It returns up to 50 matches; refine the search for more specific results. Department values come from Entra profiles, not the ticket's Department column.
+
+In Entra admin center, open App registrations > DeskPilot > API permissions > Add a permission:
+
+1. Microsoft Graph > Delegated permissions > User.Read.All. Grant administrator consent. This allows department-aware organization search.
+2. APIs my organization uses > Office 365 SharePoint Online > Delegated permissions > AllSites.Write. Grant consent according to your tenant policy. This is broader delegated SharePoint access, bounded by the signed-in user's permissions; it is used only to resolve a selected person through the configured site's ensureuser endpoint. It does not grant the user new site membership. A Graph token cannot be sent to SharePoint REST.
+3. Keep the existing Microsoft Graph Sites.Selected permission and Write grant on the configured ticket site. These still authorize ticket saves.
+4. Sign out of DeskPilot and sign back in. The picker requests the directory and SharePoint tokens separately when needed. If redirected for consent, reopen assignment afterward.
+5. Double-click Assigned to in a ticket row, search for a person, optionally enter the exact department name, and select them. The edit form and bulk Assign use the same search panel.
+
+No directory or tenant grants are changed by the application. If broader SharePoint delegated consent is not acceptable, use a separately designed backend for person resolution before enabling this feature. Live tenant search and assignment still require verification after consent.
+
 ## 3. Prepare Microsoft Lists
 
 Create **Tickets** at `https://archwaysdigitalgh.sharepoint.com/sites/ithelpdesk`, or configure the name/ID of an existing list with the matching schema. The prior screenshot reported that Tickets did not exist; deploying to Azure does not create it.

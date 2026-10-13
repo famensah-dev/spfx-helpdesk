@@ -1,3 +1,4 @@
+import { cancelButtonStyles } from './cancelButtonStyles';
 import * as React from 'react';
 import { Panel, PanelType, TextField, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType } from '@fluentui/react';
 export interface INewTicketInput { title: string; description: string; priority: string; }
@@ -23,7 +24,7 @@ export function NewTicketForm(props: { onDismiss: () => void; onCreate: (input: 
       <TextField label="Issue description" multiline rows={6} value={description} disabled={saving} onChange={(_, value) => setDescription(value || '')} />
       <Dropdown label="Priority" selectedKey={priority} disabled={saving} options={['Critical', 'High', 'Medium', 'Low'].map(value => ({ key: value, text: value }))} onChange={(_, option) => setPriority(String(option?.key || 'Medium'))} />
       <p style={{ margin: 0, color: '#626b7b' }}>New tickets start with New status and are unassigned.</p>
-      <div style={{ display: 'flex', gap: 8 }}><PrimaryButton type="submit" text={saving ? 'Creating…' : 'Create ticket'} disabled={saving || !title.trim()} /><DefaultButton text="Cancel" disabled={saving} onClick={props.onDismiss} /></div>
+      <div style={{ display: 'flex', gap: 8 }}><PrimaryButton type="submit" text={saving ? 'Creating…' : 'Create ticket'} disabled={saving || !title.trim()} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={props.onDismiss} /></div>
     </form>
   </Panel>;
 }

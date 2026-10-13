@@ -14,6 +14,53 @@ function load(relative) {
 const {GraphClient} = load('../src/services/GraphClient.ts');
 const {GraphTicketService} = load('../src/services/GraphTicketService.ts');
 const response = body => new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
+test('Assignment and removal save the matching workflow status in the same update', async () => {
+  const writes = [];
+  const service = new GraphTicketService({ patch: async (path, fields) => writes.push({ path, fields }) }, {});
+  service.updateSchema = { path: '/sites/site/lists/tickets', status: 'Status', choices: ['New', 'Assigned'], assigned: 'Owner' };
+  await service.updateTickets([1], { kind: 'assign', userId: 42 });
+  await service.updateTickets([1], { kind: 'assign', userId: null });
+  assert.deepEqual(writes.map(write => write.fields), [{ OwnerLookupId: '42', Status: 'Assigned' }, { OwnerLookupId: null, Status: 'New' }]);
+  service.updateSchema.choices = ['New'];
+  await assert.rejects(service.updateTickets([1], { kind: 'assign', userId: 42 }), /Add Assigned/);
+  assert.equal(writes.length, 2);
+});
+
+test('Organization search escapes filters and uses directory identities independently of tickets', async () => {
+  let requested;
+  const service = new GraphTicketService({}, {}, { get: async path => {
+    requested = new URL(`https://graph.microsoft.com/v1.0${path}`);
+    return { value: [{ id: 'entra-guid', displayName: "O'Neil", mail: 'oneil@example.com', userPrincipalName: 'oneil@example.com', department: 'IT' }] };
+  } });
+  assert.deepEqual(await service.searchUsers('a'), []);
+  assert.equal(requested, undefined);
+  const users = await service.searchUsers("O'Neil", 'IT');
+  assert.match(requested.searchParams.get('$filter'), /O''Neil/);
+  assert.match(requested.searchParams.get('$filter'), /department eq 'IT'/);
+  assert.equal(requested.searchParams.get('$top'), '50');
+  assert.equal(users[0].id, 'entra-guid');
+  assert.equal(users[0].department, 'IT');
+  assert.equal(users[0].Id, undefined);
+});
+
+test('Assignment resolves a directory user to a SharePoint numeric lookup ID using a SharePoint token', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://example.sharepoint.com/sites/helpdesk/_api/web/ensureuser');
+    assert.equal(options.headers.Authorization, 'Bearer sharepoint-token');
+    assert.equal(JSON.parse(options.body).logonName, 'i:0#.f|membership|person@example.com');
+    return response({ Id: 42, Title: 'Person', Email: 'person@example.com' });
+  };
+  try {
+    const service = new GraphTicketService({}, { siteUrl: 'https://example.sharepoint.com/sites/helpdesk' }, {}, async () => 'sharepoint-token');
+    const user = { id: 'entra-guid', displayName: 'Person', email: 'person@example.com', userPrincipalName: 'person@example.com' };
+    assert.deepEqual(await service.resolveUser(user), { Id: 42, Title: 'Person', Email: 'person@example.com' });
+    globalThis.fetch = async () => new Response('', { status: 403 });
+    await assert.rejects(service.resolveUser(user), /Unable to resolve.*403/);
+    globalThis.fetch = async () => response({ Id: 'entra-guid' });
+    await assert.rejects(service.resolveUser(user), /valid person ID/);
+  } finally { globalThis.fetch = originalFetch; }
+});
 
 test('Issue history targets the configured list and sorts real version metadata newest first', async () => {
   const paths = [];
@@ -88,7 +135,7 @@ test('Graph reports permission failures without inventing data', async () => {
 
 const columns = [
   {name: 'Title', displayName: 'Title', text: {}},
-  {name: 'State', displayName: 'Status', choice: {choices: ['New', 'Pending', 'Escalated', 'Closed']}},
+  {name: 'State', displayName: 'Status', choice: {choices: ['New', 'Assigned', 'Pending', 'Escalated', 'Closed']}},
   {name: 'Urgency', displayName: 'Priority', choice: {choices: ['Low', 'Medium', 'High', 'Critical']}},
   {name: 'Agent', displayName: 'AssignedTo', personOrGroup: {allowMultipleSelection: false}},
   {name: 'Area', displayName: 'Category', choice: {choices: ['IT']}},
@@ -180,9 +227,9 @@ test('Bulk updates preserve internal names, report partial failures and deduplic
   await service.updateTickets([7], {kind: 'archive'});
   assert.deepEqual(writes[2].fields, {IsArchived: true});
   await service.updateTickets([7], {kind: 'assign', userId: 12});
-  assert.deepEqual(writes[3].fields, {AgentLookupId: '12'});
+  assert.deepEqual(writes[3].fields, {AgentLookupId: '12', State: 'Assigned'});
   await service.updateTickets([7], {kind: 'assign', userId: null});
-  assert.deepEqual(writes[4].fields, {AgentLookupId: null});
+  assert.deepEqual(writes[4].fields, {AgentLookupId: null, State: 'New'});
   await assert.rejects(service.updateTickets([7], {kind: 'status', status: 'Completed'}), /Status choices/);
   await assert.rejects(new GraphTicketService(fakeGraph(), config).updateTickets([7], {kind: 'archive'}), /Archived Yes\/No/);
 });
