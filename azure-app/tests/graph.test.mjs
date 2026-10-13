@@ -8,11 +8,56 @@ function load(relative) {
   const source = fs.readFileSync(new URL(relative, import.meta.url), 'utf8');
   const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText;
   const module = {exports: {}};
-  new Function('exports', 'require', 'module', compiled)(module.exports, require, module);
+  const localRequire = name => name.endsWith('/ticketAttachments') ? load('../../src/webparts/helpdeskSystem/utils/ticketAttachments.ts') : require(name);
+  new Function('exports', 'require', 'module', compiled)(module.exports, localRequire, module);
   return module.exports;
 }
 const {GraphClient} = load('../src/services/GraphClient.ts');
 const {GraphTicketService} = load('../src/services/GraphTicketService.ts');
+const { classificationChoices } = load('../../src/webparts/helpdeskSystem/utils/ticketClassification.ts');
+const { validateTicketAttachments } = load('../../src/webparts/helpdeskSystem/utils/ticketAttachments.ts');
+test('Attachments enforce file count, supported extensions, size, and unique names', () => {
+  validateTicketAttachments(['pdf', 'doc', 'docx', 'mp4', 'jpeg', 'jpg', 'webp', 'png'].map(ext => ({name: `file.${ext}`, size: 5 * 1024 * 1024})));
+  assert.throws(() => validateTicketAttachments([{name: 'large.pdf', size: 5 * 1024 * 1024 + 1}]), /5 MB/);
+  assert.throws(() => validateTicketAttachments([{name: 'file.exe', size: 1}]), /use PDF/);
+  assert.throws(() => validateTicketAttachments(Array.from({length: 11}, (_, i) => ({name: `${i}.png`, size: 1}))), /10 files/);
+  assert.throws(() => validateTicketAttachments([{name: 'FILE.pdf', size: 1}, {name: 'file.PDF', size: 1}]), /already/);
+});
+test('Attachment uploads send file bytes to the ticket and skip already uploaded names on retry', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({url, options});
+    assert.equal(options.headers.Authorization, 'Bearer sharepoint-token');
+    return options.method === 'POST' ? response({}) : response({value: [{FileName: 'done.pdf'}]});
+  };
+  try {
+    const service = new GraphTicketService({}, {siteUrl: 'https://example.sharepoint.com/sites/support'}, undefined, async () => 'sharepoint-token');
+    service.context = {listId: 'list-guid'};
+    const file = new File(['content'], "new's.pdf", {type: 'application/pdf'});
+    await service.uploadAttachments(42, [new File(['done'], 'done.pdf'), file]);
+    assert.equal(calls.length, 2);
+    assert.match(calls[1].url, /items\(42\)\/AttachmentFiles\/add/);
+    assert.equal(calls[1].options.body, file);
+    assert.match(calls[1].url, /new%27%27s.pdf/);
+  } finally { globalThis.fetch = originalFetch; }
+});
+test('Upload failure after creation reports the existing ticket ID for a safe retry', async () => {
+  const graph = fakeGraph();
+  let creates = 0;
+  graph.post = async () => { creates++; return {id: '42'}; };
+  const service = new GraphTicketService(graph, config, undefined, async () => 'token');
+  service.uploadAttachments = async () => { throw new Error('Upload denied'); };
+  await assert.rejects(service.createTicket({title: 'Issue', description: '', priority: 'High', attachments: [new File(['file'], 'file.pdf')]}), error => error.createdTicketId === 42 && /was created/.test(error.message));
+  assert.equal(creates, 1);
+});
+test('Classification children follow their parents and stay within configured list choices', () => {
+  assert.deepEqual(classificationChoices('subcategory', ['Printer', 'Outlook', 'Scanner'], 'Hardware & Devices', ''), ['Printer', 'Scanner']);
+  assert.deepEqual(classificationChoices('subcategory', ['Printer'], '', ''), []);
+  assert.deepEqual(classificationChoices('issueType', ['Password Reset', 'Printing Failure', 'Malfunction / Fault'], 'Hardware & Devices', 'Printer'), ['Printing Failure', 'Malfunction / Fault']);
+  assert.deepEqual(classificationChoices('issueType', ['Password Reset', 'Printing Failure'], 'Clinical Systems', 'HealthPro'), ['Password Reset']);
+  assert.deepEqual(classificationChoices('issueType', ['Password Reset'], 'Clinical Systems', ''), []);
+});
 const response = body => new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
 test('Assignment and removal save the matching workflow status in the same update', async () => {
   const writes = [];
@@ -243,6 +288,28 @@ test('Ticket creation maps internal columns and rejects a missing description co
   await assert.rejects(service.createTicket({title: ' ', description: '', priority: 'High'}), /issue title/);
   const missing = new GraphTicketService(fakeGraph(), config);
   await assert.rejects(missing.createTicket({title: 'Issue', description: 'Keep this description', priority: 'High'}), /description text column/);
+});
+
+test('Creation options and saves use actual classification columns and assignment status', async () => {
+  const graph = fakeGraph({schema: [...columns,
+    {name: 'Details', displayName: 'Issue description', text: {}},
+    {name: 'field_5', displayName: 'Issue Subcategory', choice: {choices: ['Outlook']}, required: true},
+    {name: 'field_6', displayName: 'Issue Type', choice: {choices: ['Email issue']}},
+    {name: 'Unit', displayName: 'Department / Unit', text: {}}
+  ]});
+  const writes = [];
+  graph.post = async (path, body) => writes.push({path, body});
+  const service = new GraphTicketService(graph, config);
+  const options = await service.getCreationOptions();
+  assert.equal(options.assignment, true);
+  assert.deepEqual(options.fields.find(field => field.key === 'subcategory'), {key: 'subcategory', label: 'Issue subcategory', choices: ['Outlook'], required: true});
+  const input = {title: 'Mail issue', description: 'Cannot send', priority: 'High', category: 'IT', subcategory: 'Outlook', issueType: 'Email issue', department: 'Support', dueDate: '2026-10-20T12:30:00Z', assignedToId: 12};
+  await service.createTicket(input);
+  assert.deepEqual(writes[0].body.fields, {Title: 'Mail issue', State: 'Assigned', Urgency: 'High', Details: 'Cannot send', Area: 'IT', field_5: 'Outlook', field_6: 'Email issue', Unit: 'Support', Deadline: '2026-10-20T12:30:00.000Z', AgentLookupId: '12'});
+  await assert.rejects(service.createTicket({...input, subcategory: ''}), /Enter Issue subcategory/);
+  await assert.rejects(service.createTicket({...input, issueType: 'Not configured'}), /configured Issue/);
+  await assert.rejects(service.createTicket({...input, dueDate: 'invalid'}), /valid expected/);
+  assert.equal(writes.length, 1);
 });
 
 test('Graph creation uses POST once and explains missing write access', async () => {

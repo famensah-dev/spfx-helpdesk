@@ -1,5 +1,7 @@
+import { RichTextEditor, RichTextContent } from './RichTextEditor';
+import { MarkdownContent } from './MarkdownEditor';
 import { cancelButtonStyles } from './cancelButtonStyles';
-import { OrganizationUserPicker } from './OrganizationUserPicker';
+import { FormAssigneePicker } from './FormAssigneePicker';
 import { Label } from '@fluentui/react';
 import * as React from 'react';
 import { DefaultButton, PrimaryButton, Icon, IconButton, Panel, PanelType, TextField, Dropdown, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
@@ -17,13 +19,11 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const [saved, setSaved] = React.useState(false);
   const [title, setTitle] = React.useState(ticket.Title);
   const plainDescription = React.useMemo(() => ticket.Description ? new DOMParser().parseFromString(ticket.Description, 'text/html').body.textContent || '' : '', [ticket.Description]);
-  const [description, setDescription] = React.useState(plainDescription);
+  const [description, setDescription] = React.useState(ticket.Description || '');
   const [priority, setPriority] = React.useState<TicketPriority>(ticket.Priority);
   const [status, setStatus] = React.useState<TicketStatus>(normalizeStatus(ticket.Status));
   const [assignmentMessage, setAssignmentMessage] = React.useState('');
   const [assignmentBusy, setAssignmentBusy] = React.useState(false);
-  const [assignAnchor, setAssignAnchor] = React.useState<HTMLElement | null>(null);
-  const [assignOpen, setAssignOpen] = React.useState(false);
   const [assignedName, setAssignedName] = React.useState(ticket.AssignedTo?.Title || 'Unassigned');
   const [assigned, setAssigned] = React.useState(ticket.AssignedTo?.Id || 0);
   const [comments, setComments] = React.useState<ITicketComment[]>([]);
@@ -70,12 +70,12 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   }, [service, ticket.Id]);
   React.useEffect(() => { heading.current?.focus(); void loadComments(); return () => { commentRequest.current++; }; }, [loadComments]);
   const date = (value?: string | null): string => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString() : 'Not provided';
-  const beginEdit = (): void => { setTitle(ticket.Title); setDescription(plainDescription); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
+  const beginEdit = (): void => { setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
   const save = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault(); if (!service?.updateTicket || lock.current) return;
     lock.current = true; setSaving(true); setError('');
     try {
-      await service.updateTicket(ticket.Id, {title, description: description !== plainDescription ? description : undefined, priority, status, assignedToId: assigned || null});
+      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null});
       setEditing(false); setSaved(true); await props.refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save changes.'); }
     finally { lock.current = false; setSaving(false); }
@@ -122,16 +122,15 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         {editing ? <form ref={descriptionSection as React.RefObject<HTMLFormElement>} className={styles.ticketEditForm} onSubmit={event => { void save(event); }}>
           <div className={styles.detailSectionHeading}><Icon iconName="Edit" /><h3>Edit details</h3></div>
           <TextField label="Issue" required value={title} maxLength={255} disabled={saving} onChange={(_, value) => setTitle(value || '')} />
-          <TextField label="Issue description" multiline rows={7} value={description} disabled={saving} onChange={(_, value) => setDescription(value || '')} />
+          <RichTextEditor value={description} disabled={saving} onChange={setDescription} />
           <div className={styles.detailFormGrid}>
             <Dropdown label="Priority" selectedKey={priority} disabled={saving} options={['Critical', 'High', 'Medium', 'Low'].map(value => ({key: value, text: value}))} onChange={(_, option) => setPriority(option?.key as TicketPriority)} />
             <Dropdown label="Status" selectedKey={status} disabled={saving} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
-            <div><Label htmlFor="edit-ticket-assignee">Assigned to</Label><DefaultButton styles={{ root: { display: 'flex', background: 'transparent', border: 0, minWidth: 0, height: 34, padding: '0 2px', color: '#1b385c' }, rootHovered: { background: 'transparent', color: '#152d50', textDecoration: 'underline' }, rootPressed: { background: 'transparent', color: '#101e32' }, label: { fontSize: 14, fontWeight: 400, margin: 0 } }} id="edit-ticket-assignee" ariaLabel={`Change assignee: ${assignedName}`} text={assignedName} disabled={saving || assignmentBusy} onClick={event => { setAssignAnchor(event.currentTarget as HTMLElement); setAssignOpen(true); }} />{assignmentBusy && <Spinner ariaLabel="Updating assignment" />}</div>
+            <FormAssigneePicker service={service} value={assigned ? { Id: assigned, Title: assignedName } : null} disabled={saving} onBusy={setAssignmentBusy} onChange={person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />
           </div>
-          {assignOpen && assignAnchor && <OrganizationUserPicker onStart={() => { setAssignOpen(false); setAssignmentBusy(true); setAssignmentMessage(''); }} onComplete={message => { setAssignmentBusy(false); if (message) { setAssignmentMessage(''); setError(message); } else setAssignmentMessage('Assignment updated in this form. Save the ticket to keep your changes.'); }} currentUser={assigned ? { Id: assigned, Title: assignedName } : undefined} target={assignAnchor} service={service} onDismiss={() => setAssignOpen(false)} onSelect={async person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />}
           <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form> : <>
-          <section ref={descriptionSection} className={styles.detailSection}><div className={styles.detailSectionHeading}><Icon iconName="AlignLeft" /><h3>Description</h3></div><p className={styles.ticketDescription}>{plainDescription || 'No description has been added to this ticket.'}</p></section>
+          <section ref={descriptionSection} className={styles.detailSection}><div className={styles.detailSectionHeading}><Icon iconName="AlignLeft" /><h3>Description</h3></div><div className={styles.ticketDescription}>{/<\/?(?:p|div|br|strong|b|em|ul|ol|h[234])\b/i.test(ticket.Description || '') ? <RichTextContent value={ticket.Description!} /> : <MarkdownContent value={ticket.Description || 'No description has been added to this ticket.'} />}</div></section>
         </>}
       <section ref={commentsSection} className={styles.ticketComments} aria-label="Ticket comments">
         <form onSubmit={event => { void post(event); }} className={styles.commentComposer}><div className={styles.detailSectionHeading}><Icon iconName="CommentAdd" /><h3>Add a comment</h3></div><div className={styles.commentEditor}><div className={styles.commentFormatBar} aria-label="Comment formatting"><select disabled aria-label="Text style" title="Rich text formatting is not available yet"><option>Normal</option></select>{[{ icon: 'Bold', label: 'Bold' }, { icon: 'Italic', label: 'Italic' }, { icon: 'Underline', label: 'Underline' }, { icon: 'BulletedList', label: 'Bulleted list' }, { icon: 'NumberedList', label: 'Numbered list' }, { icon: 'AlignLeft', label: 'Align left' }, { icon: 'Link', label: 'Insert link' }, { icon: 'Photo2', label: 'Insert image' }].map(item => <IconButton key={item.icon} iconProps={{ iconName: item.icon }} ariaLabel={item.label} title={`${item.label} is not available yet`} disabled />)}</div><TextField ariaLabel="Comment" placeholder="Type your comment here…" multiline rows={4} maxLength={10000} value={comment} disabled={posting || !service?.addComment} onChange={(_, value) => setComment(value || '')} /></div><div className={styles.commentComposerFooter}><button type="button" className={styles.detailAttachButton} disabled title="File attachments are not available yet"><Icon iconName="Attach" />Attach files</button><label className={styles.detailInternalNote} title="Internal notes are not available yet"><input type="checkbox" disabled />Make this an internal note <Icon iconName="Info" /></label><PrimaryButton type="submit" text={posting ? 'Posting…' : 'Post Comment'} iconProps={{iconName: 'Send'}} disabled={posting || commentsLoading || Boolean(commentsError) || !comment.trim() || !service?.addComment} /></div></form>

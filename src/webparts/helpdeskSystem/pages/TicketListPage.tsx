@@ -145,6 +145,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
       setBulkFailed(true); setBulkMessage(reason instanceof Error ? reason.message : 'Unable to update ticket.');
     } finally { bulkLock.current = false; setBulkBusy(false); setSavingCell(null); }
   };
+  if (creating && onCreate) return <NewTicketForm service={service} onDismiss={() => setCreating(false)} onCreate={async input => { await onCreate(input); setCreated(true); void refresh().catch(() => undefined); }} />;
   const detailTicket = tickets.find(ticket => ticket.Id === detailId);
   if (detailTicket) return <TicketDetails key={detailTicket.Id} service={service} refresh={refresh} tickets={tickets} ticket={detailTicket} onBack={() => setDetailId(null)} />;
   return <section className={`${styles.pageContent} ${styles.ticketPage}`} aria-label={title}>
@@ -200,7 +201,6 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         {!columns.some(name => name.toLowerCase().includes(columnSearch.toLowerCase())) && <p>No matching columns.</p>}
       </div>
     </Panel>
-    {creating && onCreate && <NewTicketForm onDismiss={() => setCreating(false)} onCreate={async input => { await onCreate(input); setCreated(true); await refresh(); }} />}
     {loading ? <Spinner label="Loading tickets…" /> : <>
       <div className={styles.tableContainer}><table className={styles.ticketTable}><caption className={styles.ticketCountRow}><div className={styles.ticketCountContent}>{selectedTickets.length > 0 ? <div className={styles.bulkActions} role="group" aria-label="Selected ticket actions">
       <strong aria-live="polite">{selectedTickets.length} selected</strong>

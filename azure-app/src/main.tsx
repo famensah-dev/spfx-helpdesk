@@ -13,7 +13,7 @@ import { AccountMenu } from './AccountMenu';
 initializeIcons();
 const root = document.getElementById('root');
 function Landing(props: { title: string; children: React.ReactNode }): React.ReactElement {
-  return <main className="landing"><section aria-labelledby="auth-title"><div className="auth-brand"><span className="auth-icon" aria-hidden="true"><Icon iconName="Headset" /></span><span>DeskPilot</span></div><h1 id="auth-title">{props.title}</h1>{props.children}</section></main>;
+  return <div className="auth-shell"><header className="auth-header"><div className="auth-header-brand"><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className="auth-header-divider" aria-hidden="true">|</span><span className="auth-header-label">IT Helpdesk</span></div></header><main className="landing"><section aria-labelledby="auth-title"><div className="auth-brand"><span className="auth-icon" aria-hidden="true"><Icon iconName="Headset" /></span><span>DeskPilot</span></div><h1 id="auth-title">{props.title}</h1>{props.children}</section></main></div>;
 }
 function Failure(props: { error: unknown; auth?: MicrosoftAuth }): React.ReactElement {
   const details = props.error instanceof Error ? props.error.message : 'Unable to start DeskPilot.';

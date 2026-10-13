@@ -1,3 +1,5 @@
+import { validateTicketAttachments } from '../../../src/webparts/helpdeskSystem/utils/ticketAttachments';
+import type { INewTicketInput, ITicketCreationOptions } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 import type { ITicketDataSource } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 import type { TicketBulkAction, ITicketBulkResult, ITicketEdit, ITicketComment, ITicketVersion } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 import type { ITicketQueryResult } from '../../../src/webparts/helpdeskSystem/interfaces/IDashboard';
@@ -7,13 +9,14 @@ import { GraphClient } from './GraphClient';
 import type { IOrganizationUser } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
-interface IGraphColumn { name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; }
+interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; }
 interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
 const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
 const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Critical'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
+  private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; key: string; content: string };
@@ -128,7 +131,37 @@ export class GraphTicketService implements ITicketDataSource {
     }
     return result;
   }
-  public async createTicket(input: { title: string; description: string; priority: string }): Promise<void> {
+  public async getCreationOptions(): Promise<ITicketCreationOptions> {
+    if (!this.creationSchema) await this.getTickets();
+    if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
+    return { priorities: this.creationSchema.choices, description: Boolean(this.creationSchema.description), assignment: Boolean(this.updateSchema?.choices.includes('Assigned')), fields: this.creationFields.map(field => ({ key: field.key, label: field.label, choices: field.column.choice?.choices, required: field.column.required })) };
+  }
+  public async uploadAttachments(id: number, files: File[]): Promise<void> {
+    validateTicketAttachments(files);
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
+    if (!this.context) await this.getTickets();
+    if (!this.getSharePointToken) throw new Error('SharePoint attachment uploads are not configured.');
+    const token = await this.getSharePointToken();
+    const base = `${this.config.siteUrl}/_api/web/lists(guid'${encodeURIComponent(this.context!.listId)}')/items(${id})/AttachmentFiles`;
+    const existing = await fetch(base, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;odata=nometadata' }, signal: AbortSignal.timeout(30000) });
+    if (!existing.ok) throw new Error(`Unable to check ticket #${id} attachments (${existing.status}).`);
+    const data = await existing.json() as { value: Array<{ FileName: string }> };
+    const names = new Set(data.value.map(file => file.FileName.toLowerCase()));
+    if (names.size + files.filter(file => !names.has(file.name.toLowerCase())).length > 10) throw new Error('This ticket would exceed the 10-file limit.');
+    for (const file of files) {
+      // On retry, do not duplicate files already accepted by SharePoint.
+      if (names.has(file.name.toLowerCase())) continue;
+      const name = encodeURIComponent(file.name.replace(/'/g, "''")).replace(/'/g, '%27');
+      const response = await fetch(`${base}/add(FileName='${name}')`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;odata=nometadata', 'Content-Type': 'application/octet-stream' }, body: file, signal: AbortSignal.timeout(60000) });
+      if (!response.ok) throw new Error(`Unable to upload ${file.name} (${response.status}). Confirm list attachments are enabled and your account can edit the ticket.`);
+    }
+  }
+  public async createTicket(input: INewTicketInput): Promise<void> {
+    validateTicketAttachments(input.attachments || []);
+    if (input.attachments?.length) {
+      if (!this.getSharePointToken) throw new Error('SharePoint attachment uploads are not configured.');
+      await this.getSharePointToken();
+    }
     if (!this.creationSchema) await this.getTickets();
     const schema = this.creationSchema;
     if (!schema) throw new Error('Configure New as a Status choice in the SharePoint list before creating tickets.');
@@ -137,7 +170,30 @@ export class GraphTicketService implements ITicketDataSource {
     if (input.description.trim() && !schema.description) throw new Error('Add an Issue description text column to the list to save a description.');
     const fields: Record<string, string> = { [schema.title]: input.title.trim(), [schema.status]: 'New', [schema.priority]: input.priority };
     if (schema.description) fields[schema.description] = input.description.trim();
-    await this.graph.post(`${schema.path}/items`, { fields });
+    for (const field of this.creationFields) {
+      const value = input[field.key]?.trim();
+      if (!value) { if (field.column.required) throw new Error(`Enter ${field.label}.`); continue; }
+      if (field.column.choice && !field.column.choice.choices.includes(value)) throw new Error(`Select a configured ${field.label} value.`);
+      if (field.key === 'dueDate' && !Number.isFinite(new Date(value).getTime())) throw new Error('Enter a valid expected resolution date.');
+      fields[field.column.name] = field.key === 'dueDate' ? new Date(value).toISOString() : value;
+    }
+    if (input.assignedToId != null) {
+      if (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0) throw new Error('Select a valid SharePoint person.');
+      if (!this.updateSchema?.choices.includes('Assigned')) throw new Error('Add Assigned to the Status choices before assigning a new ticket.');
+      fields[`${this.updateSchema.assigned}LookupId`] = String(input.assignedToId);
+      fields[schema.status] = 'Assigned';
+    }
+    const created = await this.graph.post<{ id: string }>(`${schema.path}/items`, { fields });
+    if (input.attachments?.length) {
+      const id = Number(created?.id);
+      if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Ticket creation returned no valid ID. Refresh the ticket list before trying again.');
+      try { await this.uploadAttachments(id, input.attachments); }
+      catch (reason) {
+        const error = new Error(`Ticket #${id} was created, but some attachments could not be uploaded. ${reason instanceof Error ? reason.message : 'Upload failed.'}`) as Error & { createdTicketId: number };
+        error.createdTicketId = id;
+        throw error;
+      }
+    }
   }
   public async getTickets(): Promise<ITicketQueryResult> {
     const url = new URL(this.config.siteUrl);
@@ -182,6 +238,13 @@ export class GraphTicketService implements ITicketDataSource {
     const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
     const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
     const resolutionSummary = optionalDisplay(['Resolution Summary'], ['text']);
+    this.creationFields = [
+      { key: 'category' as const, label: 'Issue category', column: category },
+      { key: 'subcategory' as const, label: 'Issue subcategory', column: subcategory },
+      { key: 'issueType' as const, label: 'Issue / Request', column: issueType },
+      { key: 'department' as const, label: 'Department / Unit', column: department },
+      { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
+    ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
     const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, due, escalated, archived, subcategory, issueType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();

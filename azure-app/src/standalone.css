@@ -3,6 +3,14 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #fcfcfc; color: #
 #root > div { min-height: 100vh; }
 button { cursor: pointer; font-family: inherit; }
 button:focus-visible { outline: 2px solid #337fe5; outline-offset: 3px; }
+.auth-shell { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; }
+.auth-header { box-sizing: border-box; min-height: 64px; padding: 18px 16px; display: flex; align-items: center; background: #101e32; color: #fff; }
+.auth-header-brand { display: flex; align-items: center; gap: 12px; font-size: 18px; }
+.auth-header-brand i { font-size: 21px; }
+.auth-header-brand strong { font-weight: 600; }
+.auth-header-divider { color: #9aaac0; }
+.auth-header-label { font-size: 12px; color: #9aaac0; }
+.auth-shell .landing { flex: 1; min-height: calc(100vh - 64px); min-height: calc(100dvh - 64px); }
 .auth-loading-dots { position: relative; width: 100%; margin-top: 18px; height: 12px; overflow: hidden; }
 .auth-loading-dots span { position: absolute; top: 3px; left: 0; width: 6px; height: 6px; border-radius: 50%; background: #1b385c; opacity: 0; animation: auth-dot-travel 1.8s cubic-bezier(.12,.65,.3,1) infinite; }
 .auth-loading-dots span:nth-child(2) { animation-delay: .12s; }
@@ -29,5 +37,5 @@ button:focus-visible { outline: 2px solid #337fe5; outline-offset: 3px; }
 .account { display: flex; align-items: center; gap: 12px; color: white; font-size: 12px; }
 .account button { border: 1px solid #8593a6; background: transparent; border-radius: 2px; color: white; padding: 6px 12px; }
 .account button.account-avatar { border-radius: 50%; width: 36px; height: 36px; min-width: 36px; padding: 0; flex-shrink: 0; overflow: hidden; background: transparent; color: #fff; }
-.account-menu-email { padding: 12px 14px; white-space: normal; overflow-wrap: anywhere; color: #59677c; line-height: 1.5; border-bottom: 1px solid #e9edf4; font-size: 12px; }
+.account-menu-email { padding: 12px 14px; white-space: normal; overflow-wrap: anywhere; color: #172536; line-height: 1.5; border-bottom: 1px solid #e9edf4; font-size: 12px; }
 @media (max-width: 620px) { .account > span { display: none; } .landing section { padding: 24px; } }
