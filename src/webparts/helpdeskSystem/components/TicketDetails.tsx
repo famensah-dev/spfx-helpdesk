@@ -5,7 +5,7 @@ import type { ITicketDataSource, ITicketComment, ITicketVersion } from '../inter
 import { ticketStatuses, normalizeStatus } from '../utils/ticketStatuses';
 import styles from './HelpdeskSystem.module.scss';
 
-export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; service?: ITicketDataSource; refresh: () => Promise<void>; onBack: () => void }): React.ReactElement {
+export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; service?: ITicketDataSource; refresh: () => Promise<void>; onBack: () => void; backLabel?: string }): React.ReactElement {
   const { ticket, service } = props;
   const heading = React.useRef<HTMLHeadingElement>(null);
   const [editing, setEditing] = React.useState(false);
@@ -83,7 +83,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const initials = (name: string): string => name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
   return <section className={`${styles.pageContent} ${styles.detailWorkspace}`} aria-label={`Ticket #${ticket.Id} details`}>
     <div className={styles.detailToolbar}>
-      <div className={styles.detailToolbarTitle}><DefaultButton text="Back to Tickets" iconProps={{ iconName: 'Back' }} disabled={saving || posting} onClick={props.onBack} /><h2 className={styles.srOnly} ref={heading} tabIndex={-1}>Ticket #{ticket.Id}</h2></div>
+      <div className={styles.detailToolbarTitle}><DefaultButton text={props.backLabel || 'Back to Tickets'} iconProps={{ iconName: 'Back' }} disabled={saving || posting} onClick={props.onBack} /><h2 className={styles.srOnly} ref={heading} tabIndex={-1}>Ticket #{ticket.Id}</h2></div>
       <div className={styles.detailTopActions}>{!editing ? <PrimaryButton text="Edit Ticket" iconProps={{ iconName: 'Edit' }} disabled={!service?.updateTicket} onClick={beginEdit} /> : <span className={styles.editingIndicator}>Editing ticket</span>}<IconButton iconProps={{ iconName: 'History' }} title="Issue history" ariaLabel="Open issue history" onClick={() => setHistoryOpen(true)} /></div>
     </div>
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}

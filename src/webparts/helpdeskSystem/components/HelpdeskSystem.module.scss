@@ -17,6 +17,19 @@
   .activeNav { border-bottom-color: #1b385c; font-weight: 600; }
 }
 .mainContent { width: 100%; min-width: 0; padding: 0 0 20px; }
+.helpdeskSystemShell :global(.ms-MessageBar) {
+  border: 0;
+  border-bottom: 1px solid #c3d6f5;
+  border-radius: 0;
+  box-sizing: border-box;
+  &:global(.ms-MessageBar--warning) { border-color: #eed49a; }
+  &:global(.ms-MessageBar--success) { border-color: #b9ddbe; }
+  &:global(.ms-MessageBar--error), &:global(.ms-MessageBar--blocked) { border-color: #edbec2; }
+  &:global(.ms-MessageBar--severeWarning) { border-color: #f0c2ab; }
+}
+.helpdeskSystemShell :global(.ms-MessageBar-dismissal.ms-Button) {
+  &, &:hover, &:active, &:focus, &:disabled { background: transparent; }
+}
 .pageContent { border: 1px solid var(--hd-line); border-radius: 2px; padding: 16px; background: var(--hd-canvas); display: grid; gap: 15px; }
 .pageHeading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
   h2 { margin: 0; font-size: 21px; line-height: 1.5; font-weight: 600; }
@@ -102,7 +115,7 @@
 // Soft surfaces and royal blue controls across dashboard and ticket views.
 .mainContent { padding: 20px; }
 .pageContent { border: 0; border-radius: 2px; padding: 22px; background: var(--hd-surface); gap: 20px; box-shadow: 0 3px 18px rgba(36, 32, 67, .035); }
-.pageHeading h2 { font-size: 16px; letter-spacing: 0; overflow-wrap: anywhere; min-width: 0; }
+.pageHeading h2 { font-size: 16px; color: #101828; letter-spacing: 0; overflow-wrap: anywhere; min-width: 0; }
 .navigation { padding: 10px 20px; gap: 6px; border-bottom: 1px solid var(--hd-line);
   button { border-radius: 2px; border-bottom: 0; padding: 10px 14px; background: #fff; color: #244a91; &:hover { background: #dce7fc; color: #244a91; } }
   .activeNav { background: #1b385c; color: #fff; box-shadow: none; &:hover { background: #1b385c; color: #fff; } }
@@ -143,7 +156,7 @@
   .activeNav { background: #1b385c; color: #fff; &:hover:not(:disabled) { background: #1b385c; color: #fff; } }
   button:disabled { background: #f5f5f8; color: #9297a5; }
 }
-.toolbarTitle { margin: 0 16px 0 0; font-size: 16px; font-weight: 600; line-height: 1.5; align-self: center; }
+.toolbarTitle { margin: 0 36px 0 0; font-size: 16px; font-weight: 600; line-height: 1.5; align-self: center; }
 .ticketActions { gap: 6px; > button { background: transparent; border: 0; border-radius: 2px; color: #244a91; &:hover:not(:disabled), &:active:not(:disabled), &[aria-expanded='true'] { background: transparent; border: 0; color: #1b385c; } &:disabled { background: transparent; color: #9297a5; border: 0; } } }
 .ticketControls select { background: #edf3ff; border-color: #d6e1f4; border-radius: 2px; color: #244a91; }
 .ticketCounts button { background: #f3f6fc; border-radius: 2px; &[data-active='true'] { background: #eaf0ff; color: #244a91; box-shadow: inset 0 -2px #2855b6; } &:hover { background: #e1eafa; } }
@@ -164,6 +177,20 @@
 // Compact vertical rhythm while retaining comfortable horizontal spacing.
 .pageContent { padding-top: 16px; padding-bottom: 16px; gap: 14px; }
 .mainContent { padding-top: 6px; padding-bottom: 14px; }
+.mainContent { --page-inset: 20px; }
+.pageAlerts { min-width: 0; }
+.analyticsDashboard > .pageAlerts { margin: -16px calc(-1 * (var(--page-inset) + 4px)) 0; }
+.ticketPage > .pageAlerts { margin: -14px -22px 0; }
+.mainContent > :global(.ms-MessageBar) { width: calc(100% + 2 * var(--page-inset)); margin: 0 calc(-1 * var(--page-inset)); }
+.mainContent > :global(.ms-MessageBar):first-child { margin-top: -6px; }
+.mainContent > :global(.ms-MessageBar) + .analyticsDashboard > .pageAlerts { margin-top: -10px; }
+@media (max-width: 620px) {
+  .mainContent { --page-inset: 12px; }
+  .ticketPage > .pageAlerts { margin-right: -14px; margin-left: -14px; }
+}
+@media (max-width: 560px) {
+  .analyticsDashboard > .pageAlerts { margin-right: calc(-1 * (var(--page-inset) + 8px)); margin-left: calc(-1 * (var(--page-inset) + 8px)); }
+}
 .navigation { padding-top: 6px; padding-bottom: 6px; min-height: 40px;
   button { padding-top: 8px; padding-bottom: 8px; }
 }
@@ -195,7 +222,7 @@
   input { width: 15px; height: 15px; vertical-align: middle; accent-color: #1b385c; cursor: pointer; }
 }
 .ticketTable tbody tr[data-selected='true'] { background: #edf3ff; }
-.ticketSubjectLink { border: 0; background: transparent; color: #172536; font-weight: 600; text-align: left; padding: 0; font-size: inherit; cursor: pointer; &:hover { text-decoration: underline; } }
+.ticketSubjectLink { border: 0; background: transparent; color: #172536; font-weight: 600; text-align: left; padding: 0; font-size: 13px; cursor: pointer; &:hover { text-decoration: underline; } }
 .ticketDetailLayout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, 1fr); gap: 24px; min-height: 380px; }
 .ticketDetailBody { min-width: 0; h2 { margin: 0 0 12px; font-size: 22px; overflow-wrap: anywhere; } h3 { font-size: 14px; margin: 24px 0 8px; } }
 .ticketDetailBadges { display: flex; align-items: center; gap: 16px; }
@@ -443,6 +470,123 @@
 .ticketTable .priorityLabel { font-size: 13px; font-weight: 400; }
 .ticketTable .statusPill { font-size: 12px; }
 .ticketTable .inlineAssignee :global(.ms-Button-label) { font-size: 13px; }
+.ticketAssigneeLabel { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.ticketTable td.ticketDateCell { font-size: 13px; }
+.ticketAssigneeLabel .personInitials { width: 24px; height: 24px; font-size: 10px; }
+
+.dashboardCanvas { --hd-canvas: #f5f9ff; }
+.analyticsDashboard { display: grid; gap: 12px; padding: 10px 4px 4px; color: #182b49; background: transparent; min-width: 0; }
+.dashboardTitle, .pageHeading h2, .detailToolbarTitle h2 { margin-right: 36px; }
+.dashboardTopRow { display: flex; justify-content: space-between; align-items: center; gap: 18px; flex-wrap: wrap; }
+.dashboardTitle { h2 { margin: 0; font-size: 16px; font-weight: 600; color: #101828; line-height: 1.3; } p { margin: 3px 0 0; font-size: 12px; color: #647694; } }
+.dashboardTopFilters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  > :global(.ms-Dropdown-container) { width: 170px; }
+  > :global(.ms-Button--icon) { width: 30px; height: 32px; background: transparent; color: #526e93; }
+}
+.dashboardDateRange:global(.ms-Button) { min-height: 34px; background: #fff; border: 1px solid #dce5f1; border-radius: 4px; color: #293d58; padding: 0 10px;
+  :global(.ms-Button-label) { font-size: 12px; font-weight: 400; }
+  :global(.ms-Button-icon) { font-size: 13px; color: #7186a6; }
+  :global(.ms-Button-menuIcon) { font-size: 12px; }
+  &:hover { background: #f1f6fd; border-color: #b9cce4; }
+}
+.dashboardAdvancedFilters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; background: #fff; padding: 10px 12px; border: 1px solid #e7eef7; border-radius: 4px;
+  :global(.ms-Label) { font-size: 12px; color: #526580; font-weight: 500; }
+}
+.dashboardFilterSummary { justify-self: start; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #dce5f1; background: #fff; border-radius: 4px; color: #415f88; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+.dashboardSummaryCards { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; }
+.dashboardSummaryCard { display: flex; gap: 12px; align-items: flex-start; padding: 16px 12px 12px; min-width: 0; min-height: 108px; background: #fff; border: 1px solid #eef3fa; border-radius: 5px; box-shadow: 0 2px 9px #22477903;
+  > div { min-width: 0; }
+}
+.dashboardMetricIcon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 7px; box-shadow: inset 0 2px 5px #ffffff35; color: #fff; flex-shrink: 0; i { font-size: 19px; } }
+.dashboardMetricValue { display: block; font-size: 25px; font-weight: 500; line-height: 1.1; letter-spacing: -.4px; }
+.dashboardMetricLabel { display: block; font-size: 13px; margin-top: 3px; color: #4b5f7f; line-height: 1.3; }
+.dashboardComparison { display: grid; gap: 1px; margin-top: 9px; color: #657b9d; min-height: 29px;
+  > span { font-size: 12px; font-weight: 600; }
+  small { font-size: 12px; color: #7384a1; line-height: 1.3; }
+  &[data-direction='good'] > span { color: #18a875; }
+  &[data-direction='bad'] > span { color: #e45b55; }
+}
+.dashboardChartsGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.dashboardChartCard { background: #fff; border: 1px solid #eef3fa; border-radius: 5px; padding: 13px 14px 12px; min-width: 0; box-shadow: 0 2px 9px #22477903; display: flex; flex-direction: column; }
+.dashboardCardHeading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; min-height: 18px;
+  h3 { margin: 0; font-size: 15px; font-weight: 500; color: #1c2b45; line-height: 1.35; }
+}
+.dashboardCanvas { position: relative; width: 100%; height: 220px; min-width: 0; }
+.dashboardStatusChart { display: flex; align-items: center; gap: 16px; min-height: 220px; }
+.dashboardDonut { position: relative; flex: 1; min-width: 0; height: 176px;
+  > div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; strong { font-size: 24px; font-weight: 650; line-height: 1.3; } span { font-size: 13px; color: #526580; } }
+}
+.dashboardStatusLegend { list-style: none; padding: 0; margin: 0; flex: 1; min-width: 138px; display: grid; gap: 10px;
+  li { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #4b5f7f; }
+  li > span:first-child { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  strong { margin-left: auto; font-weight: 600; color: #243958; white-space: nowrap; small { font-size: 12px; color: #6e809b; font-weight: 400; } }
+}
+.dashboardBars { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; align-content: start; min-height: 220px;
+  li { display: grid; grid-template-columns: minmax(72px, 42%) minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; min-height: 15px; }
+  strong { font-size: 13px; font-weight: 500; min-width: 18px; white-space: nowrap; }
+}
+.dashboardBarLabel { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #526580; }
+.dashboardBarTrack { height: 16px; min-width: 0; display: flex; align-items: stretch;
+  > span { display: block; min-width: 0; box-shadow: inset 0 3px 6px #ffffff20; }
+}
+.dashboardChartEmpty { min-height: 160px; display: grid; align-content: center; text-align: center; font-size: 12px; color: #7686a0; padding: 18px; }
+.dashboardChartNote { font-size: 12px; line-height: 1.4; color: #7b8ba4; margin: 8px 0 0; }
+.dashboardTrendLegend { display: flex; gap: 10px; font-size: 12px; color: #647694; flex-shrink: 0;
+  span { display: inline-flex; align-items: center; gap: 5px; }
+  i { width: 7px; height: 7px; border-radius: 50%; }
+}
+.dashboardTrendCard { grid-column: span 2; }
+.dashboardRecentCard { grid-column: 1 / -1; }
+.dashboardAgingCard {
+  .dashboardBars li { grid-template-columns: 76px minmax(0, 1fr) auto; }
+  .dashboardBarLabel { text-align: left; }
+}
+.dashboardTextLink { padding: 0; border: 0; background: transparent; color: #2d88ff; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; &:hover { text-decoration: underline; } }
+.dashboardRecentScroll { overflow-x: auto; }
+.dashboardRecentTable { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;
+  th { background: #f1f5fd; font-size: 12px; font-weight: 600; color: #243958; white-space: nowrap; padding: 9px 10px; }
+  td { padding: 9px 10px; border-bottom: 1px solid #f0f3f9; color: #526580; }
+  tbody tr:last-child td { border-bottom: 0; }
+  td:nth-child(2) { max-width: 360px; min-width: 180px; }
+  td:nth-child(3) { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  td:first-child, td:last-child { white-space: nowrap; }
+  button { display: block; width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; padding: 0; font-size: 13px; color: #293d58; cursor: pointer; font-weight: 500; &:hover { color: #2d88ff; text-decoration: underline; } }
+  .statusPill { padding: 2px 8px; font-size: 12px; font-weight: 500; }
+}
+.dashboardPriorityBadge { display: inline-block; border-radius: 99px; padding: 2px 8px; font-size: 12px; white-space: nowrap; background: #edf3fc; color: #526580;
+  &[data-priority='Low'] { background: #dff6eb; color: #16875a; }
+  &[data-priority='Medium'] { background: #fff0bf; color: #946700; }
+  &[data-priority='High'] { background: #ffe6d5; color: #b85510; }
+  &[data-priority='Critical'] { background: #ffe2e6; color: #c3364a; }
+}
+@media (max-width: 1200px) {
+  .dashboardSummaryCards { gap: 8px; }
+  .dashboardSummaryCard { padding: 13px 9px 10px; gap: 8px; }
+  .dashboardMetricIcon { width: 30px; height: 30px; i { font-size: 17px; } }
+  .dashboardMetricValue { font-size: 22px; }
+  .dashboardStatusChart { gap: 8px; }
+  .dashboardStatusLegend { min-width: 122px; gap: 9px; li { font-size: 12px; gap: 4px; } }
+  .dashboardDonut { height: 150px; }
+
+}
+@media (max-width: 900px) {
+  .dashboardSummaryCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboardChartsGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboardAdvancedFilters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboardCardHeading { flex-wrap: wrap; }
+}
+@media (max-width: 560px) {
+  .analyticsDashboard { padding: 10px 8px; }
+  .dashboardTopFilters { width: 100%; > :global(.ms-Dropdown-container) { flex: 1; min-width: 130px; } }
+  .dashboardDateRange:global(.ms-Button) { width: 100%; }
+  .dashboardSummaryCards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboardChartsGrid { grid-template-columns: minmax(0, 1fr); }
+  .dashboardTrendCard { grid-column: 1 / -1; }
+
+  .dashboardDonut { height: 180px; }
+
+  .dashboardAdvancedFilters { grid-template-columns: minmax(0, 1fr); }
+}
 .rowEditMenu { min-width: 130px; max-width: 240px;
   :global(.ms-ContextualMenu-list) { padding: 3px; }
   :global(.ms-ContextualMenu-link) { height: 26px; line-height: 26px; padding: 0 8px; border-radius: 3px; }

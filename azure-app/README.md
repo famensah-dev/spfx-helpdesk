@@ -39,13 +39,22 @@ Add **delegated Microsoft Graph** permissions:
 - `User.Read` for the current user's profile.
 - `Sites.Selected` for the chosen SharePoint site.
 
-Obtain the required admin consent. Sites.Selected alone grants no site access: an administrator must also grant this application **Read** access to the IT helpdesk site. The signed-in user must independently have access to the site and list. For delegated requests, application grants and user permissions both apply.
+Obtain the required admin consent. Sites.Selected alone grants no site access: an administrator must also grant this application **Write** access to the IT helpdesk site. The signed-in user must independently have access to the site and list. For delegated requests, application grants and user permissions both apply.
 
 An administrator can create the site grant using their existing PnP administration connection:
 
 ```powershell
-Grant-PnPEntraIDAppSitePermission -AppId '<DeskPilot-client-id>' -DisplayName 'DeskPilot' -Permissions Read -Site 'https://archwaysdigitalgh.sharepoint.com/sites/ithelpdesk'
+Grant-PnPEntraIDAppSitePermission -AppId '<DeskPilot-client-id>' -DisplayName 'DeskPilot' -Permissions Write -Site 'https://archwaysdigitalgh.sharepoint.com/sites/ithelpdesk'
 ```
+
+For an existing Read grant, inspect and update the grant rather than creating another one:
+
+```powershell
+Get-PnPEntraIDAppSitePermission -AppIdentity '<DeskPilot-client-id>' -Site '<configured-site-url>'
+Set-PnPEntraIDAppSitePermission -PermissionId '<permission-id-from-the-previous-command>' -Permissions Write -Site '<configured-site-url>'
+```
+
+Use an authenticated PnP administration connection. The client ID and site URL must match azure-app/.env.local. The signed-in DeskPilot user also needs permission to add and edit items on the configured list. Sign out and back into DeskPilot after updating the grant, then verify creation and editing.
 
 The administration tooling needs its own elevated consent; do not add Sites.FullControl.All to the DeskPilot SPA. As a separately approved alternative, the adapter supports delegated Sites.Read.All: change VITE_GRAPH_SITE_SCOPE accordingly and consent that broader scope. It is not enabled automatically.
 

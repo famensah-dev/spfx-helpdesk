@@ -80,3 +80,43 @@ assert.equal(todayRange.end, localTime(2026, 0, 2));
 assert.deepEqual(getTicketDateRange('month', new Date(2024, 1, 29)), {start: localTime(2024, 1, 1), end: localTime(2024, 2, 1)});
 assert.deepEqual(getTicketDateRange('all', reference), {start: -Infinity, end: Infinity});
 console.log('Ticket date ranges passed: calendar boundaries, year rollover, leap month and inclusive final days.');
+
+const analyticsModule = {exports: {}};
+const analyticsSource = fs.readFileSync('src/webparts/helpdeskSystem/utils/dashboardAnalytics.ts', 'utf8');
+new Function('exports', 'require', 'module', ts.transpileModule(analyticsSource, {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText)(analyticsModule.exports, dashboardRequire, analyticsModule);
+const {groupTicketCounts, averageResolutionDays, getResolutionByCategory, getOpenTicketAging, getMonthlyTicketTrend, getTicketTrend, getPreviousPeriod} = analyticsModule.exports;
+const analyticsTickets = [
+  {...base, Id: 201, Created: '2026-01-01T00:00:00Z', ResolvedAt: '2026-01-03T00:00:00Z', Status: 'Resolved', Category: 'Hardware', Department: 'IT', IssueType: 'Repair'},
+  {...base, Id: 202, Created: '2026-01-02T00:00:00Z', ResolvedAt: '2026-01-06T00:00:00Z', Status: 'Closed', Category: 'Hardware', Department: 'IT'},
+  {...base, Id: 203, Created: '2026-01-03T00:00:00Z', ResolvedAt: '2026-01-01T00:00:00Z', Status: 'Resolved', Category: 'Software'},
+  {...base, Id: 204, Created: '2026-01-04T00:00:00Z', ResolvedAt: null, Modified: '2026-01-10T00:00:00Z', Status: 'Completed'}
+];
+assert.equal(averageResolutionDays(analyticsTickets), 3);
+assert.equal(averageResolutionDays([analyticsTickets[3]]), null);
+assert.deepEqual(getResolutionByCategory(analyticsTickets), [{label: 'Hardware', value: 3}]);
+assert.deepEqual(groupTicketCounts(analyticsTickets, 'Department'), [{label: 'IT', value: 2}, {label: 'Not specified', value: 2}]);
+const groupedMany = groupTicketCounts(Array.from({length: 12}, (_, i) => ({...base, Category: `Group ${i}`})), 'Category');
+assert.equal(groupedMany.length, 9);
+assert.equal(groupedMany.reduce((sum, row) => sum + row.value, 0), 12);
+const agingNow = new Date('2026-10-12T12:00:00Z');
+const agingTickets = [0.5, 1, 3.9, 4, 7.9, 8, 14.9, 15].map((age, Id) => ({...base, Id, Status: 'Assigned', Created: new Date(agingNow.getTime() - age * 86400000).toISOString()}));
+agingTickets.push({...base, Status: 'Resolved', Created: '2026-01-01T00:00:00Z'}, {...base, Status: 'New', Created: 'invalid'});
+assert.deepEqual(getOpenTicketAging(agingTickets, agingNow).map(row => row.value), [1, 2, 2, 2, 1]);
+const monthly = getMonthlyTicketTrend(analyticsTickets, new Date(2026, 1, 28), new Date(2026, 0, 1));
+assert.equal(monthly.labels.length, 2);
+assert.deepEqual(monthly.created, [4, 0]);
+assert.deepEqual(monthly.resolved, [2, 0]);
+assert.equal(getMonthlyTicketTrend([], new Date(2026, 0, 1)).labels.length, 12);
+const daily = getTicketTrend(analyticsTickets, new Date(2026, 0, 6), new Date(2026, 0, 1));
+assert.equal(daily.title, 'Daily Ticket Trend');
+assert.deepEqual(daily.created, [1, 1, 1, 1, 0, 0]);
+assert.deepEqual(daily.resolved, [0, 0, 1, 0, 0, 1]);
+assert.equal(getPreviousPeriod({}), null);
+const previousMonth = getPreviousPeriod({startDate: new Date(2024, 2, 1), endDate: new Date(2024, 2, 31), status: 'Assigned'});
+assert.equal(previousMonth.startDate.getTime(), localTime(2024, 1, 1));
+assert.equal(previousMonth.endDate.getTime(), localTime(2024, 1, 29));
+assert.equal(previousMonth.status, 'Assigned');
+const previousWeek = getPreviousPeriod({startDate: new Date(2026, 0, 1), endDate: new Date(2026, 0, 7)});
+assert.equal(previousWeek.startDate.getTime(), localTime(2025, 11, 25));
+assert.equal(previousWeek.endDate.getTime(), localTime(2025, 11, 31));
+console.log('Dashboard analytics passed: grouped totals, valid resolution durations, aging boundaries, monthly series, previous periods and leap years.');
