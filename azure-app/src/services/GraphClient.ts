@@ -9,7 +9,8 @@ export class GraphClient {
   public async patch<T>(path: string, body: unknown): Promise<T> {
     return this.write<T>(path, body, 'PATCH');
   }
-  private async write<T>(path: string, body: unknown, method: 'POST' | 'PATCH'): Promise<T> {
+  public async delete(path: string): Promise<void> { await this.write(path, undefined, 'DELETE'); }
+  private async write<T>(path: string, body: unknown, method: 'POST' | 'PATCH' | 'DELETE'): Promise<T> {
     const url = new URL(path.startsWith('/') ? `https://graph.microsoft.com/v1.0${path}` : path);
     if (url.origin !== 'https://graph.microsoft.com' || !url.pathname.startsWith('/v1.0/')) throw new Error('Refusing to send a Microsoft 365 token to an unexpected API address.');
     const token = await this.getToken();
@@ -25,7 +26,7 @@ export class GraphClient {
         const hint = response.status === 403 ? ' Check that the write grant targets this DeskPilot client ID and site, and that your signed-in account can add list items. A read-only grant must change from read to write.' : '';
         throw new Error(`Ticket ${method === 'POST' ? 'creation' : 'update'} failed (${response.status}${detail.error?.code ? ` / ${detail.error.code}` : ''}): ${reason}.${hint}${requestId ? ` Request ID: ${requestId}` : ''}`);
       }
-      return await response.json() as T;
+      return response.status === 204 ? undefined as T : await response.json() as T;
     } catch (error) {
       if (error instanceof Error && (error.name === 'AbortError' || error instanceof TypeError)) throw new Error('The save result could not be confirmed. Refresh the ticket list before trying again to avoid a duplicate ticket.');
       throw error;

@@ -8,12 +8,172 @@ function load(relative) {
   const source = fs.readFileSync(new URL(relative, import.meta.url), 'utf8');
   const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020}}).outputText;
   const module = {exports: {}};
-  const localRequire = name => name.endsWith('/ticketAttachments') ? load('../../src/webparts/helpdeskSystem/utils/ticketAttachments.ts') : require(name);
+  const localRequire = name => name.endsWith('/ticketAttachments') ? load('../../src/webparts/helpdeskSystem/utils/ticketAttachments.ts') : name.endsWith('/GraphClassificationService') ? load('../src/services/GraphClassificationService.ts') : require(name);
   new Function('exports', 'require', 'module', compiled)(module.exports, localRequire, module);
   return module.exports;
 }
 const {GraphClient} = load('../src/services/GraphClient.ts');
 const {GraphTicketService} = load('../src/services/GraphTicketService.ts');
+const {loadClassification} = load('../src/services/GraphClassificationService.ts');
+test('Issue Type takes precedence over legacy Issue / Request and saves its actual internal name', async () => {
+  const graph = fakeGraph({schema: [...columns,
+    {name: 'OldRequest', displayName: 'Issue / Request', text: {}},
+    {name: 'field_6', displayName: 'Issue Type', text: {}}
+  ]});
+  const writes = [];
+  graph.post = async (path, body) => { writes.push(body.fields); return {id: '42'}; };
+  graph.patch = async (path, fields) => writes.push(fields);
+  const service = new GraphTicketService(graph, config);
+  const options = await service.getCreationOptions();
+  assert.equal(options.fields.find(field => field.key === 'issueType').label, 'Issue Type');
+  await service.createTicket({title: 'Issue', description: '', priority: 'High', issueType: '3'});
+  await service.updateTicket(7, {title: 'Issue', priority: 'High', status: 'New', assignedToId: null, issueType: '3'});
+  assert.equal(writes[0].field_6, 'Email issue');
+  assert.equal(writes[1].field_6, 'Email issue');
+  assert.equal(writes[0].OldRequest, undefined);
+  assert.equal(writes[1].OldRequest, undefined);
+});
+test('Classification lists validate lookup targets and omit inactive categories and subcategories while retaining independent issue types', async () => {
+  const graph = fakeGraph();
+  const lists = await graph.getAll('/lists?');
+  const taxonomy = await loadClassification(graph, '/sites/site-id', lists);
+  assert.deepEqual(taxonomy.subcategories, [{id: '2', name: 'Outlook', parentId: '1'}]);
+  const original = graph.getAll;
+  graph.getAll = async path => {
+    const values = await original(path);
+    if (path.includes('/cat-id/items')) return values.map(item => ({...item, fields: {...item.fields, Active: false}}));
+    return values;
+  };
+  const inactive = await loadClassification(graph, '/sites/site-id', lists);
+  assert.equal(inactive.categories.length, 0);
+  assert.equal(inactive.subcategories.length, 0);
+  assert.equal(inactive.issueTypes.length, 1);
+  graph.getAll = async path => {
+    const values = await original(path);
+    if (path.includes('/sub-id/columns')) return values.map(item => item.lookup ? {...item, lookup: {listId: 'wrong-list'}} : item);
+    return values;
+  };
+  await assert.rejects(loadClassification(graph, '/sites/site-id', lists), /correct parent list/);
+});
+test('Classification lookup ticket columns save numeric source IDs on creation and editing', async () => {
+  const graph = fakeGraph({schema: columns.map(column => column.name === 'Area' ? {name: 'Area', displayName: 'Issue Category', lookup: {listId: 'cat-id'}} : column).concat([
+    {name: 'Sub', displayName: 'Issue Subcategory', lookup: {listId: 'sub-id'}},
+    {name: 'Request', displayName: 'Issue Type', lookup: {listId: 'type-id'}}
+  ])});
+  const writes = [];
+  graph.post = async (path, body) => { writes.push(body.fields); return {id: '10'}; };
+  graph.patch = async (path, fields) => writes.push(fields);
+  const service = new GraphTicketService(graph, config);
+  await service.createTicket({title: 'Issue', description: '', priority: 'High', category: '1', subcategory: '2', issueType: '3'});
+  assert.equal(writes[0].AreaLookupId, '1');
+  assert.equal(writes[0].SubLookupId, '2');
+  assert.equal(writes[0].RequestLookupId, '3');
+  await service.updateTicket(7, {title: 'Issue', priority: 'High', status: 'New', assignedToId: null, category: '1', subcategory: '2', issueType: '3'});
+  assert.equal(writes[1].RequestLookupId, '3');
+  await assert.rejects(service.createTicket({title: 'Issue', description: '', priority: 'High', category: '1', subcategory: '999'}), /active classification/);
+  assert.equal(writes.length, 2);
+});
+const {GraphFaqService} = load('../src/services/GraphFaqService.ts');
+test('FAQ Question ignores read-only LinkTitle and saves the writable Title column', async () => {
+  const graph = faqGraph();
+  const original = graph.getAll;
+  graph.getAll = async path => path.includes('/columns') ? [{name: 'LinkTitle', displayName: 'Question', readOnly: true}, ...(await original(path))] : original(path);
+  const service = new GraphFaqService(graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support'});
+  assert.equal((await service.getFaqs())[0].question, 'Published');
+  service.getAccess = async () => ({canManage: true});
+  await service.save({question: 'Question', answer: 'Answer', category: 'Accounts', keywords: '', published: true, sortOrder: 0});
+  assert.equal(graph.writes[0].body.fields.Title, 'Question');
+  assert.equal(graph.writes[0].body.fields.LinkTitle, undefined);
+});
+function faqGraph() {
+  const writes = [];
+  return {
+    writes,
+    getAll: async path => path.includes('/columns') ? [
+      {name: 'Title', displayName: 'Question', text: {}}, {name: 'field_1', displayName: 'Answer', text: {}},
+      {name: 'field_2', displayName: 'Category', choice: {choices: ['Accounts', 'Devices']}},
+      {name: 'field_3', displayName: 'Keywords', text: {}}, {name: 'field_4', displayName: 'Published', boolean: {}},
+      {name: 'field_5', displayName: 'Sort Order', number: {}}
+    ] : path.includes('/items') ? [
+      {id: '1', lastModifiedDateTime: '2026-10-14T12:00:00Z', fields: {Title: 'Draft', field_1: 'Draft answer', field_4: false}},
+      {id: '2', lastModifiedDateTime: '2026-10-14T12:00:00Z', fields: {Title: 'Published', field_1: '<p>Answer</p>', field_2: 'Accounts', field_3: 'password', field_4: true, field_5: 3}}
+    ] : [{id: 'faq-guid', displayName: 'FAQs'}],
+    post: async (path, body) => writes.push({method: 'POST', path, body}),
+    patch: async (path, body) => writes.push({method: 'PATCH', path, body}),
+    delete: async path => writes.push({method: 'DELETE', path})
+  };
+}
+test('FAQ Question, IsPublished and parent-linked classification lookups map to actual fields', async () => {
+  const graph = faqGraph();
+  const original = graph.getAll;
+  graph.getAll = async path => {
+    if (path.includes('/category-source/columns')) return [{name: 'Title', text: {}}, {name: 'Active', boolean: {}}];
+    if (path.includes('/subcategory-source/columns')) return [{name: 'Title', text: {}}, {name: 'Active', boolean: {}}, {name: 'Parent', displayName: 'Category', lookup: {listId: 'category-source'}}];
+    if (path.includes('/category-source/items')) return [{id: '10', fields: {Title: 'IT', Active: true}}];
+    if (path.includes('/subcategory-source/items')) return [{id: '20', fields: {Title: 'Outlook', ParentLookupId: '10', Active: true}}];
+    const result = await original(path);
+    if (path.includes('/columns')) return result.map(column => column.name === 'Title' ? {...column, displayName: 'Title'} : column.name === 'field_2' ? {...column, choice: undefined, lookup: {listId: 'category-source'}} : column.name === 'field_4' ? {...column, displayName: 'IsPublished'} : column).concat([{name: 'QuestionText', displayName: 'Question', text: {}}, {name: 'Sub', displayName: 'Subcategory', lookup: {listId: 'subcategory-source'}}]);
+    if (path.includes('/items')) return [{id: '1', fields: {QuestionText: 'Question', field_1: 'Answer', field_2LookupId: '10', SubLookupId: '20', field_4: true}}];
+    return result;
+  };
+  const service = new GraphFaqService(graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support'});
+  const faqs = await service.getFaqs();
+  assert.equal(faqs[0].question, 'Question');
+  assert.equal(faqs[0].category, 'IT');
+  assert.equal(faqs[0].subcategory, 'Outlook');
+  service.getAccess = async () => ({canManage: true});
+  await service.save({...faqs[0], published: false});
+  assert.equal(graph.writes[0].body.fields.QuestionText, 'Question');
+  assert.equal(graph.writes[0].body.fields.field_2LookupId, '10');
+  assert.equal(graph.writes[0].body.fields.SubLookupId, '20');
+  assert.equal(graph.writes[0].body.fields.field_4, false);
+  assert.equal(graph.writes[0].body.fields.field_2, undefined);
+  await assert.rejects(service.save({...faqs[0], categoryId: ''}), /belonging/);
+});
+test('FAQs map actual columns, hide drafts from readers, and protect management operations', async () => {
+  const graph = faqGraph();
+  const service = new GraphFaqService(graph, {siteId: 'site-id', siteUrl: 'https://example.sharepoint.com/sites/support'});
+  assert.deepEqual((await service.getFaqs()).map(faq => faq.id), [2]);
+  await assert.rejects(service.getFaqs(true), /cannot manage/);
+  service.getAccess = async () => ({canManage: true});
+  assert.equal((await service.getFaqs(true)).length, 2);
+  const input = {question: ' New question ', answer: '<p>Formatted answer</p>', category: 'Accounts', keywords: 'login', published: false, sortOrder: 1};
+  await service.save(input);
+  assert.deepEqual(graph.writes[0].body.fields, {Title: 'New question', field_1: '<p>Formatted answer</p>', field_2: 'Accounts', field_3: 'login', field_4: false, field_5: 1});
+  await service.save({...input, published: true}, 2);
+  assert.match(graph.writes[1].path, /items\/2\/fields$/);
+  await service.delete(2);
+  assert.equal(graph.writes[2].method, 'DELETE');
+  await assert.rejects(service.save({...input, question: ''}), /question/);
+  await assert.rejects(service.save({...input, category: 'Unknown'}), /configured/);
+  await assert.rejects(service.delete(-1), /Invalid FAQ/);
+  service.getAccess = async () => ({canManage: false});
+  await assert.rejects(service.save(input), /cannot manage/);
+  await assert.rejects(service.delete(2), /cannot manage/);
+  assert.equal(graph.writes.length, 3);
+});
+test('FAQ management uses SharePoint list add/edit/delete permissions', async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    globalThis.fetch = async (url, options) => {
+      assert.match(url, /lists\(guid'faq-guid'\)\/EffectiveBasePermissions$/);
+      assert.equal(options.headers.Authorization, 'Bearer sharepoint-token');
+      return response({Low: '14', High: '0'});
+    };
+    const service = new GraphFaqService(faqGraph(), {siteId: 'site-id', siteUrl: 'https://example.sharepoint.com/sites/support'}, async () => 'sharepoint-token');
+    assert.equal((await service.getAccess()).canManage, true);
+    globalThis.fetch = async () => response({Low: '2', High: '0'});
+    assert.equal((await service.getAccess()).canManage, false);
+  } finally { globalThis.fetch = originalFetch; }
+});
+test('Graph deletion accepts 204 without parsing an empty response', async () => {
+  const client = new GraphClient(async () => 'token', async (url, options) => {
+    assert.equal(options.method, 'DELETE');
+    assert.equal(options.body, undefined);
+    return new Response(null, {status: 204});
+  });
+  await client.delete('/sites/site/lists/faqs/items/2');
+});
 const { classificationChoices } = load('../../src/webparts/helpdeskSystem/utils/ticketClassification.ts');
 const { validateTicketAttachments } = load('../../src/webparts/helpdeskSystem/utils/ticketAttachments.ts');
 test('Attachments enforce file count, supported extensions, size, and unique names', () => {
@@ -303,11 +463,11 @@ test('Creation options and saves use actual classification columns and assignmen
   const options = await service.getCreationOptions();
   assert.equal(options.assignment, true);
   assert.deepEqual(options.fields.find(field => field.key === 'subcategory'), {key: 'subcategory', label: 'Issue subcategory', choices: ['Outlook'], required: true});
-  const input = {title: 'Mail issue', description: 'Cannot send', priority: 'High', category: 'IT', subcategory: 'Outlook', issueType: 'Email issue', department: 'Support', dueDate: '2026-10-20T12:30:00Z', assignedToId: 12};
+  const input = {title: 'Mail issue', description: 'Cannot send', priority: 'High', category: '1', subcategory: '2', issueType: '3', department: 'Support', dueDate: '2026-10-20T12:30:00Z', assignedToId: 12};
   await service.createTicket(input);
   assert.deepEqual(writes[0].body.fields, {Title: 'Mail issue', State: 'Assigned', Urgency: 'High', Details: 'Cannot send', Area: 'IT', field_5: 'Outlook', field_6: 'Email issue', Unit: 'Support', Deadline: '2026-10-20T12:30:00.000Z', AgentLookupId: '12'});
-  await assert.rejects(service.createTicket({...input, subcategory: ''}), /Enter Issue subcategory/);
-  await assert.rejects(service.createTicket({...input, issueType: 'Not configured'}), /configured Issue/);
+  await assert.rejects(service.createTicket({...input, subcategory: '', issueType: ''}), /Enter Issue subcategory/);
+  await assert.rejects(service.createTicket({...input, issueType: 'Not configured'}), /active classification/);
   await assert.rejects(service.createTicket({...input, dueDate: 'invalid'}), /valid expected/);
   assert.equal(writes.length, 1);
 });
@@ -329,8 +489,13 @@ function fakeGraph({missingList = false, failPeople = false, invalidStatus = fal
   return {
     get: async path => {assert(path.includes('example.sharepoint.com:/sites/support')); return {id: 'site-id'};},
     getAll: async path => {
+      const classificationKind = path.includes('/cat-id/') ? 'category' : path.includes('/sub-id/') ? 'subcategory' : path.includes('/type-id/') ? 'issueType' : null;
+      if (classificationKind) {
+        if (path.includes('/columns')) return [{name: 'Title', displayName: 'Title', text: {}}, {name: 'Active', displayName: 'Active', boolean: {}}, {name: 'SortOrder', displayName: 'SortOrder', number: {}}, ...(['category', 'issueType'].includes(classificationKind) ? [] : [{name: classificationKind === 'subcategory' ? 'Category' : 'Subcategory', displayName: classificationKind === 'subcategory' ? 'Category' : 'Subcategory', lookup: {listId: classificationKind === 'subcategory' ? 'cat-id' : 'sub-id'}}])];
+        return [{id: classificationKind === 'category' ? '1' : classificationKind === 'subcategory' ? '2' : '3', fields: {Title: classificationKind === 'category' ? 'IT' : classificationKind === 'subcategory' ? 'Outlook' : 'Email issue', Active: true, SortOrder: 0, CategoryLookupId: '1', SubcategoryLookupId: '2'}}];
+      }
       if (path.includes('/columns')) return schema;
-      if (path.includes('/lists?')) return missingList ? [] : [{id: 'tickets-id', displayName: 'Tickets'}, {id: 'users-id', displayName: 'User Information List', webUrl: 'https://example.sharepoint.com/sites/support/_catalogs/users'}];
+      if (path.includes('/lists?')) return missingList ? [] : [{id: 'cat-id', displayName: 'Ticket Categories'}, {id: 'sub-id', displayName: 'Ticket Subcategories'}, {id: 'type-id', displayName: 'Ticket Issue Types'}, {id: 'tickets-id', displayName: 'Tickets'}, {id: 'users-id', displayName: 'User Information List', webUrl: 'https://example.sharepoint.com/sites/support/_catalogs/users'}];
       if (path.includes('/users-id/items')) {
         if (failPeople) throw new Error('Access denied');
         return [{id: '12', fields: {Title: 'Support Agent', EMail: 'agent@example.com'}}];

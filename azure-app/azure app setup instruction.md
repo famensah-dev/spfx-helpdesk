@@ -1,5 +1,76 @@
 # DeskPilot Azure App Setup Instructions
 
+## Classification lists: Categories, Subcategories, and Issue Types
+
+Ticket creation and editing now load classification from these lists on the configured ticket site:
+
+| List | Required columns |
+|---|---|
+| Ticket Categories | Title (text), Active (Yes/No), SortOrder (number) |
+| Ticket Subcategories | Title (text), Active (Yes/No), SortOrder (number), Category (single lookup to Ticket Categories) |
+| Ticket Issue Types | Title (text), Active (Yes/No), SortOrder (number); no parent lookup required |
+
+An optional Description column is fine. Display name **Sort Order** is also recognized. The app retrieves real column internal names and verifies lookup targets before loading entries. It does not provision lists or change columns.
+
+1. Populate Ticket Categories and set **Active = Yes** for selectable entries.
+2. Populate Ticket Subcategories, choosing the correct Category lookup for each entry.
+3. Populate Ticket Issue Types as a shared set of request types, independent of category or subcategory.
+4. Set Active to Yes for the subcategories and issue types you want offered. Set SortOrder to control their order; equal values sort by name.
+5. Open New ticket. Selecting a category filters subcategories; changing category clears the subcategory. Issue Types shows all active issue types and does not change when category or subcategory changes. Subcategories of inactive categories are excluded.
+
+The Tickets list still needs writable Issue Category, Issue Subcategory, and Issue Type (or Issue / Request) columns. Text, single-choice, and single-lookup columns are supported:
+
+- **Lookup columns:** each must target its corresponding configuration list and allow one value. DeskPilot saves source item IDs.
+- **Text columns:** DeskPilot saves selected names.
+- **Choice columns:** selected names must also exist in the ticket column's configured choices. Keep those choices synchronized or migrate to lookup columns after reviewing existing data.
+
+The configuration lists replace the app's hardcoded hierarchy for creation and editing. Existing unmatched or inactive classifications remain visible on ticket records and are left unchanged when editing other fields. Changing a classification requires an active selection and valid parent relationships.
+
+No new environment variables are required for these exact list names. They use `VITE_SHAREPOINT_SITE_URL` and the existing selected-site grant; the signed-in user needs read access to all three configuration lists. Ticket writes still require the existing write grant and list edit permissions. No additional organization-wide permission is needed for this feature.
+
+If a list or required column is missing, or a parent lookup points to the wrong list, the form shows a configuration error instead of silently using the previous hardcoded choices. Validate live by creating a ticket with all three classifications, refreshing, and editing it again. Also test changing a parent and deactivating a test configuration entry. Automated checks validate mapping and relationships, but do not confirm the live tenant schema.
+
+## FAQ list setup
+
+DeskPilot's **FAQs** tab displays published answers with keyword search, category filters, and expandable questions. **Administration** currently opens FAQ management, where permitted staff can create, edit, publish/unpublish, and delete entries. Deletion asks for confirmation. Answers use the rich-text editor.
+
+Create a separate list on the **same site configured in `VITE_SHAREPOINT_SITE_URL`**:
+
+1. Open the site's **Settings > Site contents > New > List > Blank list**.
+2. Name it **FAQs**.
+3. Keep the built-in **Title** column; optionally rename its display name to **Question**. It stores the question.
+4. Add the following columns. Use these exact names when creating them; the app reads the actual internal names from the list schema.
+
+| Column | Type | Settings |
+|---|---|---|
+| Question (or renamed Title) | Single line of text | Required; maximum 255 characters; a separate Question column takes precedence over built-in Title |
+| Answer | Multiple lines of text | Enhanced rich text; required; disable Append changes |
+| Category | Lookup to Ticket Categories | Single selection; Text or Choice is also supported for older setups |
+| Subcategory | Lookup to Ticket Subcategories | Single selection; its source list needs a Category lookup to the same category source list |
+| Keywords | Single line of text | Optional |
+| IsPublished (or Published) | Yes/No | Default No; IsPublished takes precedence |
+| SortOrder | Number | Default 0; minimum 0; lower values appear first |
+
+The app also uses SharePoint's Modified timestamp. It does not create or alter list columns automatically.
+
+If the list has another name, add `VITE_FAQS_LIST_NAME=Your list name` to `.env.local`. Optionally set `VITE_FAQS_LIST_ID` to its GUID; an ID takes precedence over the name. Restart the development server after configuration changes, and rebuild deployed bundles. Existing ticket settings stay unchanged.
+
+**Permissions:** Keep Microsoft Graph delegated Sites.Selected with the existing **Write** grant for this site. Readers need permission to read the FAQs list. FAQ managers need add, edit, and delete list-item permissions. The management screen checks these through SharePoint REST using the existing delegated SharePoint **AllSites.Write** consent described in section 9; this does not grant the signed-in user additional rights. Restrict list editing to the support team in SharePoint list permissions. Do not rely on hiding buttons to protect data.
+
+**Draft visibility:** Published controls what DeskPilot displays; it is not a security boundary. Users who can read the whole list may also read drafts directly through SharePoint or Graph. For confidential drafts, configure appropriate item-level permissions or use a separate restricted authoring list and publishing workflow.
+
+To verify:
+
+1. Open **Administration** as a user allowed to manage the FAQs list.
+2. Create a draft with a question, answer, category, keywords, and sort order.
+3. Confirm it appears in management but not in the **FAQs** tab.
+4. Edit it, enable **Published**, and save. Confirm the answer appears on the FAQs page with its formatting.
+5. Test searching by question, answer, and keyword; test category filtering.
+6. Unpublish it and confirm it disappears from the reader page. Delete a test entry and confirm the deletion dialog and refreshed list.
+7. Sign in as a read-only user: published FAQs should load, management should deny access, and direct writes must be denied by SharePoint.
+
+If the list is missing or its columns have the wrong types, DeskPilot shows a setup error rather than sample content. A successful local build does not verify live list access; complete these checks in your tenant. This implementation connects FAQ persistence in the Azure app; the original SPFx data source will report that FAQs are unavailable until it receives its own adapter.
+
 These instructions cover Microsoft Entra registration, local sign-in, organization user search, and ticket write permissions. Initial local sign-in was confirmed; later permission changes must be verified in your tenant. Microsoft Lists remain the data store. Azure hosting deployment is the next stage and is not covered by this record.
 
 ## 1. Register DeskPilot in Microsoft Entra ID

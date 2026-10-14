@@ -5,6 +5,8 @@ export interface IAppConfig {
   siteId?: string;
   listName: string;
   listId?: string;
+  faqListName?: string;
+  faqListId?: string;
   userInformationListId?: string;
   graphSiteScope: 'Sites.Selected' | 'Sites.Read.All';
 }
@@ -33,6 +35,8 @@ export function readConfig(): IAppConfig {
   return { tenantId, clientId, siteUrl: site.href.replace(/\/$/, ''), siteId: siteId || undefined,
     listName: import.meta.env.VITE_TICKETS_LIST_NAME?.trim() || 'Tickets',
     listId: import.meta.env.VITE_TICKETS_LIST_ID?.trim() || undefined,
+    faqListName: import.meta.env.VITE_FAQS_LIST_NAME?.trim() || 'FAQs',
+    faqListId: import.meta.env.VITE_FAQS_LIST_ID?.trim() || undefined,
     userInformationListId: import.meta.env.VITE_USER_INFORMATION_LIST_ID?.trim() || undefined,
     graphSiteScope: scope };
 }

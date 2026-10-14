@@ -1,3 +1,4 @@
+import { loadClassification } from './GraphClassificationService';
 import { validateTicketAttachments } from '../../../src/webparts/helpdeskSystem/utils/ticketAttachments';
 import type { INewTicketInput, ITicketCreationOptions } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 import type { ITicketDataSource } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
@@ -9,7 +10,7 @@ import { GraphClient } from './GraphClient';
 import type { IOrganizationUser } from '../../../src/webparts/helpdeskSystem/interfaces/ITicketDataSource';
 
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
-interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; }
+interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; lookup?: { listId: string; allowMultipleValues?: boolean }; }
 interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
 const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
 const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Critical'];
@@ -70,6 +71,26 @@ export class GraphTicketService implements ITicketDataSource {
     if (input.description !== undefined) {
       if (!schema.description) throw new Error('The list has no Issue description text column.');
       fields[schema.description] = input.description;
+    }
+    if ([input.category, input.subcategory, input.issueType].some(value => value !== undefined)) {
+      const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists);
+      const selected = { category: classification.categories.find(item => item.id === input.category), subcategory: classification.subcategories.find(item => item.id === input.subcategory), issueType: classification.issueTypes.find(item => item.id === input.issueType) };
+      if ((input.subcategory && selected.subcategory?.parentId !== selected.category?.id)) throw new Error('Classification entries must belong to their selected parents.');
+      for (const key of ['category', 'subcategory', 'issueType'] as const) {
+        if (input[key] === undefined) continue;
+        const field = this.creationFields.find(item => item.key === key);
+        if (!field) throw new Error(`The ticket list has no writable ${key} field.`);
+        const entry = selected[key];
+        if (input[key] && !entry) throw new Error('Select an active classification entry.');
+        if (!entry && field.column.required) throw new Error(`Select ${field.label}.`);
+        if (field.column.lookup) {
+          if (field.column.lookup.allowMultipleValues || field.column.lookup.listId.toLowerCase() !== classification.listIds[key].toLowerCase()) throw new Error(`${field.label} must look up the correct classification list.`);
+          fields[`${field.column.name}LookupId`] = entry ? entry.id : null;
+        } else {
+          if (entry && field.column.choice && !field.column.choice.choices.includes(entry.name)) throw new Error(`Add ${entry.name} to ${field.label} choices or use a lookup column.`);
+          fields[field.column.name] = entry?.name || '';
+        }
+      }
     }
     await this.graph.patch(`${schema.path}/items/${id}/fields`, fields);
   }
@@ -134,7 +155,8 @@ export class GraphTicketService implements ITicketDataSource {
   public async getCreationOptions(): Promise<ITicketCreationOptions> {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
-    return { priorities: this.creationSchema.choices, description: Boolean(this.creationSchema.description), assignment: Boolean(this.updateSchema?.choices.includes('Assigned')), fields: this.creationFields.map(field => ({ key: field.key, label: field.label, choices: field.column.choice?.choices, required: field.column.required })) };
+    const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists);
+    return { classification, priorities: this.creationSchema.choices, description: Boolean(this.creationSchema.description), assignment: Boolean(this.updateSchema?.choices.includes('Assigned')), fields: this.creationFields.map(field => ({ key: field.key, label: field.label, choices: field.column.choice?.choices, required: field.column.required })) };
   }
   public async uploadAttachments(id: number, files: File[]): Promise<void> {
     validateTicketAttachments(files);
@@ -170,9 +192,31 @@ export class GraphTicketService implements ITicketDataSource {
     if (input.description.trim() && !schema.description) throw new Error('Add an Issue description text column to the list to save a description.');
     const fields: Record<string, string> = { [schema.title]: input.title.trim(), [schema.status]: 'New', [schema.priority]: input.priority };
     if (schema.description) fields[schema.description] = input.description.trim();
+    for (const key of ['category', 'subcategory', 'issueType'] as const) {
+      if (input[key] && !this.creationFields.some(field => field.key === key)) throw new Error(`The ticket list has no writable ${key} column. The selected value cannot be saved.`);
+    }
+    const hasClassification = Boolean(input.category || input.subcategory || input.issueType);
+    const classification = hasClassification ? await loadClassification(this.graph, this.context!.sitePath, this.context!.lists) : undefined;
+    if (classification) {
+      const category = classification.categories.find(item => item.id === input.category);
+      const subcategory = classification.subcategories.find(item => item.id === input.subcategory && item.parentId === category?.id);
+      const issueType = classification.issueTypes.find(item => item.id === input.issueType);
+      if ((input.category && !category) || (input.subcategory && !subcategory) || (input.issueType && !issueType)) throw new Error('Select active classification entries belonging to their selected parents.');
+    }
     for (const field of this.creationFields) {
-      const value = input[field.key]?.trim();
+      let value = input[field.key]?.trim();
       if (!value) { if (field.column.required) throw new Error(`Enter ${field.label}.`); continue; }
+      if (classification && ['category', 'subcategory', 'issueType'].includes(field.key)) {
+        const key = field.key as 'category' | 'subcategory' | 'issueType';
+        const entries = key === 'category' ? classification.categories : key === 'subcategory' ? classification.subcategories : classification.issueTypes;
+        const entry = entries.find(item => item.id === value)!;
+        if (field.column.lookup) {
+          if (field.column.lookup.allowMultipleValues || field.column.lookup.listId.toLowerCase() !== classification.listIds[key].toLowerCase()) throw new Error(`${field.label} must look up the correct classification list.`);
+          fields[`${field.column.name}LookupId`] = entry.id;
+          continue;
+        }
+        value = entry.name;
+      }
       if (field.column.choice && !field.column.choice.choices.includes(value)) throw new Error(`Select a configured ${field.label} value.`);
       if (field.key === 'dueDate' && !Number.isFinite(new Date(value).getTime())) throw new Error('Enter a valid expected resolution date.');
       fields[field.column.name] = field.key === 'dueDate' ? new Date(value).toISOString() : value;
@@ -207,7 +251,7 @@ export class GraphTicketService implements ITicketDataSource {
     const columns = await this.graph.getAll<IGraphColumn>(`${listPath}/columns`);
     const normalize = (name: string): string => name.replace(/\s+/g, '').toLowerCase();
     const aliases: Record<string, string[]> = { Title: ['Issue'], AssignedTo: ['Assigned To'], Category: ['Issue Category'], ResolvedAt: ['Resolved At', 'Completed At'], DueDate: ['Expected Resolution Date', 'Expected Resolution Date (New)'] };
-    const resolve = (name: string, kind: 'choice' | 'text' | 'dateTime' | 'boolean' | 'personOrGroup', optional = false): IGraphColumn | undefined => {
+    const resolve = (name: string, kind: 'choice' | 'text' | 'dateTime' | 'boolean' | 'personOrGroup' | 'lookup', optional = false): IGraphColumn | undefined => {
       const names = [name, ...(aliases[name] || [])].map(normalize);
       const column = columns.find(value => value.name === name) || columns.find(value => names.includes(normalize(value.displayName)) || names.includes(normalize(value.name)));
       if (!column && optional) return undefined;
@@ -225,15 +269,15 @@ export class GraphTicketService implements ITicketDataSource {
     else this.creationSchema = undefined;
     if (assigned.personOrGroup?.allowMultipleSelection) throw new Error('AssignedTo must allow a single person.');
     const categoryColumn = columns.find(value => value.name === 'Category') || columns.find(value => ['Category', 'Issue Category'].includes(value.displayName));
-    const category = categoryColumn ? resolve('Category', categoryColumn.choice ? 'choice' : 'text', true) : undefined;
+    const category = categoryColumn ? resolve('Category', categoryColumn.lookup ? 'lookup' : categoryColumn.choice ? 'choice' : 'text', true) : undefined;
     const resolved = resolve('ResolvedAt', 'dateTime', true);
     const due = resolve('DueDate', 'dateTime', true);
     const escalated = resolve('Escalated', 'boolean', true);
     const archived = resolve('Archived', 'boolean', true);
     this.updateSchema = { path: listPath, status: status.name, choices: status.choice?.choices || [], assigned: assigned.name, archived: archived?.name, resolved: resolved?.name };
-    const optionalDisplay = (names: string[], types: Array<'text' | 'choice' | 'dateTime' | 'personOrGroup'>): IGraphColumn | undefined => columns.find(column => names.map(normalize).includes(normalize(column.displayName)) && types.some(type => Boolean(column[type])));
-    const subcategory = optionalDisplay(['Issue Subcategory'], ['text', 'choice']);
-    const issueType = optionalDisplay(['Issue Type'], ['text', 'choice']);
+    const optionalDisplay = (names: string[], types: Array<'text' | 'choice' | 'dateTime' | 'personOrGroup' | 'lookup'>): IGraphColumn | undefined => names.map(name => columns.find(column => normalize(column.displayName) === normalize(name) && types.some(type => Boolean(column[type]))) || columns.find(column => normalize(column.name) === normalize(name) && types.some(type => Boolean(column[type])))).find(Boolean);
+    const subcategory = optionalDisplay(['Issue Subcategory', 'IssueSubcategory', 'Subcategory'], ['text', 'choice', 'lookup']);
+    const issueType = optionalDisplay(['Issue Type', 'Issue / Request', 'IssueType'], ['text', 'choice', 'lookup']);
     const department = optionalDisplay(['Department', 'Department / Unit', 'Unit'], ['text', 'choice']);
     const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
     const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
@@ -241,7 +285,7 @@ export class GraphTicketService implements ITicketDataSource {
     this.creationFields = [
       { key: 'category' as const, label: 'Issue category', column: category },
       { key: 'subcategory' as const, label: 'Issue subcategory', column: subcategory },
-      { key: 'issueType' as const, label: 'Issue / Request', column: issueType },
+      { key: 'issueType' as const, label: 'Issue Type', column: issueType },
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));

@@ -6,6 +6,7 @@ import { initializeIcons } from '@fluentui/react/lib/Icons';
 import { readConfig } from './config';
 import { MicrosoftAuth } from './auth/MicrosoftAuth';
 import { GraphClient } from './services/GraphClient';
+import { GraphFaqService } from './services/GraphFaqService';
 import { GraphTicketService } from './services/GraphTicketService';
 import './standalone.css';
 import { AccountMenu } from './AccountMenu';
@@ -33,7 +34,11 @@ async function start(): Promise<void> {
     }
     const graph = new GraphClient(() => auth.getToken());
     const profile = await graph.get<{ displayName: string; mail: string | null; userPrincipalName: string }>('/me?$select=displayName,mail,userPrincipalName');
-    const service = new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken());
+    const faqService = new GraphFaqService(graph, config, () => auth.getSharePointToken());
+    const service = Object.assign(new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken()), {
+      getFaqs: (manage?: boolean) => faqService.getFaqs(manage), getFaqAccess: () => faqService.getAccess(),
+      saveFaq: (input: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').IFaqInput, id?: number) => faqService.save(input, id), deleteFaq: (id: number) => faqService.delete(id)
+    });
     const { default: HelpdeskApp } = await import('../../src/webparts/helpdeskSystem/components/HelpdeskApp');
     const actions = <AccountMenu displayName={profile.displayName} email={profile.mail || profile.userPrincipalName} auth={auth} onError={error => renderFailure(error, auth)} />;
     ReactDOM.render(<HelpdeskApp service={service} currentUserEmail={profile.mail || profile.userPrincipalName} accountActions={actions} />, root);

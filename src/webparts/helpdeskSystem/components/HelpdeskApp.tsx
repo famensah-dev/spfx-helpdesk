@@ -1,3 +1,4 @@
+import { FaqPage } from '../pages/FaqPage';
 import * as React from 'react';
 import { DefaultButton, Icon, ThemeProvider, createTheme, MessageBar, MessageBarType } from '@fluentui/react';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -71,7 +72,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
           : <DashboardPage {...dashboard} title={page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={setDashboardTicketId} onViewTickets={() => navigate('Tickets')} />)}
         {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} />}
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
-        {(page === 'FAQs' || page === 'Administration') && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><Icon iconName={page === 'FAQs' ? 'Help' : 'Settings'} /><p>{page === 'FAQs' ? 'Your organization’s support knowledge base will appear here.' : 'Application settings and workflow configuration will be added here.'}</p><p>This section is planned for a future release.</p></div></div></section>}
+        {(page === 'FAQs' || page === 'Administration') && <FaqPage key={page} service={props.service} manage={page === 'Administration'} />}
       </main>
     </ThemeProvider>
   );

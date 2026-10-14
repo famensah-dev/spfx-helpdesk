@@ -1,9 +1,9 @@
+import { SearchableSelect } from './SearchableSelect';
 import { attachmentAccept, validateTicketAttachments } from '../utils/ticketAttachments';
 import { RichTextEditor } from './RichTextEditor';
-import { classificationChoices } from '../utils/ticketClassification';
 import { cancelButtonStyles } from './cancelButtonStyles';
 import * as React from 'react';
-import { TextField, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Label, Icon, IconButton } from '@fluentui/react';
+import { TextField, DirectionalHint, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Label, Icon, IconButton } from '@fluentui/react';
 import type { INewTicketInput, ITicketDataSource, ITicketCreationOptions } from '../interfaces/ITicketDataSource';
 import type { IUserLookup } from '../interfaces/ITicket';
 import { FormAssigneePicker } from './FormAssigneePicker';
@@ -31,7 +31,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [props.service]);
-  const change = (key: keyof INewTicketInput, value: string): void => setInput(current => ({ ...current, [key]: value, ...(key === 'category' ? { subcategory: '', issueType: '' } : key === 'subcategory' ? { issueType: '' } : {}) }));
+  const change = (key: keyof INewTicketInput, value: string): void => setInput(current => ({ ...current, [key]: value, ...(key === 'category' ? { subcategory: '' } : {}) }));
   const submit = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (submitting.current || loading || resolving || !options || !input.title.trim()) return;
@@ -51,9 +51,14 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
     try { const next = [...files, ...incoming]; validateTicketAttachments(next); setFiles(next); setError(''); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to select these files.'); }
   };
-  const field = (item: ITicketCreationOptions['fields'][number]): React.ReactNode => item.choices
-    ? <Dropdown key={item.key} label={item.label} required={item.required} placeholder="Select an option" selectedKey={input[item.key] || ''} disabled={saving || (item.key === 'subcategory' && !input.category) || (item.key === 'issueType' && !input.subcategory)} options={[...(!item.required ? [{ key: '', text: 'Not specified' }] : []), ...classificationChoices(item.key, item.choices, input.category || '', input.subcategory || '').map(value => ({ key: value, text: value }))]} onChange={(_, option) => change(item.key, String(option?.key || ''))} />
-    : <TextField key={item.key} label={item.label} required={item.required} type={item.key === 'dueDate' ? 'datetime-local' : 'text'} value={input[item.key] || ''} disabled={saving} onChange={(_, value) => change(item.key, value || '')} />;
+  const field = (item: ITicketCreationOptions['fields'][number]): React.ReactNode => {
+    const taxonomy = options?.classification;
+    const entries = item.key === 'category' ? taxonomy?.categories : item.key === 'subcategory' ? taxonomy?.subcategories.filter(value => value.parentId === input.category) : item.key === 'issueType' ? taxonomy?.issueTypes : undefined;
+    const choices = entries ? entries.map(value => ({ key: value.id, text: value.name })) : item.choices?.map(value => ({ key: value, text: value }));
+    if (['category', 'subcategory', 'issueType'].includes(item.key) && choices) return <SearchableSelect key={item.key} label={item.label} required={item.required} disabled={saving || (item.key === 'subcategory' && !input.category)} value={input[item.key] || ''} options={[...(!item.required ? [{ key: '', text: 'Not specified' }] : []), ...choices]} onChange={value => change(item.key, value)} />;
+    return choices ? <Dropdown calloutProps={{ calloutMaxHeight: 280, directionalHint: DirectionalHint.bottomLeftEdge, gapSpace: 4 }} key={item.key} label={item.label} required={item.required} placeholder="Select an option" selectedKey={input[item.key] || ''} disabled={saving || (item.key === 'subcategory' && !input.category)} options={[...(!item.required ? [{ key: '', text: 'Not specified' }] : []), ...choices]} onChange={(_, option) => change(item.key, String(option?.key || ''))} />
+      : <TextField key={item.key} label={item.label} required={item.required} type={item.key === 'dueDate' ? 'datetime-local' : 'text'} value={input[item.key] || ''} disabled={saving} onChange={(_, value) => change(item.key, value || '')} />;
+  };
   return <section className={styles.newTicketPage} aria-labelledby="new-ticket-title">
     <div className={styles.newTicketHeader}><div><h2 id="new-ticket-title" tabIndex={-1} ref={heading}>New ticket</h2><p>Create a support request and describe the help you need.</p></div><DefaultButton styles={cancelButtonStyles} text="Back to tickets" disabled={saving || resolving} onClick={props.onDismiss} /></div>
     {createdTicketId && <MessageBar>Ticket #{createdTicketId} already exists. Retry uploads to finish attaching your files without creating another ticket.</MessageBar>}

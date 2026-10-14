@@ -25,7 +25,7 @@ export function safeDescriptionHtml(value: string): string {
 export function RichTextContent(props: { value: string }): React.ReactElement {
   return <div className={styles.markdownContent} dangerouslySetInnerHTML={{ __html: safeDescriptionHtml(props.value) }} />;
 }
-export function RichTextEditor(props: { value: string; disabled?: boolean; onChange: (value: string) => void }): React.ReactElement {
+export function RichTextEditor(props: { value: string; label?: string; disabled?: boolean; onChange: (value: string) => void }): React.ReactElement {
   const host = React.useRef<HTMLDivElement>(null);
   const selection = React.useRef<Range | null>(null);
   React.useEffect(() => {
@@ -41,13 +41,13 @@ export function RichTextEditor(props: { value: string; disabled?: boolean; onCha
     if (selection.current) { const current = window.getSelection(); current?.removeAllRanges(); current?.addRange(selection.current); }
     document.execCommand(name, false, value); remember(); emit();
   };
-  return <div><Label>Issue description</Label><div className={styles.markdownEditor}>
+  return <div><Label>{props.label || 'Issue description'}</Label><div className={styles.markdownEditor}>
     <div className={styles.markdownToolbar} role="toolbar" aria-label="Description formatting">
       <Dropdown ariaLabel="Text style" disabled={props.disabled} defaultSelectedKey="p" options={[{ key: 'p', text: 'Normal text' }, { key: 'h2', text: 'Heading' }, { key: 'h3', text: 'Subheading' }]} styles={{ root: { width: 140 } }} onChange={(_, option) => command('formatBlock', String(option?.key || 'p'))} />
       {[['Bold', 'bold'], ['Italic', 'italic'], ['Underline', 'underline'], ['Strikethrough', 'strikeThrough'], ['BulletedList', 'insertUnorderedList'], ['NumberedList', 'insertOrderedList'], ['AlignLeft', 'justifyLeft'], ['AlignCenter', 'justifyCenter'], ['ClearFormatting', 'removeFormat']].map(([icon, action]) => <IconButton key={action} iconProps={{ iconName: icon }} ariaLabel={icon} title={icon} disabled={props.disabled} onMouseDown={event => event.preventDefault()} onClick={() => command(action)} />)}
       <IconButton iconProps={{ iconName: 'Link' }} ariaLabel="Insert link" title="Insert link" disabled={props.disabled} onMouseDown={event => event.preventDefault()} onClick={() => { const url = window.prompt('Link URL (https://...)'); if (url && /^https?:\/\//i.test(url)) command('createLink', url); }} />
     </div>
-    <div ref={host} className={styles.richTextInput} contentEditable={!props.disabled} suppressContentEditableWarning role="textbox" aria-label="Issue description" aria-multiline="true" aria-disabled={props.disabled} tabIndex={0} onInput={emit} onKeyUp={remember} onMouseUp={remember} onBlur={remember}
+    <div ref={host} className={styles.richTextInput} contentEditable={!props.disabled} suppressContentEditableWarning role="textbox" aria-label={props.label || 'Issue description'} aria-multiline="true" aria-disabled={props.disabled} tabIndex={0} onInput={emit} onKeyUp={remember} onMouseUp={remember} onBlur={remember}
       onPaste={event => { event.preventDefault(); command('insertText', event.clipboardData.getData('text/plain')); }} />
   </div></div>;
 }

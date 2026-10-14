@@ -1,3 +1,4 @@
+import { TicketClassificationFields } from './TicketClassificationFields';
 import { RichTextEditor, RichTextContent } from './RichTextEditor';
 import { MarkdownContent } from './MarkdownEditor';
 import { cancelButtonStyles } from './cancelButtonStyles';
@@ -13,6 +14,7 @@ import styles from './HelpdeskSystem.module.scss';
 export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; service?: ITicketDataSource; refresh: () => Promise<void>; onBack: () => void; backLabel?: string }): React.ReactElement {
   const { ticket, service } = props;
   const heading = React.useRef<HTMLHeadingElement>(null);
+  const [classificationEdit, setClassificationEdit] = React.useState<{ category?: string; subcategory?: string; issueType?: string }>({});
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -70,12 +72,12 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   }, [service, ticket.Id]);
   React.useEffect(() => { heading.current?.focus(); void loadComments(); return () => { commentRequest.current++; }; }, [loadComments]);
   const date = (value?: string | null): string => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString() : 'Not provided';
-  const beginEdit = (): void => { setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
+  const beginEdit = (): void => { setClassificationEdit({}); setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
   const save = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault(); if (!service?.updateTicket || lock.current) return;
     lock.current = true; setSaving(true); setError('');
     try {
-      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null});
+      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null, ...classificationEdit});
       setEditing(false); setSaved(true); await props.refresh();
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save changes.'); }
     finally { lock.current = false; setSaving(false); }
@@ -128,6 +130,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <Dropdown label="Status" selectedKey={status} disabled={saving} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
             <FormAssigneePicker service={service} value={assigned ? { Id: assigned, Title: assignedName } : null} disabled={saving} onBusy={setAssignmentBusy} onChange={person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />
           </div>
+          <TicketClassificationFields service={service} ticket={ticket} disabled={saving} onChange={value => setClassificationEdit(current => ({ ...current, ...value }))} />
           <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form> : <>
           <section ref={descriptionSection} className={styles.detailSection}><div className={styles.detailSectionHeading}><Icon iconName="AlignLeft" /><h3>Description</h3></div><div className={styles.ticketDescription}>{/<\/?(?:p|div|br|strong|b|em|ul|ol|h[234])\b/i.test(ticket.Description || '') ? <RichTextContent value={ticket.Description!} /> : <MarkdownContent value={ticket.Description || 'No description has been added to this ticket.'} />}</div></section>
@@ -149,12 +152,11 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <div><dt><Icon iconName="ProgressRingDots" />Status</dt><dd><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></dd></div>
             <div><dt><Icon iconName="Flag" />Priority</dt><dd><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} aria-hidden="true" />{ticket.Priority}</span></dd></div>
             <div><dt><Icon iconName="Tag" />Category</dt><dd>{ticket.Category || 'Not specified'}</dd></div>
-            <div><dt><Icon iconName="Tag" />Sub Category</dt><dd>—</dd></div><div><dt><Icon iconName="Work" />Department</dt><dd>—</dd></div><div><dt><Icon iconName="Calendar" />Created</dt><dd>{date(ticket.Created)}</dd></div>
+            <div><dt><Icon iconName="Tag" />Sub Category</dt><dd>{ticket.Subcategory || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Issue Type</dt><dd>{ticket.IssueType || 'Not specified'}</dd></div><div><dt><Icon iconName="Work" />Department</dt><dd>—</dd></div><div><dt><Icon iconName="Calendar" />Created</dt><dd>{date(ticket.Created)}</dd></div>
             <div><dt><Icon iconName="Clock" />Last updated</dt><dd>{date(ticket.Modified)}</dd></div>
             <div><dt><Icon iconName="Contact" />Requested By</dt><dd>—</dd></div><div><dt><Icon iconName="Contact" />Assigned to</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true">{ticket.AssignedTo?.Title ? initials(ticket.AssignedTo.Title) : '?'}</span>{ticket.AssignedTo?.Title || 'Unassigned'}</dd></div>
             {ticket.DueDate && <div><dt><Icon iconName="Calendar" />Due date</dt><dd>{date(ticket.DueDate)}</dd></div>}
             <div><dt><Icon iconName="Warning" />Escalated</dt><dd>{ticket.Escalated || ticket.Status === 'Escalated' ? 'Yes' : 'No'}</dd></div>
-            <div><dt><Icon iconName="Link" />Related Issue</dt><dd>—</dd></div>
           </dl>
         </section>
         <details className={styles.detailSidebarCard} open>

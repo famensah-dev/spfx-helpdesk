@@ -10,7 +10,7 @@ This is the standalone version of DeskPilot. It fills the browser content area w
 - Searchable read-only Tickets and My Board views.
 - Explicit empty, configuration, access and data errors; no silent sample-data fallback.
 
-FAQs and Administration remain future-module screens. Ticket creation, editing, resolution actions, attachments, comments, notifications, SLA workflows and reports are not implemented by this hosting migration. Existing Power Automate flows can continue operating against the same lists; this app does not provision them.
+FAQs supports searchable published answers, categories, and rich-text content. Administration currently provides FAQ creation, editing, publishing, and deletion with list-permission checks. See [FAQ list setup](<azure app setup instruction.md#faq-list-setup>) before using it. Ticket creation, editing, resolution actions, attachments, comments, notifications, SLA workflows and reports are not implemented by this hosting migration. Existing Power Automate flows can continue operating against the same lists; this app does not provision them.
 
 ## Project layout
 
