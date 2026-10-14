@@ -178,6 +178,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         await refresh();
       }
     }} />}
+    <div className={styles.ticketListCard}>
     <div className={styles.ticketToolbar}>
       <div className={styles.ticketActions}>
         <DefaultButton text="New" iconProps={{ iconName: 'Add' }} disabled={!onCreate || loading || Boolean(error)} onClick={() => setCreating(true)} />
@@ -225,5 +226,6 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         <select aria-label="Tickets per page" value={pageSize} onChange={event => { setPageSize(Number(event.target.value)); setPage(0); }}>{[10, 25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}</select>
       </nav>
     </>}
+    </div>
   </section>;
 };

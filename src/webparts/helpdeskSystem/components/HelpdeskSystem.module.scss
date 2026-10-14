@@ -751,4 +751,18 @@
 }
 .markdownHint { display: block; color: #647694; font-size: 12px; margin-top: 6px; }
 .newTicketFooter { padding: 0 0 20px; p { font-size: 13px; color: #415575; } > div { display: flex; gap: 10px; } }
+.pageContent.ticketPage { padding: 0; gap: 0; background: transparent; box-shadow: none; border-radius: 0; }
+.ticketPage > .ticketTabs { margin: -6px calc(-1 * var(--page-inset)) 0; padding: 18px calc(var(--page-inset) + 4px) 12px; background: #fff; align-items: center; }
+.ticketPage > .pageAlerts { margin: 0 calc(-1 * var(--page-inset)); --alert-inset: var(--page-inset);
+  > :global(.ms-MessageBar) { background: #fff; }
+}
+.ticketListCard { display: grid; gap: 14px; min-width: 0; margin-top: 8px; padding: 16px 22px; background: #fff; border: 1px solid #e0e7f1; border-radius: 6px; box-shadow: 0 3px 18px rgba(36,32,67,.035); }
+.secondaryPage { min-width: 0; }
+.secondaryPageHeader { margin: -6px calc(-1 * var(--page-inset)) 0; padding: 12px calc(var(--page-inset) + 4px); background: #fff; border-bottom: 1px solid var(--hd-line);
+  h2 { margin: 0; color: #101828; font-size: 16px; font-weight: 600; line-height: 1.5; }
+}
+@media (max-width: 620px) {
+  .ticketListCard { padding: 14px; }
+  .ticketPage > .ticketTabs, .secondaryPageHeader { padding-inline: calc(var(--page-inset) + 4px); }
+}
 @media (max-width: 620px) { .newTicketFields { grid-template-columns: minmax(0, 1fr); } .newTicketSection { padding: 16px; } }
