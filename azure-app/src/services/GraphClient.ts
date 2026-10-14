@@ -23,8 +23,9 @@ export class GraphClient {
         const detail = await response.json().catch(() => ({})) as { error?: { code?: string; message?: string } };
         const reason = detail.error?.message || response.statusText || 'Access denied';
         const requestId = response.headers.get('request-id');
-        const hint = response.status === 403 ? ' Check that the write grant targets this DeskPilot client ID and site, and that your signed-in account can add list items. A read-only grant must change from read to write.' : '';
-        throw new Error(`Ticket ${method === 'POST' ? 'creation' : 'update'} failed (${response.status}${detail.error?.code ? ` / ${detail.error.code}` : ''}): ${reason}.${hint}${requestId ? ` Request ID: ${requestId}` : ''}`);
+        const schemaOperation = url.pathname.includes('/columns');
+        const hint = response.status === 403 && schemaOperation ? ' Schema changes require Microsoft Graph delegated Sites.Manage.All admin consent and Manage Lists permission for your signed-in account.' : response.status === 403 ? ' Check that the write grant targets this DeskPilot client ID and site, and that your signed-in account can add list items. A read-only grant must change from read to write.' : '';
+        throw new Error(`${schemaOperation ? 'Column' : 'Ticket'} ${method === 'POST' ? 'creation' : method === 'DELETE' ? 'deletion' : 'update'} failed (${response.status}${detail.error?.code ? ` / ${detail.error.code}` : ''}): ${reason}.${hint}${requestId ? ` Request ID: ${requestId}` : ''}`);
       }
       return response.status === 204 ? undefined as T : await response.json() as T;
     } catch (error) {

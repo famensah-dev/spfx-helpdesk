@@ -37,6 +37,9 @@ export class MicrosoftAuth {
   public async getDirectoryToken(): Promise<string> {
     return this.getResourceToken(['https://graph.microsoft.com/User.Read.All']);
   }
+  public async getSchemaToken(): Promise<string> {
+    return this.getResourceToken(['https://graph.microsoft.com/Sites.Manage.All']);
+  }
   public async getSharePointToken(): Promise<string> {
     return this.getResourceToken([`${new URL(this.config.siteUrl).origin}/AllSites.Write`]);
   }

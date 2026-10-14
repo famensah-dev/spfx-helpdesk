@@ -17,6 +17,7 @@ const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Critical'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
+  public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.creationFields = []; }
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };

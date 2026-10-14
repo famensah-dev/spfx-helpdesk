@@ -1,3 +1,4 @@
+import { GraphAdministrationService } from './services/GraphAdministrationService';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Icon } from '@fluentui/react/lib/Icon';
@@ -35,7 +36,9 @@ async function start(): Promise<void> {
     const graph = new GraphClient(() => auth.getToken());
     const profile = await graph.get<{ displayName: string; mail: string | null; userPrincipalName: string }>('/me?$select=displayName,mail,userPrincipalName');
     const faqService = new GraphFaqService(graph, config, () => auth.getSharePointToken());
-    const service = Object.assign(new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken()), {
+    const ticketService = new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken());
+    const service = Object.assign(ticketService, {
+      administration: new GraphAdministrationService(graph, new GraphClient(() => auth.getSchemaToken()), config, () => auth.getSharePointToken(), () => ticketService.invalidateSchema()),
       getFaqs: (manage?: boolean) => faqService.getFaqs(manage), getFaqAccess: () => faqService.getAccess(),
       saveFaq: (input: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').IFaqInput, id?: number) => faqService.save(input, id), deleteFaq: (id: number) => faqService.delete(id), updateFaqs: (ids: number[], action: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').FaqBulkAction) => faqService.updateMany(ids, action)
     });

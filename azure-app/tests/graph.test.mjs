@@ -14,6 +14,86 @@ function load(relative) {
 }
 const {GraphClient} = load('../src/services/GraphClient.ts');
 const {GraphTicketService} = load('../src/services/GraphTicketService.ts');
+const {GraphAdministrationService} = load('../src/services/GraphAdministrationService.ts');
+function adminGraph() {
+  const calls = [], writes = [];
+  const columns = [
+    {id: 'title', name: 'Title', displayName: 'Issue', text: {}},
+    {id: 'custom', name: 'CustomField', displayName: 'Custom field', text: {}, description: 'Existing'},
+    {id: 'created', name: 'Created', displayName: 'Created', dateTime: {}, readOnly: true}
+  ];
+  return {calls, writes, columns,
+    getAll: async path => {
+      calls.push(path);
+      if (path.includes('/lists?')) return [{id: 'tickets', displayName: 'Tickets'}, {id: 'cat', displayName: 'Ticket Categories'}, {id: 'sub', displayName: 'Ticket Subcategories'}, {id: 'types', displayName: 'Ticket Issue Types'}];
+      if (path.includes('/tickets/columns')) return columns;
+      if (path.includes('/columns')) return [{id: 't', name: 'Title', displayName: 'Title', text: {}}, {id: 'a', name: 'Active', displayName: 'Active', boolean: {}}, {id: 'o', name: 'SortOrder', displayName: 'SortOrder', number: {}}, ...(path.includes('/sub/') ? [{id: 'p', name: 'Parent', displayName: 'Category', lookup: {listId: 'cat'}}] : [])];
+      if (path.includes('/items')) return [{id: '1', fields: {Title: 'Category', Active: true, SortOrder: 2}}];
+      throw new Error('Unexpected path: ' + path);
+    },
+    post: async (path, body) => writes.push({method: 'POST', path, body}),
+    patch: async (path, body) => writes.push({method: 'PATCH', path, body}),
+    delete: async path => writes.push({method: 'DELETE', path})
+  };
+}
+function adminFetch(low = '2048') {
+  return async url => url.includes('EffectiveBasePermissions') ? response({Low: low}) : response({value: [
+    {Id: 'title', InternalName: 'Title', CanBeDeleted: false, Sealed: false, ReadOnlyField: false, FromBaseType: true},
+    {Id: 'custom', InternalName: 'CustomField', CanBeDeleted: true, Sealed: false, ReadOnlyField: false, FromBaseType: false},
+    {Id: 'created', InternalName: 'Created', CanBeDeleted: false, Sealed: true, ReadOnlyField: true, FromBaseType: true}
+  ]});
+}
+test('Schema administration loads columns only, blocks system deletion and updates metadata without renaming internal fields', async () => {
+  const original = globalThis.fetch; globalThis.fetch = adminFetch();
+  try {
+    const graph = adminGraph(); let invalidated = 0;
+    const service = new GraphAdministrationService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'sp-token', () => invalidated++);
+    const data = await service.getData('schema');
+    assert.equal(data.entries.length, 0);
+    assert.equal(graph.calls.some(path => path.includes('/items')), false);
+    assert.equal(data.columns.find(column => column.name === 'Created').canEdit, false);
+    assert.equal(data.columns.find(column => column.name === 'Title').canDelete, false);
+    await assert.rejects(service.deleteColumn('created'), /cannot be deleted/);
+    await assert.rejects(service.deleteColumn('title'), /cannot be deleted/);
+    await service.saveColumn({name: 'IgnoredRename', displayName: 'Renamed', description: 'Description', required: true, kind: 'number'}, 'custom');
+    assert.deepEqual(graph.writes[0].body, {displayName: 'Renamed', description: 'Description', required: true});
+    await service.deleteColumn('custom');
+    assert.equal(graph.writes[1].method, 'DELETE');
+    assert.equal(invalidated, 2);
+  } finally { globalThis.fetch = original; }
+});
+test('Admin schema creation validates types and sends one Graph column facet', async () => {
+  const original = globalThis.fetch; globalThis.fetch = adminFetch();
+  try {
+    const graph = adminGraph();
+    const service = new GraphAdministrationService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'token');
+    const base = {name: 'ExtraChoice', displayName: 'Extra choice', description: '', required: false, kind: 'choice', choices: ['One', 'Two']};
+    await service.saveColumn(base);
+    assert.deepEqual(graph.writes[0].body.choice, {choices: ['One', 'Two'], allowTextEntry: false, displayAs: 'dropDownMenu'});
+    assert.equal(graph.writes[0].body.text, undefined);
+    await assert.rejects(service.saveColumn({...base, choices: ['One', 'One']}), /unique/);
+    await assert.rejects(service.saveColumn({...base, name: 'invalid name'}), /internal name/);
+    await assert.rejects(service.saveColumn({...base, name: 'Title'}), /already/);
+    await service.saveColumn({...base, name: 'AssignedBackup', displayName: 'Backup owner', kind: 'personOrGroup', multiple: false, peopleOnly: true});
+    assert.equal(graph.writes[1].body.personOrGroup.chooseFromType, 'peopleOnly');
+  } finally { globalThis.fetch = original; }
+});
+test('Admin operations enforce Manage Lists on each write and independent issue types have no parent', async () => {
+  const original = globalThis.fetch; globalThis.fetch = adminFetch('14');
+  try {
+    const graph = adminGraph();
+    const service = new GraphAdministrationService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'token');
+    await assert.rejects(service.getData('schema'), /Manage Lists/);
+    await assert.rejects(service.saveEntry('issueTypes', {title: 'Request', active: true, sortOrder: 1}), /Manage Lists/);
+    assert.equal(graph.writes.length, 0);
+    globalThis.fetch = adminFetch();
+    await service.saveEntry('issueTypes', {title: 'Request', active: true, sortOrder: 3});
+    assert.deepEqual(graph.writes[0].body.fields, {Title: 'Request', Active: true, SortOrder: 3});
+    await assert.rejects(service.saveEntry('subcategories', {title: 'Child', active: true, sortOrder: 1}), /parent category/);
+    await service.saveEntry('subcategories', {title: 'Child', active: false, sortOrder: 4, parentId: 1}, 2);
+    assert.equal(graph.writes[1].body.ParentLookupId, '1');
+  } finally { globalThis.fetch = original; }
+});
 const {loadClassification} = load('../src/services/GraphClassificationService.ts');
 test('Issue Type takes precedence over legacy Issue / Request and saves its actual internal name', async () => {
   const graph = fakeGraph({schema: [...columns,

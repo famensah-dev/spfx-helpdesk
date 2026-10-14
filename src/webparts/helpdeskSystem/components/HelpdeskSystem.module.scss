@@ -758,6 +758,18 @@
 }
 .ticketListCard { display: grid; gap: 14px; min-width: 0; margin-top: 8px; padding: 16px 22px; background: #fff; border: 1px solid #e0e7f1; border-radius: 6px; box-shadow: 0 3px 18px rgba(36,32,67,.035); }
 .secondaryPage { min-width: 0; }
+.secondaryPage > :global(.ms-MessageBar) { width: calc(100% + 2 * var(--page-inset)); margin-inline: calc(-1 * var(--page-inset)); padding-inline: calc(var(--page-inset) - 12px); }
+.administrationHeader { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -6px calc(-1 * var(--page-inset)) 0; padding: 18px calc(var(--page-inset) + 4px) 12px; background: #fff; border-bottom: 1px solid var(--hd-line); }
+.adminTabs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0;
+  button { border: 0; background: #fff; padding: 7px 10px; color: #244a91; border-radius: 2px; cursor: pointer; font-size: 12px; line-height: 1.45; }
+  button[aria-current='page'] { background: #1b385c; color: #fff; }
+}
+.adminFormFields { display: grid; gap: 16px; padding-top: 8px;
+  :global(.ms-TextField-fieldGroup) { border-color: #d6e1ee; border-radius: 4px; }
+  :global(.ms-TextField-fieldGroup)::after { border: 1px solid #789ac4; border-radius: 4px; }
+}
+.adminHint { margin: 0; color: #415575; font-size: 13px; line-height: 1.5; }
+.adminProperties { max-height: 420px; overflow: auto; font-size: 12px; background: #f5f8fc; padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .faqToolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
   > :global(.ms-SearchBox) { flex: 1; min-width: 200px; }
   > :global(.ms-Dropdown-container) { min-width: 160px; }

@@ -14,7 +14,8 @@ export function SearchableSelect(props: { label: string; required?: boolean; dis
     options={filtered.length ? filtered : [{ key: '__no_results__', text: 'No matching options', disabled: true }]}
     onInputValueChange={value => { setQuery(value); combo.current?.focus(true); }} onMenuDismissed={() => setQuery(null)}
     onBlur={() => setQuery(null)} onChange={(_, option) => { if (option && !option.disabled) { props.onChange(String(option.key)); setQuery(null); } }}
+    onRenderOption={option => <span style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{option?.text}</span>}
     dropdownWidth={Math.min(420, window.innerWidth - 32)}
     calloutProps={{ calloutMaxHeight: 280, directionalHint: DirectionalHint.bottomLeftEdge, gapSpace: 4 }}
-    styles={{ root: { width: '100%', borderRadius: 4, selectors: { ':after': { border: '1px solid #d6e1ee', borderRadius: 4 }, '&.is-open:after': { border: '1px solid #789ac4', borderRadius: 4 } } }, input: { fontSize: 13, color: '#293d58' }, rootHovered: { selectors: { ':after': { border: '1px solid #a9bfd9' } } }, rootFocused: { selectors: { ':after': { border: '1px solid #789ac4', borderRadius: 4 } } }, optionsContainerWrapper: { maxHeight: 280 }, optionText: { whiteSpace: 'normal', overflowWrap: 'anywhere' } }} />;
+    styles={{ root: { width: '100%', borderRadius: 4, selectors: { ':after': { border: '1px solid #d6e1ee', borderRadius: 4 }, '&.is-open:after': { border: '1px solid #789ac4', borderRadius: 4 } } }, input: { fontSize: 13, color: '#293d58' }, rootHovered: { selectors: { ':after': { border: '1px solid #a9bfd9' } } }, rootFocused: { selectors: { ':after': { border: '1px solid #789ac4', borderRadius: 4 } } }, optionsContainerWrapper: { maxHeight: 280 } }} />;
 }

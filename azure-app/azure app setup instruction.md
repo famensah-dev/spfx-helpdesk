@@ -1,5 +1,53 @@
 # DeskPilot Azure App Setup Instructions
 
+## Administration: Tickets schema and classification lists
+
+The **Administration** tab now has separate pages for **Ticket list schema**, **Categories**, **Subcategories**, **Issue Types**, and the existing FAQ manager.
+
+### Authorize administrators
+
+1. In SharePoint, give the intended helpdesk administrators **Manage Lists** permission on the Tickets list and the three classification lists. This is included in permission levels such as Design and Full Control; use an appropriate administrator group for your organization. Regular ticket-item edit permission is insufficient for Administration.
+2. Restrict editing of Ticket Categories, Ticket Subcategories, and Ticket Issue Types in SharePoint to that administrator group. Other users can retain read permission so they can select classifications. These underlying list permissions enforce access even if someone calls Graph outside DeskPilot.
+3. Keep the existing Microsoft Graph delegated **Sites.Selected** permission and selected-site Write grant for classification-item changes and ticket operations.
+4. For ticket-column/schema operations, in **Entra admin center > App registrations > DeskPilot > API permissions**, add **Microsoft Graph > Delegated permissions > Sites.Manage.All**, then have a tenant administrator grant consent. Microsoft Graph's list-column creation API documents this permission. This is a broader delegated permission across sites the signed-in user can manage, not a site-limited grant; review it with your tenant administrator. DeskPilot requests it separately for schema administration, rather than adding it to normal ticket sign-in scopes.
+5. Keep the existing **SharePoint > Delegated > AllSites.Write** consent for metadata and effective-permission checks. It does not grant your account Manage Lists. Both your user permissions and the API's authorization rules apply.
+6. Sign out and back in after consent changes. Opening the schema page may initiate the additional schema permission sign-in; complete it and reopen Administration before entering changes. No secrets or new environment variables are needed.
+
+Every administration write checks the signed-in user's effective **Manage Lists** permission on the target list. Actual requests then go to Graph, where Microsoft 365 enforces delegated and list permissions. DeskPilot cannot grant itself or its users administrator rights. A hidden/disabled button alone is not the access boundary.
+
+### Ticket list schema
+
+This page reads **columns and column metadata only**; it does not retrieve or display ticket records through the administration data service.
+
+- The table shows display/internal names, type, description, required state, and available actions. **View** opens all Graph column properties, including type settings and flags.
+- **New column** supports Single line of text, Multiple lines of text, Number, Choice, Date and time, Yes/No, Person or group, and Lookup. Type-specific controls cover text length, rich text, numeric bounds/precision, choice values, date-only mode, people/groups and multiple selection, and lookup source list/column.
+- Use a permanent internal name of 1–64 letters, digits, or underscores starting with a letter. The app validates duplicate names and type settings before sending the create request.
+- **Edit** updates supported display name, description, and required properties. Internal names and existing data types are preserved. Converting a populated column to another type requires a separately planned migration; the form does not attempt implicit conversion.
+- Read-only, sealed, missing-metadata, and system-managed fields are protected. SharePoint field metadata determines deletion eligibility; built-in and core ticket fields cannot be deleted here.
+- Deleting an eligible custom column requires typing its internal name. Deletion removes stored values and can affect workflows/reports; review dependencies and back up first. SharePoint can still reject a change for content-type, lookup, or field restrictions; DeskPilot displays that error.
+- Creating an extra column does not automatically add a new custom field to the operational ticket form. Operational fields still follow DeskPilot's supported mappings.
+
+Schema changes invalidate DeskPilot's ticket-schema cache so subsequent ticket operations re-read their mappings. No ticket records are created, changed, or deleted by this page.
+
+### Classification administration
+
+- **Categories:** view/add/edit names, activate/deactivate entries, and change Sort order.
+- **Subcategories:** the same controls plus a required parent Category selector backed by its existing single SharePoint lookup. The app verifies the lookup points to Ticket Categories and saves the numeric parent ID.
+- **Issue Types:** the same name, Active, and Sort order controls, with no category/subcategory parent requirement.
+- Lower Sort order values appear first; ties sort alphabetically. Deactivation preserves existing ticket references while removing entries from new selections. Configuration changes are persisted to their respective lists and picked up when ticket forms reload their options.
+
+### Live verification
+
+1. Open each Administration page as an authorized administrator and verify its list name and metadata.
+2. Create a temporary custom Tickets column, edit its display name/description/required flag, verify in SharePoint, and delete it with confirmation. Confirm built-in/system deletion is disabled.
+3. Add and edit a category, a child subcategory, and an independent issue type; change Active and Sort order, reload, and confirm persistence.
+4. Open New ticket and verify the saved classification options and parent filtering.
+5. Sign in as a non-admin: Administration must deny access. Verify direct schema/configuration writes are denied by Microsoft 365 according to the list permissions configured above.
+
+The implementation does not change tenant consent or SharePoint permissions automatically. Live schema and permission verification require your authenticated tenant; automated tests and a successful build are not a substitute.
+
+[Microsoft Graph create-list-column permission requirements](https://learn.microsoft.com/en-us/graph/api/list-post-columns?view=graph-rest-1.0) · [Column definition properties and restrictions](https://learn.microsoft.com/en-us/graph/api/resources/columndefinition?view=graph-rest-1.0)
+
 ## Classification lists: Categories, Subcategories, and Issue Types
 
 Ticket creation and editing now load classification from these lists on the configured ticket site:
