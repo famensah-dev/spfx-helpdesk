@@ -1,11 +1,13 @@
 import { GraphClient } from './GraphClient';
 import type { IAppConfig } from '../config';
-import type { IFaq, IFaqInput, IFaqAccess } from '../../../src/webparts/helpdeskSystem/interfaces/IFaq';
+import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from '../../../src/webparts/helpdeskSystem/interfaces/IFaq';
 
 interface Column { required?: boolean; name: string; displayName: string; text?: object; boolean?: object; number?: object; choice?: { choices: string[] }; readOnly?: boolean; lookup?: { listId: string; allowMultipleValues?: boolean }; }
 interface Context { path: string; listId: string; fields: Record<'question' | 'answer' | 'category' | 'keywords' | 'published' | 'sortOrder', string> & { subcategory?: string }; categories?: string[]; categoryColumn: Column; subcategoryColumn?: Column; sitePath: string; requiredTitle?: string; }
 export class GraphFaqService {
   private context?: Context;
+  private lookupCache?: { expires: number; request: Promise<Pick<IFaqAccess, 'categoryOptions' | 'subcategoryOptions'>> };
+  private accessCache?: { expires: number; value: IFaqAccess };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig, private readonly getSharePointToken?: () => Promise<string>) {}
   private async schema(): Promise<Context> {
     if (this.context) return this.context;
@@ -35,11 +37,17 @@ export class GraphFaqService {
     this.context = { path, listId: list.id, categories: category.choice?.choices, requiredTitle: columns.find(item => item.name === 'Title' && item.required && item.text)?.name, categoryColumn: category, subcategoryColumn: subcategory, sitePath: `/sites/${encodeURIComponent(site.id)}`, fields: {
       question: find(['Question', 'Title'], ['text']).name, answer: find(['Answer'], ['text']).name,
       category: category.name, keywords: find(['Keywords'], ['text']).name,
-      ...(subcategory ? { subcategory: subcategory.name } : {}), published: find(['IsPublished', 'Published'], ['boolean']).name, sortOrder: find(['SortOrder', 'Sort Order'], ['number']).name
+      ...(subcategory ? { subcategory: subcategory.name } : {}), published: find(['Active', 'IsPublished', 'Published'], ['boolean']).name, sortOrder: find(['SortOrder', 'Sort Order'], ['number']).name
     } };
     return this.context;
   }
   private async lookupOptions(schema: Context): Promise<Pick<IFaqAccess, 'categoryOptions' | 'subcategoryOptions'>> {
+    if (this.lookupCache && this.lookupCache.expires > Date.now()) return this.lookupCache.request;
+    const request = this.readLookupOptions(schema);
+    this.lookupCache = { expires: Date.now() + 30000, request };
+    try { return await request; } catch (error) { if (this.lookupCache?.request === request) this.lookupCache = undefined; throw error; }
+  }
+  private async readLookupOptions(schema: Context): Promise<Pick<IFaqAccess, 'categoryOptions' | 'subcategoryOptions'>> {
     const read = async (column: Column | undefined, subcategory: boolean): Promise<Array<{ id: string; name: string; parentId: string; active: boolean }> | undefined> => {
       if (!column?.lookup) return undefined;
       if (column.lookup.allowMultipleValues) throw new Error('FAQ classifications must use single-value lookups.');
@@ -56,7 +64,8 @@ export class GraphFaqService {
     const [categoryOptions, subcategoryOptions] = await Promise.all([read(schema.categoryColumn, false), read(schema.subcategoryColumn, true)]);
     return { categoryOptions, subcategoryOptions };
   }
-  public async getAccess(): Promise<IFaqAccess> {
+  public async getAccess(force = false): Promise<IFaqAccess> {
+    if (!force && this.accessCache && this.accessCache.expires > Date.now()) return this.accessCache.value;
     const schema = await this.schema();
     if (!this.getSharePointToken) return { canManage: false, categories: schema.categories };
     const token = await this.getSharePointToken();
@@ -66,14 +75,15 @@ export class GraphFaqService {
     if (!response.ok) throw new Error(`Unable to verify FAQ management permissions (${response.status}). Confirm SharePoint permission consent and list access.`);
     const permissions = await response.json() as { Low: string; High: string };
     // AddListItems, EditListItems, DeleteListItems. Actual writes remain enforced by SharePoint.
-    return { canManage: (Number(permissions.Low) & 14) === 14, categories: schema.categories, ...await this.lookupOptions(schema) };
+    const value = { canManage: (Number(permissions.Low) & 14) === 14, categories: schema.categories, ...await this.lookupOptions(schema) };
+    this.accessCache = { expires: Date.now() + 30000, value };
+    return value;
   }
   public async getFaqs(manage = false): Promise<IFaq[]> {
     const schema = await this.schema();
     if (manage && !(await this.getAccess()).canManage) throw new Error('Your account cannot manage this FAQ list.');
     const fields = schema.fields;
-    const lookupOptions = await this.lookupOptions(schema);
-    const items = await this.graph.getAll<{ id: string; lastModifiedDateTime: string; fields: Record<string, unknown> }>(`${schema.path}/items?$expand=fields&$top=200`);
+    const [lookupOptions, items] = await Promise.all([this.lookupOptions(schema), this.graph.getAll<{ id: string; lastModifiedDateTime: string; fields: Record<string, unknown> }>(`${schema.path}/items?$expand=fields&$top=200`)]);
     return items.filter(item => manage || item.fields[fields.published] === true).map(item => ({
       id: Number(item.id), question: String(item.fields[fields.question] || ''), answer: String(item.fields[fields.answer] || ''),
       categoryId: schema.categoryColumn.lookup ? String(item.fields[`${fields.category}LookupId`] || '') : undefined,
@@ -85,7 +95,7 @@ export class GraphFaqService {
   }
   public async save(input: IFaqInput, id?: number): Promise<void> {
     const schema = await this.schema();
-    if (!(await this.getAccess()).canManage) throw new Error('Your account cannot manage this FAQ list.');
+    if (!(await this.getAccess(true)).canManage) throw new Error('Your account cannot manage this FAQ list.');
     if (!input.question.trim() || input.question.trim().length > 255) throw new Error('Enter a question of 1–255 characters.');
     if (!input.answer.trim()) throw new Error('Enter an answer.');
     if (!Number.isFinite(input.sortOrder) || input.sortOrder < 0) throw new Error('Sort order must be zero or greater.');
@@ -115,5 +125,21 @@ export class GraphFaqService {
     const schema = await this.schema();
     if (!(await this.getAccess()).canManage) throw new Error('Your account cannot manage this FAQ list.');
     await this.graph.delete(`${schema.path}/items/${id}`);
+  }
+  public async updateMany(ids: number[], action: FaqBulkAction): Promise<IFaqBulkResult> {
+    const schema = await this.schema();
+    if (!(await this.getAccess()).canManage) throw new Error('Your account cannot manage this FAQ list.');
+    if (ids.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new Error('Invalid FAQ ID.');
+    const result: IFaqBulkResult = { succeeded: [], failed: [] };
+    const unique = Array.from(new Set(ids));
+    for (let index = 0; index < unique.length; index++) {
+      const id = unique[index];
+      try {
+        if (action.kind === 'delete') await this.graph.delete(`${schema.path}/items/${id}`);
+        else await this.graph.patch(`${schema.path}/items/${id}/fields`, { [action.kind === 'sort' ? schema.fields.sortOrder : schema.fields.published]: action.kind === 'sort' ? index + 1 : action.published });
+        result.succeeded.push(id);
+      } catch (reason) { result.failed.push({ id, message: reason instanceof Error ? reason.message : 'Update failed.' }); }
+    }
+    return result;
   }
 }

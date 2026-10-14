@@ -1,3 +1,4 @@
+import type { IFaqInput } from '../interfaces/IFaq';
 import { TicketClassificationFields } from './TicketClassificationFields';
 import { RichTextEditor, RichTextContent } from './RichTextEditor';
 import { MarkdownContent } from './MarkdownEditor';
@@ -32,6 +33,9 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const [commentsLoading, setCommentsLoading] = React.useState(false);
   const [commentsError, setCommentsError] = React.useState('');
   const [comment, setComment] = React.useState('');
+  const [saveToFaq, setSaveToFaq] = React.useState(false);
+  const [pendingFaq, setPendingFaq] = React.useState<IFaqInput | null>(null);
+  const [faqMessage, setFaqMessage] = React.useState('');
   const [posting, setPosting] = React.useState(false);
   const [activeSection, setActiveSection] = React.useState('details');
   const [newestFirst, setNewestFirst] = React.useState(true);
@@ -82,12 +86,38 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save changes.'); }
     finally { lock.current = false; setSaving(false); }
   };
+  const retryFaq = async (): Promise<void> => {
+    if (!pendingFaq || !service?.saveFaq || commentLock.current) return;
+    commentLock.current = true; setPosting(true); setCommentsError('');
+    try { await service.saveFaq(pendingFaq); setPendingFaq(null); setFaqMessage('Comment saved as an inactive FAQ draft.'); }
+    catch (reason) { setCommentsError(reason instanceof Error ? reason.message : 'Unable to save FAQ.'); }
+    finally { commentLock.current = false; setPosting(false); }
+  };
   const post = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault(); if (!service?.addComment || commentLock.current || !comment.trim()) return;
-    commentLock.current = true; setPosting(true); setCommentsError('');
-    try { await service.addComment(ticket.Id, comment); setComment(''); await loadComments(); }
-    catch (reason) { setCommentsError(reason instanceof Error ? reason.message : 'Unable to post comment.'); }
-    finally { commentLock.current = false; setPosting(false); }
+    commentLock.current = true; setPosting(true); setCommentsError(''); setFaqMessage('');
+    let commentSaved = false;
+    try {
+      let faq: IFaqInput | undefined;
+      if (saveToFaq) {
+        const access = await service.getFaqAccess?.();
+        if (!access?.canManage || !service.saveFaq) throw new Error('You need FAQ management permission to save this comment as an FAQ.');
+        const category = access.categoryOptions?.find(item => item.name === ticket.Category);
+        const subcategory = access.subcategoryOptions?.find(item => item.name === ticket.Subcategory && item.parentId === category?.id);
+        const escape = (value: string): string => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        faq = { question: ticket.Title, answer: '<p>' + escape(comment.trim()).replace(/\n/g, '<br>') + '</p>', category: ticket.Category || '', subcategory: ticket.Subcategory || '', categoryId: category?.id, subcategoryId: subcategory?.id, keywords: '', published: false, sortOrder: 0 };
+      }
+      await service.addComment(ticket.Id, comment); commentSaved = true; setComment(''); setSaveToFaq(false);
+      if (faq) {
+        setPendingFaq(faq);
+        await service.saveFaq!(faq);
+        setPendingFaq(null); setFaqMessage('Comment posted and saved as an inactive FAQ draft.');
+      }
+      await loadComments();
+    } catch (reason) {
+      if (commentSaved) await loadComments();
+      setCommentsError((commentSaved ? 'The comment was posted. ' : '') + (reason instanceof Error ? reason.message : 'Unable to post comment.'));
+    } finally { commentLock.current = false; setPosting(false); }
   };
   const initials = (name: string): string => name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
   return <section className={`${styles.pageContent} ${styles.detailWorkspace}`} aria-label={`Ticket #${ticket.Id} details`}>
@@ -135,8 +165,10 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         </form> : <>
           <section ref={descriptionSection} className={styles.detailSection}><div className={styles.detailSectionHeading}><Icon iconName="AlignLeft" /><h3>Description</h3></div><div className={styles.ticketDescription}>{/<\/?(?:p|div|br|strong|b|em|ul|ol|h[234])\b/i.test(ticket.Description || '') ? <RichTextContent value={ticket.Description!} /> : <MarkdownContent value={ticket.Description || 'No description has been added to this ticket.'} />}</div></section>
         </>}
+      {faqMessage && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setFaqMessage('')}>{faqMessage}</MessageBar>}
+      {pendingFaq && <MessageBar messageBarType={MessageBarType.warning}>Your comment is saved; its FAQ draft still needs to be saved. <DefaultButton text="Retry Save to FAQ" disabled={posting} onClick={() => { void retryFaq(); }} /><DefaultButton text="Dismiss" disabled={posting} styles={cancelButtonStyles} onClick={() => setPendingFaq(null)} /></MessageBar>}
       <section ref={commentsSection} className={styles.ticketComments} aria-label="Ticket comments">
-        <form onSubmit={event => { void post(event); }} className={styles.commentComposer}><div className={styles.detailSectionHeading}><Icon iconName="CommentAdd" /><h3>Add a comment</h3></div><div className={styles.commentEditor}><div className={styles.commentFormatBar} aria-label="Comment formatting"><select disabled aria-label="Text style" title="Rich text formatting is not available yet"><option>Normal</option></select>{[{ icon: 'Bold', label: 'Bold' }, { icon: 'Italic', label: 'Italic' }, { icon: 'Underline', label: 'Underline' }, { icon: 'BulletedList', label: 'Bulleted list' }, { icon: 'NumberedList', label: 'Numbered list' }, { icon: 'AlignLeft', label: 'Align left' }, { icon: 'Link', label: 'Insert link' }, { icon: 'Photo2', label: 'Insert image' }].map(item => <IconButton key={item.icon} iconProps={{ iconName: item.icon }} ariaLabel={item.label} title={`${item.label} is not available yet`} disabled />)}</div><TextField ariaLabel="Comment" placeholder="Type your comment here…" multiline rows={4} maxLength={10000} value={comment} disabled={posting || !service?.addComment} onChange={(_, value) => setComment(value || '')} /></div><div className={styles.commentComposerFooter}><button type="button" className={styles.detailAttachButton} disabled title="File attachments are not available yet"><Icon iconName="Attach" />Attach files</button><label className={styles.detailInternalNote} title="Internal notes are not available yet"><input type="checkbox" disabled />Make this an internal note <Icon iconName="Info" /></label><PrimaryButton type="submit" text={posting ? 'Posting…' : 'Post Comment'} iconProps={{iconName: 'Send'}} disabled={posting || commentsLoading || Boolean(commentsError) || !comment.trim() || !service?.addComment} /></div></form>
+        <form onSubmit={event => { void post(event); }} className={styles.commentComposer}><div className={styles.detailSectionHeading}><Icon iconName="CommentAdd" /><h3>Add a comment</h3></div><div className={styles.commentEditor}><div className={styles.commentFormatBar} aria-label="Comment formatting"><select disabled aria-label="Text style" title="Rich text formatting is not available yet"><option>Normal</option></select>{[{ icon: 'Bold', label: 'Bold' }, { icon: 'Italic', label: 'Italic' }, { icon: 'Underline', label: 'Underline' }, { icon: 'BulletedList', label: 'Bulleted list' }, { icon: 'NumberedList', label: 'Numbered list' }, { icon: 'AlignLeft', label: 'Align left' }, { icon: 'Link', label: 'Insert link' }, { icon: 'Photo2', label: 'Insert image' }].map(item => <IconButton key={item.icon} iconProps={{ iconName: item.icon }} ariaLabel={item.label} title={`${item.label} is not available yet`} disabled />)}</div><TextField ariaLabel="Comment" placeholder="Type your comment here…" multiline rows={4} maxLength={10000} value={comment} disabled={posting || !service?.addComment} onChange={(_, value) => setComment(value || '')} /></div><div className={styles.commentComposerFooter}><button type="button" className={styles.detailAttachButton} disabled title="File attachments are not available yet"><Icon iconName="Attach" />Attach files</button><label className={styles.detailInternalNote} title="Internal notes are not available yet"><input type="checkbox" disabled />Make this an internal note <Icon iconName="Info" /></label><label className={styles.detailInternalNote}><input type="checkbox" checked={saveToFaq} disabled={posting || Boolean(pendingFaq) || !service?.saveFaq} onChange={event => setSaveToFaq(event.target.checked)} />Save to FAQ</label><PrimaryButton type="submit" text={posting ? 'Posting…' : 'Post Comment'} iconProps={{iconName: 'Send'}} disabled={posting || Boolean(pendingFaq) || commentsLoading || Boolean(commentsError) || !comment.trim() || !service?.addComment} /></div></form>
         <div className={styles.commentDisplay}>
         <div className={styles.conversationHeading}><div><h3>Comments <span className={styles.commentCount}>{comments.length}</span></h3></div><div className={styles.detailTopActions}><select aria-label="Comment order" value={newestFirst ? 'newest' : 'oldest'} onChange={event => setNewestFirst(event.target.value === 'newest')}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select><DefaultButton text="Refresh" iconProps={{iconName: 'Refresh'}} disabled={commentsLoading || posting} onClick={() => { void loadComments(); }} /></div></div>
         {commentsError && <MessageBar messageBarType={MessageBarType.error}>{commentsError}</MessageBar>}

@@ -766,9 +766,39 @@
   summary { cursor: pointer; font-size: 14px; font-weight: 500; color: #1b385c; }
 }
 .faqAnswer { padding: 14px 0 4px; }
+.faqAnswerCell { min-width: 220px; max-width: 440px;
+  summary { cursor: pointer; display: flex; gap: 6px; align-items: baseline; color: #415575; font-size: 13px; }
+  summary::before { content: '▸'; }
+  summary > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  details[open] summary::before { content: '▾'; }
+}
+.faqAnswerPreview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.5; color: #172536; overflow-wrap: anywhere; }
+.ticketTable td.faqClassificationCell { font-size: 12px; }
+.faqStatusPill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; line-height: 1.4; background: #edf0f3; color: #596371; white-space: nowrap;
+  &[data-active='true'] { background: #e0f5e9; color: #13794e; }
+}
 .faqMeta { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; margin-top: 10px; font-size: 12px; color: #647694; }
 .faqEditor { display: grid; gap: 18px; max-width: 1000px; width: 100%; margin-inline: auto; h3 { margin: 0; font-size: 18px; font-weight: 500; } }
+.faqEditor :global(.ms-TextField-fieldGroup) { border: 1px solid #d6e1ee; border-radius: 4px;
+  &:hover { border-color: #a9bfd9; }
+  &::after { border: 1px solid #789ac4; border-radius: 4px; }
+}
 .faqActions { display: flex; gap: 8px; }
+.faqClassificationRow { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.faqPublishCheckbox { margin-top: 4px;
+  :global(.ms-Checkbox-checkbox) { width: 16px; height: 16px; border-radius: 4px; border-color: #a9bfd9; }
+  :global(.ms-Checkbox-text) { font-size: 13px; color: #415575; }
+}
+.faqModalFooter { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; padding-top: 18px; border-top: 1px solid #e5ebf3;
+  > :global(.ms-Button) { height: 30px; min-width: 70px; }
+  :global(.ms-Button-label) { font-size: 13px; }
+}
+@media (max-width: 620px) { .faqClassificationRow { grid-template-columns: minmax(0, 1fr); } }
+.faqSortActions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap;
+  > span { margin-right: auto; font-size: 12px; color: #647694; }
+  > :global(.ms-Button) { min-width: 60px; height: 28px; padding: 0 10px; border-radius: 4px; }
+  :global(.ms-Button-label) { font-size: 12px; font-weight: 500; }
+}
 .secondaryPageHeader { margin: -6px calc(-1 * var(--page-inset)) 0; padding: 12px calc(var(--page-inset) + 4px); background: #fff; border-bottom: 1px solid var(--hd-line);
   h2 { margin: 0; color: #101828; font-size: 16px; font-weight: 600; line-height: 1.5; }
 }
@@ -777,3 +807,5 @@
   .ticketPage > .ticketTabs, .secondaryPageHeader { padding-inline: calc(var(--page-inset) + 4px); }
 }
 @media (max-width: 620px) { .newTicketFields { grid-template-columns: minmax(0, 1fr); } .newTicketSection { padding: 16px; } }
+
+.ticketTable td.faqQuestionCell, .faqQuestionCell .ticketSubjectLink { color: #172536; }

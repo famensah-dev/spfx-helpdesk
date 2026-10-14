@@ -32,6 +32,12 @@ If a list or required column is missing, or a parent lookup points to the wrong 
 
 ## FAQ list setup
 
+FAQs now use a table. Users with FAQ list management permissions see **Add**, row selection, and bulk **Make active**, **Make inactive**, and **Delete** actions directly on the FAQs page as well as Administration. Active/inactive maps to the **Active** Yes/No column. Older IsPublished or Published columns are also supported. Deletion confirms the selected count, and partial failures identify affected IDs.
+
+Use **Sort** to reorder all entries (including inactive entries) by dragging rows, or use the up/down controls for keyboard access. **Apply order** saves the new SortOrder values; Cancel discards the unsaved order. Search/category/status filters are disabled during sorting, which always shows the full management list. Refresh uses the refresh icon.
+
+When posting a ticket comment, check **Save to FAQ** to create an inactive FAQ draft with the ticket Title as Question and the comment as Answer. Matching category/subcategory lookup IDs are copied when available. This requires FAQ management permission. The comment and FAQ are separate saves; if the comment succeeds but FAQ creation fails, **Retry Save to FAQ** retries the FAQ without reposting the comment. Review the draft and make it active from FAQs to publish it.
+
 DeskPilot's **FAQs** tab displays published answers with keyword search, category filters, and expandable questions. **Administration** currently opens FAQ management, where permitted staff can create, edit, publish/unpublish, and delete entries. Deletion asks for confirmation. Answers use the rich-text editor.
 
 Create a separate list on the **same site configured in `VITE_SHAREPOINT_SITE_URL`**:
@@ -48,7 +54,7 @@ Create a separate list on the **same site configured in `VITE_SHAREPOINT_SITE_UR
 | Category | Lookup to Ticket Categories | Single selection; Text or Choice is also supported for older setups |
 | Subcategory | Lookup to Ticket Subcategories | Single selection; its source list needs a Category lookup to the same category source list |
 | Keywords | Single line of text | Optional |
-| IsPublished (or Published) | Yes/No | Default No; IsPublished takes precedence |
+| Active | Yes/No | Default No; takes precedence over older IsPublished or Published columns |
 | SortOrder | Number | Default 0; minimum 0; lower values appear first |
 
 The app also uses SharePoint's Modified timestamp. It does not create or alter list columns automatically.

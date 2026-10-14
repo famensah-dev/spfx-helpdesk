@@ -74,6 +74,39 @@ test('Classification lookup ticket columns save numeric source IDs on creation a
   assert.equal(writes.length, 2);
 });
 const {GraphFaqService} = load('../src/services/GraphFaqService.ts');
+test('FAQ Active Yes/No column supports reads, saves and bulk changes', async () => {
+  const graph = faqGraph();
+  const original = graph.getAll;
+  graph.getAll = async path => {
+    const values = await original(path);
+    if (path.includes('/columns')) return values.map(column => column.name === 'field_4' ? {...column, name: 'Active', displayName: 'Active'} : column);
+    if (path.includes('/items')) return values.map(item => ({...item, fields: {...item.fields, Active: item.fields.field_4}}));
+    return values;
+  };
+  const service = new GraphFaqService(graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support'});
+  assert.deepEqual((await service.getFaqs()).map(faq => faq.id), [2]);
+  service.getAccess = async () => ({canManage: true});
+  await service.save({question: 'Question', answer: 'Answer', category: 'Accounts', keywords: '', published: true, sortOrder: 0});
+  assert.equal(graph.writes[0].body.fields.Active, true);
+  await service.updateMany([2], {kind: 'publish', published: false});
+  assert.deepEqual(graph.writes[1].body, {Active: false});
+});
+test('FAQ bulk publication, ordering and deletion only update the requested fields and report partial failures', async () => {
+  const graph = faqGraph();
+  const service = new GraphFaqService(graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support'});
+  service.getAccess = async () => ({canManage: true});
+  await service.updateMany([2, 1, 2], {kind: 'publish', published: false});
+  assert.deepEqual(graph.writes.map(write => write.body), [{field_4: false}, {field_4: false}]);
+  graph.writes.length = 0;
+  await service.updateMany([2, 1], {kind: 'sort'});
+  assert.deepEqual(graph.writes.map(write => write.body), [{field_5: 1}, {field_5: 2}]);
+  assert.match(graph.writes[0].path, /items\/2\/fields$/);
+  graph.delete = async path => { if (path.endsWith('/1')) throw new Error('Denied'); };
+  assert.deepEqual(await service.updateMany([2, 1], {kind: 'delete'}), {succeeded: [2], failed: [{id: 1, message: 'Denied'}]});
+  await assert.rejects(service.updateMany([-1], {kind: 'delete'}), /Invalid FAQ/);
+  service.getAccess = async () => ({canManage: false});
+  await assert.rejects(service.updateMany([2], {kind: 'publish', published: true}), /cannot manage/);
+});
 test('FAQ Question ignores read-only LinkTitle and saves the writable Title column', async () => {
   const graph = faqGraph();
   const original = graph.getAll;
@@ -163,7 +196,7 @@ test('FAQ management uses SharePoint list add/edit/delete permissions', async ()
     const service = new GraphFaqService(faqGraph(), {siteId: 'site-id', siteUrl: 'https://example.sharepoint.com/sites/support'}, async () => 'sharepoint-token');
     assert.equal((await service.getAccess()).canManage, true);
     globalThis.fetch = async () => response({Low: '2', High: '0'});
-    assert.equal((await service.getAccess()).canManage, false);
+    assert.equal((await service.getAccess(true)).canManage, false);
   } finally { globalThis.fetch = originalFetch; }
 });
 test('Graph deletion accepts 204 without parsing an empty response', async () => {

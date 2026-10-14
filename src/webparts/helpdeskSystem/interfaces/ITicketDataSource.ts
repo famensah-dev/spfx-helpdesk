@@ -1,7 +1,7 @@
 import type { ITicketQueryResult } from './IDashboard';
 import type { TicketStatus, TicketPriority } from './ITicket';
 import type { IUserLookup } from './ITicket';
-import type { IFaq, IFaqInput, IFaqAccess } from './IFaq';
+import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from './IFaq';
 export interface IOrganizationUser { id: string; displayName: string; email: string; userPrincipalName: string; department?: string; }
 export interface INewTicketInput { title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; department?: string; dueDate?: string; attachments?: File[]; }
 export interface IClassificationOption { id: string; name: string; parentId?: string; }
@@ -19,6 +19,7 @@ export interface ITicketDataSource {
   getFaqAccess?(): Promise<IFaqAccess>;
   saveFaq?(input: IFaqInput, id?: number): Promise<void>;
   deleteFaq?(id: number): Promise<void>;
+  updateFaqs?(ids: number[], action: FaqBulkAction): Promise<IFaqBulkResult>;
   searchUsers?(query: string, department?: string): Promise<IOrganizationUser[]>;
   resolveUser?(user: IOrganizationUser): Promise<IUserLookup>;
   getTickets(): Promise<ITicketQueryResult>;

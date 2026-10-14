@@ -37,7 +37,7 @@ async function start(): Promise<void> {
     const faqService = new GraphFaqService(graph, config, () => auth.getSharePointToken());
     const service = Object.assign(new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken()), {
       getFaqs: (manage?: boolean) => faqService.getFaqs(manage), getFaqAccess: () => faqService.getAccess(),
-      saveFaq: (input: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').IFaqInput, id?: number) => faqService.save(input, id), deleteFaq: (id: number) => faqService.delete(id)
+      saveFaq: (input: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').IFaqInput, id?: number) => faqService.save(input, id), deleteFaq: (id: number) => faqService.delete(id), updateFaqs: (ids: number[], action: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').FaqBulkAction) => faqService.updateMany(ids, action)
     });
     const { default: HelpdeskApp } = await import('../../src/webparts/helpdeskSystem/components/HelpdeskApp');
     const actions = <AccountMenu displayName={profile.displayName} email={profile.mail || profile.userPrincipalName} auth={auth} onError={error => renderFailure(error, auth)} />;
