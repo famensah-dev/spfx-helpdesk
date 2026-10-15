@@ -72,7 +72,7 @@
 .pageFooter { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; font-size: 11px; color: #59616d; }
 .resolutionGrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; div { border: 1px solid var(--hd-line); padding: 12px; border-radius: 2px; } strong { display: block; margin-top: 8px; font-size: 20px; } }
 .tableContainer { overflow-x: auto; }
-.ticketTable { width: 100%; border-collapse: collapse; text-align: left; th, td { border-bottom: 1px solid var(--hd-line); padding: 12px; overflow-wrap: anywhere; } th { background: #eef2f7; font-weight: 600; } caption { text-align: left; margin: 8px 0; color: #59616d; } }
+.ticketTable { font-size: 14px; width: 100%; border-collapse: collapse; text-align: left; th, td { border-bottom: 1px solid var(--hd-line); padding: 12px; overflow-wrap: anywhere; } th { background: #eef2f7; font-size: 13px; font-weight: 600; } caption { text-align: left; margin: 8px 0; color: #59616d; } }
 .pagination { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .srOnly { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 .priorityLabel { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap;
@@ -237,7 +237,7 @@
   }
 }
 .ticketTable tbody tr[data-selected='true'] { background: #edf3ff; }
-.ticketSubjectLink { border: 0; background: transparent; color: #172536; font-weight: 600; text-align: left; padding: 0; font-size: 13px; cursor: pointer; &:hover { text-decoration: underline; } }
+.ticketSubjectLink { border: 0; background: transparent; color: #172536; font-weight: 600; text-align: left; padding: 0; font-size: 14px; cursor: pointer; &:hover { text-decoration: underline; } }
 .ticketDetailLayout { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(360px, 1fr); gap: 24px; min-height: 380px; }
 .ticketDetailBody { min-width: 0; h2 { margin: 0 0 12px; font-size: 22px; overflow-wrap: anywhere; } h3 { font-size: 14px; margin: 24px 0 8px; } }
 .ticketDetailBadges { display: flex; align-items: center; gap: 16px; }
@@ -484,11 +484,11 @@
   &:disabled { opacity: .65; }
 }
 .ticketTable tbody td { font-size: 14px; }
-.ticketTable .priorityLabel { font-size: 13px; font-weight: 400; }
+.ticketTable .priorityLabel { font-size: 12px; font-weight: 400; }
 .ticketTable .statusPill { font-size: 12px; }
-.ticketTable .inlineAssignee :global(.ms-Button-label) { font-size: 13px; }
-.ticketAssigneeLabel { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 13px; }
-.ticketTable td.ticketDateCell { font-size: 13px; }
+.ticketTable .inlineAssignee :global(.ms-Button-label) { font-size: 14px; }
+.ticketAssigneeLabel { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; font-size: 14px; }
+.ticketTable td.ticketDateCell { font-size: 12px; }
 .ticketTable td.editableTicketCell { padding: 0; cursor: pointer;
   position: relative;
   > :global(.ms-Button) { width: 100%; min-height: 42px; height: 100%; padding: 7px 12px; justify-content: flex-start; }
@@ -590,14 +590,14 @@
 }
 .dashboardTextLink { padding: 0; border: 0; background: transparent; color: #2d88ff; cursor: pointer; font-size: 13px; font-weight: 600; white-space: nowrap; &:hover { text-decoration: underline; } }
 .dashboardRecentScroll { overflow-x: auto; }
-.dashboardRecentTable { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px;
-  th { background: #f1f5fd; font-size: 12px; font-weight: 600; color: #243958; white-space: nowrap; padding: 9px 10px; }
+.dashboardRecentTable { width: 100%; border-collapse: collapse; text-align: left; font-size: 14px;
+  th { background: #f1f5fd; font-size: 13px; font-weight: 600; color: #243958; white-space: nowrap; padding: 9px 10px; }
   td { padding: 9px 10px; border-bottom: 1px solid #f0f3f9; color: #526580; }
   tbody tr:last-child td { border-bottom: 0; }
   td:nth-child(2) { max-width: 360px; min-width: 180px; }
   td:nth-child(3) { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   td:first-child, td:last-child { white-space: nowrap; }
-  button { display: block; width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; padding: 0; font-size: 13px; color: #293d58; cursor: pointer; font-weight: 500; &:hover { color: #2d88ff; text-decoration: underline; } }
+  button { display: block; width: 100%; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 0; background: transparent; padding: 0; font-size: 14px; color: #293d58; cursor: pointer; font-weight: 500; &:hover { color: #2d88ff; text-decoration: underline; } }
   .statusPill { padding: 2px 8px; font-size: 12px; font-weight: 500; }
 }
 .dashboardPriorityBadge { display: inline-block; border-radius: 99px; padding: 2px 8px; font-size: 12px; white-space: nowrap; background: #edf3fc; color: #526580;
@@ -788,12 +788,12 @@
 }
 .schemaColumnsLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; &[data-editing='true'] { grid-template-columns: minmax(0, 1fr) 310px; } }
 .schemaTableCard { min-width: 0; overflow: hidden; border: 1px solid #e0e7f1; border-radius: 6px;
-  .ticketTable { font-size: 12px; } .ticketSubjectLink { font-size: 14px; } .ticketTable th { font-size: 13px; font-weight: 600; }
+  .ticketTable { font-size: 14px; } .ticketSubjectLink { font-size: 14px; } .ticketTable th { font-size: 13px; font-weight: 600; }
   .ticketTable td { padding: 6px 10px; } .ticketTable :global(.ms-Button--icon) { height: 24px; width: 28px; background: transparent; }
 }
 .schemaColumnType { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; i { color: #2855b6; font-size: 14px; } }
 .schemaDescription { display: block; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #647694; }
-.schemaRequired { display: inline-block; border-radius: 999px; background: #f1f3f7; color: #647694; font-size: 11px; padding: 2px 9px; &[data-required='true'] { background: #fff1cc; color: #8a5700; } }
+.schemaRequired { display: inline-block; border-radius: 999px; background: #f1f3f7; color: #647694; font-size: 12px; padding: 2px 9px; &[data-required='true'] { background: #fff1cc; color: #8a5700; } }
 .schemaEditorCard { border: 1px solid #e0e7f1; border-radius: 6px; background: #fff; padding: 16px;
   header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; } h3 { margin: 0; font-size: 16px; font-weight: 600; color: #172536; }
   .adminFormFields { gap: 14px; } :global(.ms-Label) { font-size: 12px; color: #293d58; font-weight: 500; }
@@ -815,7 +815,7 @@
   summary > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
   details[open] summary::before { content: '▾'; }
 }
-.faqAnswerPreview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 13px; line-height: 1.5; color: #172536; overflow-wrap: anywhere; }
+.faqAnswerPreview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 1.5; color: #172536; overflow-wrap: anywhere; }
 .ticketTable td.faqClassificationCell { font-size: 12px; }
 .faqStatusPill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; line-height: 1.4; background: #edf0f3; color: #596371; white-space: nowrap;
   &[data-active='true'] { background: #e0f5e9; color: #13794e; }
@@ -860,3 +860,19 @@
 .schemaListSummary > .adminSharePointLink { color: #244a91; font-size: 12px; }
 
 .slaState { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #f1f3f7; color: #526783; &[data-state='Met'] { background: #dff3e5; color: #216a38; } &[data-state='Breached'] { background: #fde5e5; color: #b42318; } &[data-state='Within target'] { background: #fff1cc; color: #8a5700; } }
+
+// Shared table typography: regular content 14px, secondary content and badges 12px.
+.ticketTable td .adminAvailabilityLink { font-size: 14px; }
+.schemaTableCard .ticketTable td:nth-child(2), .schemaTableCard .schemaColumnType, .schemaTableCard .schemaDescription { font-size: 12px; }
+
+.slaDashboardRow { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 16px; align-items: stretch; > section { min-width: 0; } }
+.slaChart { height: 250px; position: relative; }
+@media (max-width: 1050px) { .slaDashboardRow { grid-template-columns: minmax(0, 1fr); } }
+
+.slaTableFooter { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; font-size: 12px; color: #647694; }
+.slaExportToolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; > span { margin-right: auto; font-size: 13px; } }
+.slaAllTable { margin-top: 16px; max-height: calc(100vh - 260px); overflow: auto; th { position: sticky; top: 0; z-index: 1; } .ticketTable th, .ticketTable td { border-bottom: 1px solid #d6dfed; } }
+
+.dashboardLeftLabels .dashboardBarLabel { text-align: left; }
+
+.slaLegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 10px; button { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: transparent; color: #415575; font-size: 12px; cursor: pointer; > span { width: 9px; height: 9px; border-radius: 50%; } &:focus-visible { outline: 2px solid #789ac4; outline-offset: 3px; } } }

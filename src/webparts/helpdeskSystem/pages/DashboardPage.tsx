@@ -202,6 +202,9 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
       })}</div>
       {props.sla && <SlaDashboardCard service={props.sla} tickets={visible} lastUpdated={lastUpdated} onOpenTicket={props.onOpenTicket} />}
       <div className={styles.dashboardChartsGrid}>
+        <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: '#2d88ff' }} />Created</span>{hasResolvedAt && <span><i style={{ background: '#28b47d' }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
+          <div className={styles.dashboardCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={chartDefaults} /></div>
+        </ChartCard>
         <ChartCard title="Tickets by Status">
           <div className={styles.dashboardStatusChart}>
       <div className={styles.dashboardDonut}><Doughnut role="img" aria-label={displayedStatuses.map(status => `${status}: ${countStatus(visible, status)}`).join(', ')} data={statusData} options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } } }} /><div><strong>{visible.length}</strong><span>Total Tickets</span></div></div>
@@ -209,11 +212,8 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
           </div>
         </ChartCard>
         <ChartCard title="Tickets by Priority"><div className={styles.dashboardCanvas}><Bar role="img" aria-label={priorities.map((priority, index) => `${priority}: ${priorityData.datasets[0].data[index]}`).join(', ')} data={priorityData} plugins={[priorityValueLabels]} options={{ ...chartDefaults, layout: { padding: { top: 16 } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, grace: '15%' } } }} /></div></ChartCard>
-        <ChartCard title="Tickets by Category"><Breakdown rows={hasCategory ? groupTicketCounts(visible, 'Category') : []} empty="Category information is not available yet." /></ChartCard>
-        <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: '#2d88ff' }} />Created</span>{hasResolvedAt && <span><i style={{ background: '#28b47d' }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
-          <div className={styles.dashboardCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={chartDefaults} /></div>
-        </ChartCard>
-        <ChartCard title="Top Issue Types"><Breakdown rows={hasIssueType ? groupTicketCounts(visible, 'IssueType') : []} empty={hasIssueType ? 'No tickets in this view.' : 'Issue Type information is not available yet.'} /></ChartCard>
+        <ChartCard title="Tickets by Category" className={styles.dashboardLeftLabels}><Breakdown rows={hasCategory ? groupTicketCounts(visible, 'Category') : []} empty="Category information is not available yet." /></ChartCard>
+        <ChartCard title="Top Issue Types" className={styles.dashboardLeftLabels}><Breakdown rows={hasIssueType ? groupTicketCounts(visible, 'IssueType') : []} empty={hasIssueType ? 'No tickets in this view.' : 'Issue Type information is not available yet.'} /></ChartCard>
         <ChartCard title="Tickets by Department / Unit"><Breakdown rows={hasDepartment ? groupTicketCounts(visible, 'Department') : []} empty={hasDepartment ? 'No tickets in this view.' : 'Department information is not available yet.'} /></ChartCard>
         <ChartCard title="Average Resolution Time by Category" note="Days from creation to recorded resolution."><Breakdown rows={hasResolvedAt ? getResolutionByCategory(visible) : []} unit="days" colors={['#9a75f2', '#f45663', '#ff962e', '#28b47d', '#2d88ff', '#ffc329', '#a6b1c2', '#62a0f9']} empty="No recorded resolution dates in this view." /></ChartCard>
         <ChartCard title="Open Tickets by Aging" className={styles.dashboardAgingCard} note="Elapsed time since creation, as of today."><Breakdown rows={getOpenTicketAging(visible, now)} colors={['#28b47d', '#2d88ff', '#ffc329', '#ff962e', '#f45663']} /></ChartCard>

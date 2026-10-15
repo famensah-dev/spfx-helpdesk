@@ -4,6 +4,11 @@ import type { ISlaService, ISlaSettings, ISlaPriority } from '../../../src/webpa
 interface List { id: string; displayName: string; webUrl?: string; }
 interface Column { id: string; name: string; displayName: string; readOnly?: boolean; text?: object; number?: object; boolean?: object; dateTime?: object; choice?: {choices: string[]; [key: string]: unknown}; }
 const listName = 'Ticket Priorities';
+const defaultTargets = (name: string): {ResponseMinutes: number; ResolutionMinutes: number} => {
+  const values: Record<string, [number, number]> = {critical: [15, 240], high: [60, 480], medium: [240, 1440], low: [480, 4320]};
+  const [ResponseMinutes, ResolutionMinutes] = values[name.trim().toLowerCase()] || [240, 1440];
+  return {ResponseMinutes, ResolutionMinutes};
+};
 export class GraphSlaService implements ISlaService {
   public constructor(private graph: GraphClient, private schema: GraphClient, private config: IAppConfig, private token: () => Promise<string>, private changed: () => void) {}
   private async context() {
@@ -57,12 +62,19 @@ export class GraphSlaService implements ISlaService {
     const ticketsPath = `${context.site}/lists/${context.tickets.id}`;
     const ticketColumns = await this.graph.getAll<Column>(`${ticketsPath}/columns`);
     const choices = this.priority(ticketColumns).choice!.choices;
-    const items = await this.graph.getAll<{fields: {Title?: string}}>(`${path}/items?$expand=fields($select=Title)&$top=200`);
+    const items = await this.graph.getAll<{id: string; fields: {Title?: string; ResponseMinutes?: number | null; ResolutionMinutes?: number | null}}>(`${path}/items?$expand=fields&$top=200`);
     const existingNames = new Set(items.map(item => String(item.fields.Title || '').trim().toLowerCase()));
+    for (const item of items) {
+      const defaults = defaultTargets(item.fields.Title || '');
+      const fields: Record<string, number> = {};
+      if (item.fields.ResponseMinutes == null) fields.ResponseMinutes = Math.min(defaults.ResponseMinutes, item.fields.ResolutionMinutes && item.fields.ResolutionMinutes > 0 ? item.fields.ResolutionMinutes : defaults.ResponseMinutes);
+      if (item.fields.ResolutionMinutes == null) fields.ResolutionMinutes = Math.max(defaults.ResolutionMinutes, item.fields.ResponseMinutes || fields.ResponseMinutes || 0);
+      if (Object.keys(fields).length) await this.graph.patch(`${path}/items/${item.id}/fields`, fields);
+    }
     for (const name of choices) {
       const key = name.trim().toLowerCase();
       if (!key || existingNames.has(key)) continue;
-      await this.graph.post(`${path}/items`, {fields: {Title: name, Active: true}});
+      await this.graph.post(`${path}/items`, {fields: {Title: name, Active: true, ...defaultTargets(name)}});
       existingNames.add(key);
     }
     for (const name of ['FirstRespondedAt', 'ResolvedAt']) {
@@ -71,6 +83,17 @@ export class GraphSlaService implements ISlaService {
       if (!existing) await this.schema.post(`${ticketsPath}/columns`, {name, dateTime: {format: 'dateTime', displayAs: 'default'}});
     }
     this.changed();
+    let navigation: Response;
+    try {
+      navigation = await fetch(`${this.config.siteUrl}/_api/web/lists(guid'${encodeURIComponent(policies.id)}')`, {
+      method: 'POST',
+      headers: {Authorization: `Bearer ${await this.token()}`, Accept: 'application/json;odata=nometadata', 'Content-Type': 'application/json;odata=nometadata', 'X-HTTP-Method': 'MERGE', 'IF-MATCH': '*'},
+      body: JSON.stringify({OnQuickLaunch: true}), signal: AbortSignal.timeout(30000)
+    });
+    } catch (reason) {
+      throw new Error(`Priorities and SLA fields were synced, but the SharePoint navigation request could not complete. ${reason instanceof Error ? reason.message : 'Network request failed.'} The browser may have blocked the cross-origin request, or the connection may have failed. Refresh to check the saved priorities; you can add the list link through SharePoint navigation settings.`);
+    }
+    if (!navigation.ok) throw new Error(`SLA setup completed, but adding Ticket Priorities to SharePoint navigation failed (${navigation.status}). Check site permissions and run Sync priorities to retry.`);
   }
   public async savePriority(input: ISlaPriority): Promise<void> {
     if (!input.name.trim() || input.name.trim().length > 255) throw new Error('Enter a priority name of 1–255 characters.');

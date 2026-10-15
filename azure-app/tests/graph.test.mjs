@@ -735,18 +735,27 @@ function slaGraph() {
     patch: async (path, body) => {
       writes.push({path, body});
       if (body.choice) columns.tickets[0].choice = body.choice;
-      else items.find(item => path.includes('/items/' + item.id + '/')).fields = body;
+      else {const item = items.find(item => path.includes('/items/' + item.id + '/')); item.fields = {...item.fields, ...body};}
     }
   };
 }
 test('SLA setup is retryable, adds tracking fields, and new priorities sync actual ticket Choice column', async () => {
-  const original = globalThis.fetch; globalThis.fetch = adminFetch();
+  const original = globalThis.fetch; const navigationWrites = []; const baseFetch = adminFetch();
+  globalThis.fetch = async (url, options) => { if (options?.method === 'POST') navigationWrites.push({url, options}); return baseFetch(url); };
   try {
     const graph = slaGraph(); let changed = 0;
     const service = new GraphSlaService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'token', () => changed++);
     assert.equal((await service.getSettings(true)).configured, false);
     await service.setup();
     assert.deepEqual(graph.items.map(item => item.fields.Title), ['Low', 'High']);
+    assert.equal(navigationWrites.length, 1);
+    assert.deepEqual(JSON.parse(navigationWrites[0].options.body), {OnQuickLaunch: true});
+    assert.equal(navigationWrites[0].options.headers['X-HTTP-Method'], 'MERGE');
+    assert(navigationWrites[0].url.includes("lists(guid'policies')"));
+    assert.equal(graph.items[0].fields.ResponseMinutes, 480);
+    assert.equal(graph.items[0].fields.ResolutionMinutes, 4320);
+    assert.equal(graph.items[1].fields.ResponseMinutes, 60);
+    assert.equal(graph.items[1].fields.ResolutionMinutes, 480);
     graph.items[0].fields.ResponseMinutes = 30;
     graph.items[0].fields.ResolutionMinutes = 120;
     graph.items[0].fields.Active = false;
@@ -754,6 +763,12 @@ test('SLA setup is retryable, adds tracking fields, and new priorities sync actu
     assert.equal(graph.items[0].fields.ResponseMinutes, 30);
     assert.equal(graph.items[0].fields.Active, false);
     assert.equal(graph.writes.length, count);
+    delete graph.items[1].fields.ResponseMinutes;
+    graph.items[1].fields.ResolutionMinutes = 30;
+    await service.setup();
+    assert.equal(graph.items[1].fields.ResponseMinutes, 30);
+    assert.equal(graph.items[1].fields.ResolutionMinutes, 30);
+    assert.equal(graph.writes.length, count + 1);
     assert.equal((await service.getSettings()).trackingReady, true);
     await service.savePriority({name: 'Urgent', responseMinutes: 15, resolutionMinutes: 120, active: true});
     assert(graph.writes.some(write => write.path.endsWith('/columns/priority-id') && write.body.choice.choices.includes('Urgent')));
@@ -809,4 +824,39 @@ test('Custom priority choices are accepted by ticket reads, creation and inline 
   assert.deepEqual(await service.updateTickets([7], {kind: 'priority', priority: 'Urgent'}), {succeeded: [7], failed: []});
   await service.createTicket({title: 'New', description: '', priority: 'Urgent'});
   assert.equal(writes[0].Urgency, 'Urgent'); assert.equal(writes[1].Urgency, 'Urgent');
+});
+
+const {slaWorkbook, slaExportRows, printSlaPdf} = load('../../src/webparts/helpdeskSystem/utils/slaExport.ts');
+test('SLA workbook includes all rows as safe text and produces a complete ZIP workbook package', () => {
+  const rows = Array.from({length: 13}, (_, index) => ({ticket: {Id: index + 1, Title: '=HYPERLINK("bad") <script>& Jos?', Priority: 'High', Created: '2026-10-15T10:00:00Z'}, response: 'Breached', resolution: 'Within target'}));
+  assert.equal(slaExportRows(rows).length, 14);
+  const bytes = slaWorkbook(rows); const view = new DataView(bytes.buffer); const files = new Map(); let offset = 0;
+  while (view.getUint32(offset, true) === 0x04034b50) {
+    const size = view.getUint32(offset + 18, true), length = view.getUint16(offset + 26, true);
+    const name = new TextDecoder().decode(bytes.slice(offset + 30, offset + 30 + length));
+    files.set(name, new TextDecoder().decode(bytes.slice(offset + 30 + length, offset + 30 + length + size)));
+    offset += 30 + length + size;
+  }
+  assert.equal(view.getUint32(offset, true), 0x02014b50);
+  assert.equal(view.getUint32(bytes.length - 22, true), 0x06054b50);
+  assert.equal(view.getUint16(bytes.length - 12, true), 5);
+  assert(files.has('[Content_Types].xml')); assert(files.has('xl/_rels/workbook.xml.rels'));
+  const sheet = files.get('xl/worksheets/sheet1.xml');
+  assert.equal((sheet.match(/<row /g) || []).length, 14);
+  assert(sheet.includes('A14')); assert(sheet.includes('&lt;script&gt;&amp; Jos?'));
+  assert(!sheet.includes('<f>')); assert(sheet.includes('t="inlineStr"'));
+});
+test('PDF print view exports every SLA row, escapes markup, and reports blocked popups', () => {
+  const previousWindow = globalThis.window; let html = '', printed = false;
+  const popup = {document: {write: value => {html = value;}, close: () => {}}, focus: () => {}, setTimeout: callback => callback(), print: () => {printed = true;}};
+  globalThis.window = {open: () => popup};
+  try {
+    const rows = Array.from({length: 13}, (_, index) => ({ticket: {Id: index, Title: '<img src=x onerror=alert(1)>', Priority: 'High', Created: ''}, response: 'Breached', resolution: 'Met'}));
+    printSlaPdf(rows);
+    assert(printed); assert.equal(popup.opener, null);
+    assert.equal((html.match(/<tr>/g) || []).length, 14);
+    assert(!html.includes('<img src=')); assert(html.includes('&lt;img'));
+    globalThis.window.open = () => null;
+    assert.throws(() => printSlaPdf(rows), /Allow popups/);
+  } finally {globalThis.window = previousWindow;}
 });
