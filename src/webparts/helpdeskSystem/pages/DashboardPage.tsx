@@ -200,7 +200,6 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
           </div>
         </article>;
       })}</div>
-      {props.sla && <SlaDashboardCard service={props.sla} tickets={visible} lastUpdated={lastUpdated} onOpenTicket={props.onOpenTicket} />}
       <div className={styles.dashboardChartsGrid}>
         <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: '#2d88ff' }} />Created</span>{hasResolvedAt && <span><i style={{ background: '#28b47d' }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
           <div className={styles.dashboardCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={chartDefaults} /></div>
@@ -211,6 +210,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
             <ul className={styles.dashboardStatusLegend}>{displayedStatuses.map(status => { const count = countStatus(visible, status); return <li key={status}><span style={{ background: statusColors[status] }} /><span>{status}</span><strong>{count} <small>({visible.length ? Math.round(count / visible.length * 100) : 0}%)</small></strong></li>; })}</ul>
           </div>
         </ChartCard>
+        {props.sla && <div style={{gridColumn: '1 / -1'}}><SlaDashboardCard service={props.sla} tickets={visible} lastUpdated={lastUpdated} onOpenTicket={props.onOpenTicket} /></div>}
         <ChartCard title="Tickets by Priority"><div className={styles.dashboardCanvas}><Bar role="img" aria-label={priorities.map((priority, index) => `${priority}: ${priorityData.datasets[0].data[index]}`).join(', ')} data={priorityData} plugins={[priorityValueLabels]} options={{ ...chartDefaults, layout: { padding: { top: 16 } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, grace: '15%' } } }} /></div></ChartCard>
         <ChartCard title="Tickets by Category" className={styles.dashboardLeftLabels}><Breakdown rows={hasCategory ? groupTicketCounts(visible, 'Category') : []} empty="Category information is not available yet." /></ChartCard>
         <ChartCard title="Top Issue Types" className={styles.dashboardLeftLabels}><Breakdown rows={hasIssueType ? groupTicketCounts(visible, 'IssueType') : []} empty={hasIssueType ? 'No tickets in this view.' : 'Issue Type information is not available yet.'} /></ChartCard>
