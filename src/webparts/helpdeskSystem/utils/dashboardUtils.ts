@@ -89,18 +89,19 @@ export function getStatusChartData(tickets: ITicket[]): IChartDataset {
 }
 
 export function getPriorityChartData(tickets: ITicket[]): IChartDataset {
-  const counts = priorityOrder.reduce<Record<string, number>>((result, priority) => {
+  const values = Array.from(new Set([...priorityOrder, ...tickets.map(ticket => ticket.Priority)]));
+  const counts = values.reduce<Record<string, number>>((result, priority) => {
     result[priority] = tickets.filter((ticket) => ticket.Priority === priority).length;
     return result;
   }, {} as Record<string, number>);
 
   return {
-    labels: priorityOrder,
+    labels: values,
     datasets: [{
       label: 'Priority',
-      data: priorityOrder.map((priority) => counts[priority] ?? 0),
-      backgroundColor: chartColors.priority,
-      borderColor: chartColors.priority,
+      data: values.map((priority) => counts[priority] ?? 0),
+      backgroundColor: values.map((_, index) => chartColors.priority[index] || '#87909d'),
+      borderColor: values.map((_, index) => chartColors.priority[index] || '#87909d'),
       borderWidth: 1
     }]
   };

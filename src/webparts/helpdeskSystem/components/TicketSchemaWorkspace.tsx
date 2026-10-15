@@ -20,7 +20,7 @@ export function TicketSchemaWorkspace(props: { data: IAdminData; service: IAdmin
     <div className={styles.schemaListSummary}>
       <div><small>SharePoint site</small><a href={props.data.siteUrl} target="_blank" rel="noopener noreferrer">{props.data.siteUrl?.split('/').filter(Boolean).pop() || 'Helpdesk site'}</a></div>
       <div className={styles.schemaListIdentifier}><small>List ID</small><span>{props.data.listId}<IconButton iconProps={{iconName: copied ? 'CheckMark' : 'Copy'}} title={copied ? 'Copied' : 'Copy list ID'} ariaLabel="Copy list ID" onClick={() => { navigator.clipboard.writeText(props.data.listId || '').then(() => setCopied(true)).catch(() => props.onError('Unable to copy the list ID.')); }} /></span></div>
-      <a href={props.data.listUrl} target="_blank" rel="noopener noreferrer"><Icon iconName="OpenInNewWindow" /> Open in SharePoint</a>
+      <a className={styles.adminSharePointLink} href={props.data.listUrl} target="_blank" rel="noopener noreferrer">Open in SharePoint</a>
     </div>
     </div>
     <div className={styles.schemaToolbar}>

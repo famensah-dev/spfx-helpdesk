@@ -70,11 +70,11 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         <h1 ref={heading} tabIndex={-1} className={styles.srOnly}>{page === 'Dashboard' ? 'Admin Dashboard' : page}</h1>
         {(page === 'Dashboard' || (page === 'My Dashboard' && dashboard.assignmentIdentityAvailable)) && (dashboardTicket
           ? <TicketDetails key={dashboardTicket.Id} ticket={dashboardTicket} tickets={dashboard.tickets} service={props.service} refresh={dashboard.refresh} backLabel="Back to Dashboard" onBack={() => setDashboardTicketId(null)} />
-          : <DashboardPage {...dashboard} title={page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={setDashboardTicketId} onViewTickets={() => navigate('Tickets')} />)}
+          : <DashboardPage {...dashboard} sla={props.service.sla} title={page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={setDashboardTicketId} onViewTickets={() => navigate('Tickets')} />)}
         {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} />}
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
         {page === 'FAQs' && <FaqPage service={props.service} />}
-        {page === 'Administration' && <AdministrationPage service={props.service} />}
+        {page === 'Administration' && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} />}
       </main>
     </ThemeProvider>
   );

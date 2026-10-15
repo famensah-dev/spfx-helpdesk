@@ -1,5 +1,5 @@
 export type TicketStatus = 'New' | 'Assigned' | 'In Progress' | 'On Hold' | 'Resolved' | 'Closed' | 'Completed' | 'Pending' | 'Escalated';
-export type TicketPriority = 'Low' | 'Medium' | 'High' | 'Critical';
+export type TicketPriority = string;
 
 export interface IUserLookup {
   Id?: number;
@@ -28,6 +28,9 @@ export interface ITicket {
   ResolutionSummary?: string;
   Escalated?: boolean;
   DueDate?: string;
+  FirstRespondedAt?: string | null;
+  HasResponseTracking?: boolean;
+  HasResolutionTracking?: boolean;
   ResolvedAt?: string | null;
 }
 

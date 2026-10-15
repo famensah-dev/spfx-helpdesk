@@ -119,11 +119,17 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
       setCommentsError((commentSaved ? 'The comment was posted. ' : '') + (reason instanceof Error ? reason.message : 'Unable to post comment.'));
     } finally { commentLock.current = false; setPosting(false); }
   };
+  const [priorityOptions, setPriorityOptions] = React.useState<string[]>([]);
+  React.useEffect(() => { let active = true; if (service?.getPriorities) service.getPriorities().then(values => {if (active) setPriorityOptions(values);}).catch(reason => {if (active) setError(reason instanceof Error ? reason.message : 'Unable to load priorities.');}); return () => {active = false;}; }, [service]);
   const initials = (name: string): string => name.trim().split(/\s+/).slice(0, 2).map(word => word[0]).join('').toUpperCase();
   return <section className={`${styles.pageContent} ${styles.detailWorkspace}`} aria-label={`Ticket #${ticket.Id} details`}>
     <div className={styles.detailToolbar}>
       <div className={styles.detailToolbarTitle}><DefaultButton text={props.backLabel || 'Back to Tickets'} iconProps={{ iconName: 'Back' }} disabled={saving || posting} onClick={props.onBack} /><h2 className={styles.srOnly} ref={heading} tabIndex={-1}>Ticket #{ticket.Id}</h2></div>
-      <div className={styles.detailTopActions}>{!editing ? <PrimaryButton text="Edit Ticket" iconProps={{ iconName: 'Edit' }} disabled={!service?.updateTicket} onClick={beginEdit} /> : <span className={styles.editingIndicator}>Editing ticket</span>}<IconButton iconProps={{ iconName: 'History' }} title="Issue history" ariaLabel="Open issue history" onClick={() => setHistoryOpen(true)} /></div>
+      <div className={styles.detailTopActions}>{service?.recordFirstResponse && ticket.HasResponseTracking && !ticket.FirstRespondedAt && <DefaultButton text="Record first response" disabled={saving || posting} onClick={() => {
+        if (!window.confirm('Confirm you have responded to this ticket now. This records the first response time for SLA tracking.')) return;
+        setSaving(true); setError('');
+        service.recordFirstResponse!(ticket.Id).then(() => props.refresh()).catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to record response.')).finally(() => setSaving(false));
+      }} />}{!editing ? <PrimaryButton text="Edit Ticket" iconProps={{ iconName: 'Edit' }} disabled={!service?.updateTicket} onClick={beginEdit} /> : <span className={styles.editingIndicator}>Editing ticket</span>}<IconButton iconProps={{ iconName: 'History' }} title="Issue history" ariaLabel="Open issue history" onClick={() => setHistoryOpen(true)} /></div>
     </div>
     {assignmentMessage && <MessageBar messageBarType={assignmentBusy ? MessageBarType.info : MessageBarType.success} onDismiss={assignmentBusy ? undefined : () => setAssignmentMessage('')}>{assignmentMessage}</MessageBar>}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
@@ -141,7 +147,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
     <div className={styles.ticketDetailLayout}>
       <article className={styles.ticketDetailBody}>
         <div className={styles.detailSummary}>
-          <div className={styles.detailHero}><div><div className={styles.detailEyebrow}>Ticket ID #{ticket.Id}</div><h3 className={styles.detailSubject}>{ticket.Title}</h3><p className={styles.detailSubmitted}>Submitted {date(ticket.Created)}</p></div></div>
+          <div className={styles.detailHero}><div><div className={styles.detailEyebrow}>Ticket ID #{ticket.Id}</div><h3 className={styles.detailSubject}>{ticket.Title}</h3><p className={styles.detailSubmitted}>Submitted {date(ticket.Created)}</p>{ticket.FirstRespondedAt && <p className={styles.detailSubmitted}>First response recorded {date(ticket.FirstRespondedAt)}</p>}</div></div>
           <div className={styles.detailQuickFacts}>
             <div><span>Status</span><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></div>
             <div><span>Priority</span><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} aria-hidden="true" />{ticket.Priority}</span></div>
@@ -156,7 +162,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
           <TextField label="Issue" required value={title} maxLength={255} disabled={saving} onChange={(_, value) => setTitle(value || '')} />
           <RichTextEditor value={description} disabled={saving} onChange={setDescription} />
           <div className={styles.detailFormGrid}>
-            <Dropdown label="Priority" selectedKey={priority} disabled={saving} options={['Critical', 'High', 'Medium', 'Low'].map(value => ({key: value, text: value}))} onChange={(_, option) => setPriority(option?.key as TicketPriority)} />
+            <Dropdown label="Priority" selectedKey={priority} disabled={saving} options={Array.from(new Set([...priorityOptions, ticket.Priority])).map(value => ({key: value, text: value}))} onChange={(_, option) => setPriority(option?.key as TicketPriority)} />
             <Dropdown label="Status" selectedKey={status} disabled={saving} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
             <FormAssigneePicker service={service} value={assigned ? { Id: assigned, Title: assignedName } : null} disabled={saving} onBusy={setAssignmentBusy} onChange={person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />
           </div>

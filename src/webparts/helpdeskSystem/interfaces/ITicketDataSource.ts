@@ -15,6 +15,9 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  sla?: import('./ISla').ISlaService;
+  getPriorities?(): Promise<string[]>;
+  recordFirstResponse?(id: number): Promise<void>;
   administration?: import('./IAdministration').IAdministrationService;
   getFaqs?(manage?: boolean): Promise<IFaq[]>;
   getFaqAccess?(): Promise<IFaqAccess>;

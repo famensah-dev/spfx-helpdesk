@@ -1,3 +1,4 @@
+import { SlaDashboardCard } from '../components/SlaDashboardCard';
 import * as React from 'react';
 import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip } from 'chart.js';
@@ -36,6 +37,7 @@ const calendarAppearance: ICalendarProps = {
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, LineElement, PointElement, Filler, Tooltip, Legend);
 export interface IDashboardPageProps {
+  sla?: import('../interfaces/ISla').ISlaService;
   title?: string;
   stats: IDashboardStats;
   statusChart: IChartDataset;
@@ -124,8 +126,8 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
   ];
   const displayedStatuses = [...ticketStatuses, ...(visible.some(ticket => ticket.Status === 'Escalated') ? ['Escalated'] : [])];
   const statusData = { labels: displayedStatuses, datasets: [{ data: displayedStatuses.map(status => countStatus(visible, status)), backgroundColor: displayedStatuses.map(status => statusColors[status]), borderWidth: 1, borderColor: '#ffffff' }] };
-  const priorities = ['Low', 'Medium', 'High', 'Critical'];
-  const priorityData = { labels: priorities, datasets: [{ label: 'Tickets', data: priorities.map(priority => visible.filter(ticket => ticket.Priority === priority).length), backgroundColor: priorities.map(priority => priorityColors[priority]), borderRadius: 0, maxBarThickness: 44 }] };
+  const priorities = Array.from(new Set(['Low', 'Medium', 'High', 'Critical', ...tickets.map(ticket => ticket.Priority)]));
+  const priorityData = { labels: priorities, datasets: [{ label: 'Tickets', data: priorities.map(priority => visible.filter(ticket => ticket.Priority === priority).length), backgroundColor: priorities.map(priority => priorityColors[priority] || '#87909d'), borderRadius: 0, maxBarThickness: 44 }] };
   const trend = getTicketTrend(visible, filters.endDate && filters.endDate < now ? filters.endDate : now, filters.startDate);
   const trendData = { labels: trend.labels, datasets: [
     { label: 'Created', data: trend.created, borderColor: '#2d88ff', backgroundColor: '#2d88ff16', fill: true, pointRadius: 3, borderWidth: 2, tension: .18 },
@@ -198,10 +200,11 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
           </div>
         </article>;
       })}</div>
+      {props.sla && <SlaDashboardCard service={props.sla} tickets={visible} lastUpdated={lastUpdated} onOpenTicket={props.onOpenTicket} />}
       <div className={styles.dashboardChartsGrid}>
         <ChartCard title="Tickets by Status">
           <div className={styles.dashboardStatusChart}>
-            <div className={styles.dashboardDonut}><Doughnut role="img" aria-label={displayedStatuses.map(status => `${status}: ${countStatus(visible, status)}`).join(', ')} data={statusData} options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } } }} /><div><strong>{visible.length}</strong><span>Total Tickets</span></div></div>
+      <div className={styles.dashboardDonut}><Doughnut role="img" aria-label={displayedStatuses.map(status => `${status}: ${countStatus(visible, status)}`).join(', ')} data={statusData} options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } } }} /><div><strong>{visible.length}</strong><span>Total Tickets</span></div></div>
             <ul className={styles.dashboardStatusLegend}>{displayedStatuses.map(status => { const count = countStatus(visible, status); return <li key={status}><span style={{ background: statusColors[status] }} /><span>{status}</span><strong>{count} <small>({visible.length ? Math.round(count / visible.length * 100) : 0}%)</small></strong></li>; })}</ul>
           </div>
         </ChartCard>

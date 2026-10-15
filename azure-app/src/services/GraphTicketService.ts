@@ -13,7 +13,6 @@ interface IGraphList { id: string; displayName: string; webUrl?: string; }
 interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; lookup?: { listId: string; allowMultipleValues?: boolean }; }
 interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
 const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
-const priorities: TicketPriority[] = ['Low', 'Medium', 'High', 'Critical'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
@@ -22,10 +21,11 @@ export class GraphTicketService implements ITicketDataSource {
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; key: string; content: string };
-  private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string };
+  private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
     private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>) {}
+  public async getPriorities(): Promise<string[]> { if (!this.editSchema) await this.getTickets(); return [...this.editSchema!.priorities]; }
   public async searchUsers(query: string, department?: string): Promise<IOrganizationUser[]> {
     if (!this.directory) throw new Error('Organization user search is not configured.');
     const escape = (value: string): string => value.replace(/'/g, "''");
@@ -93,7 +93,26 @@ export class GraphTicketService implements ITicketDataSource {
         }
       }
     }
+    await this.addResolutionTimestamp(id, status, fields);
     await this.graph.patch(`${schema.path}/items/${id}/fields`, fields);
+  }
+  private async addResolutionTimestamp(id: number, next: string, fields: Record<string, unknown>): Promise<void> {
+    const schema = this.updateSchema!;
+    if (!schema.resolved) return;
+    const current = await this.graph.get<Record<string, unknown>>(`${schema.path}/items/${id}/fields?$select=${schema.status},${schema.resolved}`);
+    const terminal = (status: string): boolean => ['Resolved', 'Completed', 'Closed'].includes(status);
+    if (terminal(next) && !terminal(String(current[schema.status]))) fields[schema.resolved] = new Date().toISOString();
+    else if (!terminal(next) && terminal(String(current[schema.status]))) fields[schema.resolved] = null;
+  }
+  public async recordFirstResponse(id: number): Promise<void> {
+    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
+    if (!this.updateSchema) await this.getTickets();
+    const schema = this.updateSchema!;
+    if (!schema.response) throw new Error('Set up SLA tracking to add FirstRespondedAt.');
+    const item = await this.graph.get<{eTag?: string; fields: Record<string, unknown>}>(`${schema.path}/items/${id}?$expand=fields($select=${schema.response})`);
+    if (item.fields[schema.response]) return;
+    if (!item.eTag) throw new Error('Unable to verify the ticket version. Refresh and try again.');
+    await this.graph.patch(`${schema.path}/items/${id}/fields`, {[schema.response]: new Date().toISOString()}, item.eTag);
   }
   private async commentsContext(id: number): Promise<{ path: string; key: string; content: string; ticketKey: string }> {
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
@@ -135,20 +154,20 @@ export class GraphTicketService implements ITicketDataSource {
       fields[schema.status] = status;
     } else if (action.kind === 'priority') {
       if (!this.editSchema) await this.getTickets();
-      if (!priorities.includes(action.priority) || !this.editSchema!.priorities.includes(action.priority)) throw new Error('This priority is not configured in the list.');
+      if (!this.editSchema!.priorities.includes(action.priority)) throw new Error('This priority is not configured in the list.');
       fields[this.editSchema!.priority] = action.priority;
     } else {
       if (!statuses.includes(action.status)) throw new Error('Select a valid ticket status.');
       const value = schema.choices.includes(action.status) ? action.status : action.status === 'On Hold' && schema.choices.includes('Pending') ? 'Pending' : action.status === 'Resolved' && schema.choices.includes('Completed') ? 'Completed' : undefined;
       if (!value) throw new Error(`Add ${action.status} to the list’s Status choices before using this action.`);
       fields[schema.status] = value;
-      // Do not invent resolution timestamps when changing workflow status.
+      // Resolution timestamps are recorded below only for actual status transitions.
     }
     const unique = Array.from(new Set(ids));
     if (!unique.length || unique.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new Error('Select valid tickets first.');
     const result: ITicketBulkResult = { succeeded: [], failed: [] };
     for (const id of unique) {
-      try { await this.graph.patch(`${schema.path}/items/${id}/fields`, fields); result.succeeded.push(id); }
+      try { const update = {...fields}; if (fields[schema.status] !== undefined) await this.addResolutionTimestamp(id, String(fields[schema.status]), update); await this.graph.patch(`${schema.path}/items/${id}/fields`, update); result.succeeded.push(id); }
       catch (error) { result.failed.push({ id, message: error instanceof Error ? error.message : 'Update failed.' }); }
     }
     return result;
@@ -189,7 +208,7 @@ export class GraphTicketService implements ITicketDataSource {
     const schema = this.creationSchema;
     if (!schema) throw new Error('Configure New as a Status choice in the SharePoint list before creating tickets.');
     if (!input.title.trim() || input.title.trim().length > 255) throw new Error('Enter an issue title of 1–255 characters.');
-    if (!priorities.includes(input.priority as TicketPriority) || !schema.choices.includes(input.priority)) throw new Error('This priority is not configured in the SharePoint list.');
+    if (!schema.choices.includes(input.priority)) throw new Error('This priority is not configured in the SharePoint list.');
     if (input.description.trim() && !schema.description) throw new Error('Add an Issue description text column to the list to save a description.');
     const fields: Record<string, string> = { [schema.title]: input.title.trim(), [schema.status]: 'New', [schema.priority]: input.priority };
     if (schema.description) fields[schema.description] = input.description.trim();
@@ -272,10 +291,11 @@ export class GraphTicketService implements ITicketDataSource {
     const categoryColumn = columns.find(value => value.name === 'Category') || columns.find(value => ['Category', 'Issue Category'].includes(value.displayName));
     const category = categoryColumn ? resolve('Category', categoryColumn.lookup ? 'lookup' : categoryColumn.choice ? 'choice' : 'text', true) : undefined;
     const resolved = resolve('ResolvedAt', 'dateTime', true);
+    const response = resolve('FirstRespondedAt', 'dateTime', true);
     const due = resolve('DueDate', 'dateTime', true);
     const escalated = resolve('Escalated', 'boolean', true);
     const archived = resolve('Archived', 'boolean', true);
-    this.updateSchema = { path: listPath, status: status.name, choices: status.choice?.choices || [], assigned: assigned.name, archived: archived?.name, resolved: resolved?.name };
+    this.updateSchema = { path: listPath, status: status.name, choices: status.choice?.choices || [], assigned: assigned.name, archived: archived?.name, resolved: resolved?.name, response: response?.name };
     const optionalDisplay = (names: string[], types: Array<'text' | 'choice' | 'dateTime' | 'personOrGroup' | 'lookup'>): IGraphColumn | undefined => names.map(name => columns.find(column => normalize(column.displayName) === normalize(name) && types.some(type => Boolean(column[type]))) || columns.find(column => normalize(column.name) === normalize(name) && types.some(type => Boolean(column[type])))).find(Boolean);
     const subcategory = optionalDisplay(['Issue Subcategory', 'IssueSubcategory', 'Subcategory'], ['text', 'choice', 'lookup']);
     const issueType = optionalDisplay(['Issue Type', 'Issue / Request', 'IssueType'], ['text', 'choice', 'lookup']);
@@ -290,7 +310,7 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, due, escalated, archived, subcategory, issueType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -314,7 +334,7 @@ export class GraphTicketService implements ITicketDataSource {
       const rawState = text(values[status.name]);
       const state = (rawState === 'Pending' ? 'On Hold' : rawState === 'Completed' ? 'Resolved' : rawState) as TicketStatus;
       const urgency = text(values[priority.name]) as TicketPriority;
-      if (statuses.indexOf(state) < 0 || priorities.indexOf(urgency) < 0) throw new Error(`Ticket ${item.id} has an unsupported status or priority.`);
+      if (statuses.indexOf(state) < 0 || !priority.choice!.choices.includes(urgency)) throw new Error(`Ticket ${item.id} has an unsupported status or priority.`);
       const userId = Number(values[`${assigned.name}LookupId`]);
       return { Id: Number(item.id), Title: text(values[title.name]) || 'Untitled ticket', Status: state, Priority: urgency,
         Description: description ? text(values[description.name]) : undefined, WebUrl: item.webUrl,
@@ -331,6 +351,7 @@ export class GraphTicketService implements ITicketDataSource {
         ResolutionSummary: resolutionSummary ? text(values[resolutionSummary.name]) : undefined,
         DueDate: due ? text(values[due.name]) || undefined : undefined,
         Escalated: escalated ? values[escalated.name] === true : undefined,
+        FirstRespondedAt: response ? text(values[response.name]) || null : null, HasResponseTracking: Boolean(response), HasResolutionTracking: Boolean(resolved),
         ResolvedAt: resolved ? text(values[resolved.name]) || null : null };
     });
     if (tickets.some(ticket => ticket.AssignedTo && !ticket.AssignedTo.Email) && assignmentIdentityAvailable) {

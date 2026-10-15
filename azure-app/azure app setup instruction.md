@@ -1,8 +1,32 @@
 # DeskPilot Azure App Setup Instructions
 
+
+## SLA & Priorities
+
+Open **Administration > SLA & Priorities**. The table starts with the configured Tickets Priority choices and shows whether each has response and resolution targets.
+
+### Initial setup
+
+1. Complete the administration consent above: delegated Graph **Sites.Manage.All**, the selected-site write grant, SharePoint **AllSites.Write**, and **Manage Lists** on the Tickets list.
+2. Click **Set up SLA tracking** and confirm. DeskPilot creates **Ticket Priorities** on the same configured site, with **Title** (priority name), **ResponseMinutes** (Number), **ResolutionMinutes** (Number), and **Active** (Yes/No). It adds writable **FirstRespondedAt** and **ResolvedAt** Date and Time columns to Tickets if missing. Setup can be retried after a partial failure without intentionally recreating existing fields or lists. It copies existing Tickets Priority choices into Ticket Priorities without assigning SLA targets or replacing existing entries. It never backfills ticket timestamps. Use **Sync priorities** to populate a list created before this update, or to copy choices added directly in Lists.
+3. In SharePoint list permissions for **Ticket Priorities**, stop inheriting permissions and restrict edit/manage rights to your helpdesk administrator group. Give dashboard readers Read access. Do this before using the policy list in production: inherited Contribute/Edit rights otherwise allow direct edits outside DeskPilot. Administrators need Manage Lists on both Tickets and Ticket Priorities; the app checks these permissions on administration reads and every save, and Microsoft 365 enforces the actual list grants.
+4. Edit each priority to enter positive whole-minute targets. For example, 60 minutes means one hour; 1440 means one day. Resolution must be at least as long as response. No target values are assumed for existing priorities.
+5. **New** adds a priority and its targets. Its name is also appended to the actual Tickets Priority Choice column, so it is available in new-ticket, ticket-edit, and inline-priority selectors. Existing names are permanent here to preserve historical ticket references. If a save partially succeeds, refresh before retrying; the service reuses an existing matching policy rather than intentionally creating a duplicate.
+6. **SLA tracking: Disabled** excludes that policy from SLA scoring but keeps its priority selectable on tickets. Saving targets and setup both require confirmation.
+
+### How timing is recorded and scored
+
+- This version uses **24/7 elapsed time** from the ticket's Created timestamp, including weekends and time on hold. It does not implement business hours, holidays, escalation notifications, or pause rules.
+- Support staff use **Record first response** in ticket details immediately after responding. Confirmation records the current UTC timestamp once in FirstRespondedAt. A version guard prevents concurrent requests from overwriting an existing first-response time. Merely assigning a ticket, opening it, or posting an arbitrary comment does not count as a response. Responses outside DeskPilot require this action or an external automation that writes the timestamp.
+- Moving a ticket from an open status to Resolved, Completed, or Closed through DeskPilot records ResolvedAt in the same update as its status. Re-saving a terminal status does not invent a missing historical timestamp. Reopening clears ResolvedAt, and resolving again records the new resolution. A status change made directly in Lists requires automation or a manual timestamp update outside this app.
+- The dashboard's **SLA performance** card follows its date, department and ticket filters. It shows response and resolution separately: **Met**, **Breached**, **Within target**, **Unknown**, and **Not configured**, plus up to six tickets that missed a target. Archived tickets are excluded. Boundary timestamps exactly at the target count as Met; an unfinished ticket exactly at its deadline remains Within target.
+- Completed tickets without reliable timestamps are Unknown. Missing tracking columns or invalid timestamps are also Unknown. Open tickets without a recorded event are treated as still awaiting it. Record actual responses consistently to avoid false response breaches. No Modified-date estimates are used.
+- Calculations use **current priority and current SLA targets**, including for historical tickets. This is an operational dashboard, not an immutable SLA audit ledger: changing a priority or target can change past scores. Policy snapshots, business calendars, and a resolution history would be needed for immutable historical reporting.
+- Refresh reloads data; the SLA clock recalculates once per minute while the dashboard is open. New target saves refresh ticket mappings and dashboard data.
+
 ## Administration: Tickets schema and classification lists
 
-The **Administration** tab now has separate pages for **Ticket list schema**, **Categories**, **Subcategories**, **Issue Types**, and the existing FAQ manager.
+The **Administration** tab now has separate pages for **Ticket list schema**, **Categories**, **Subcategories**, **Issue Types**, **SLA & Priorities**, and the existing FAQ manager.
 
 ### Authorize administrators
 

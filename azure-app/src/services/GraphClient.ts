@@ -6,11 +6,11 @@ export class GraphClient {
   public async post<T>(path: string, body: unknown): Promise<T> {
     return this.write<T>(path, body, 'POST');
   }
-  public async patch<T>(path: string, body: unknown): Promise<T> {
-    return this.write<T>(path, body, 'PATCH');
+  public async patch<T>(path: string, body: unknown, etag?: string): Promise<T> {
+    return this.write<T>(path, body, 'PATCH', etag);
   }
   public async delete(path: string): Promise<void> { await this.write(path, undefined, 'DELETE'); }
-  private async write<T>(path: string, body: unknown, method: 'POST' | 'PATCH' | 'DELETE'): Promise<T> {
+  private async write<T>(path: string, body: unknown, method: 'POST' | 'PATCH' | 'DELETE', etag?: string): Promise<T> {
     const url = new URL(path.startsWith('/') ? `https://graph.microsoft.com/v1.0${path}` : path);
     if (url.origin !== 'https://graph.microsoft.com' || !url.pathname.startsWith('/v1.0/')) throw new Error('Refusing to send a Microsoft 365 token to an unexpected API address.');
     const token = await this.getToken();
@@ -18,7 +18,7 @@ export class GraphClient {
     const timeout = setTimeout(() => controller.abort(), 30000);
     try {
       // Never retry creation automatically: a lost response could otherwise duplicate a ticket.
-      const response = await this.request(url.href, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
+      const response = await this.request(url.href, { method, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', ...(etag ? {'If-Match': etag} : {}) }, body: JSON.stringify(body), signal: controller.signal });
       if (!response.ok) {
         const detail = await response.json().catch(() => ({})) as { error?: { code?: string; message?: string } };
         const reason = detail.error?.message || response.statusText || 'Access denied';

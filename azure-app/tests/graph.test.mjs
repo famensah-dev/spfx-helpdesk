@@ -585,7 +585,8 @@ test('Bulk updates preserve internal names, report partial failures and deduplic
   const result = await service.updateTickets([7, 9, 7], {kind: 'status', status: 'Closed'});
   assert.deepEqual(result, {succeeded: [7], failed: [{id: 9, message: 'Access denied'}]});
   assert.equal(writes.length, 2);
-  assert.deepEqual(writes[0], {path: '/sites/site-id/lists/tickets-id/items/7/fields', fields: {State: 'Closed'}});
+  assert.equal(writes[0].fields.State, 'Closed');
+  assert(Number.isFinite(Date.parse(writes[0].fields.ResolvedAt)));
   await service.updateTickets([7], {kind: 'archive'});
   assert.deepEqual(writes[2].fields, {IsArchived: true});
   await service.updateTickets([7], {kind: 'assign', userId: 12});
@@ -644,7 +645,7 @@ test('Graph creation uses POST once and explains missing write access', async ()
 });
 function fakeGraph({missingList = false, failPeople = false, invalidStatus = false, schema = columns} = {}) {
   return {
-    get: async path => {assert(path.includes('example.sharepoint.com:/sites/support')); return {id: 'site-id'};},
+    get: async path => {if (path.includes('/items/') && path.includes('/fields?')) return {State: 'Pending'}; assert(path.includes('example.sharepoint.com:/sites/support')); return {id: 'site-id'};},
     getAll: async path => {
       const classificationKind = path.includes('/cat-id/') ? 'category' : path.includes('/sub-id/') ? 'subcategory' : path.includes('/type-id/') ? 'issueType' : null;
       if (classificationKind) {
@@ -708,4 +709,104 @@ test('Existing issue lists support Issue and Assigned To display names', async (
   const result = await new GraphTicketService(fakeGraph({schema}), config).getTickets();
   assert.equal(result.tickets[0].Title, 'VPN issue');
   assert.equal(result.tickets[0].AssignedTo.Email, 'agent@example.com');
+});
+
+const {GraphSlaService} = load('../src/services/GraphSlaService.ts');
+const {ticketSla} = load('../../src/webparts/helpdeskSystem/utils/sla.ts');
+function slaGraph() {
+  const lists = [{id: 'tickets', displayName: 'Tickets', webUrl: 'https://example.sharepoint.com/sites/support/Lists/Tickets'}];
+  const columns = {tickets: [{id: 'priority-id', name: 'Urgency', displayName: 'Priority', choice: {choices: ['Low', 'High'], allowTextEntry: false}}]};
+  const items = []; const writes = [];
+  return {lists, columns, items, writes,
+    getAll: async path => {
+      if (path.includes('/lists?')) return lists;
+      const id = path.split('/lists/')[1]?.split('/')[0];
+      if (path.includes('/columns')) return columns[id] || [];
+      if (path.includes('/items')) return items;
+      throw new Error('Unexpected ' + path);
+    },
+    post: async (path, body) => {
+      writes.push({path, body});
+      if (path.endsWith('/lists')) {const list = {id: 'policies', displayName: body.displayName, webUrl: 'https://example.sharepoint.com/policies'}; lists.push(list); columns.policies = [{name: 'Title', text: {}}, ...body.columns]; return list;}
+      const id = path.split('/lists/')[1].split('/')[0];
+      if (path.endsWith('/columns')) {columns[id].push({...body, id: body.name}); return body;}
+      items.push({id: String(items.length + 1), fields: body.fields}); return items.at(-1);
+    },
+    patch: async (path, body) => {
+      writes.push({path, body});
+      if (body.choice) columns.tickets[0].choice = body.choice;
+      else items.find(item => path.includes('/items/' + item.id + '/')).fields = body;
+    }
+  };
+}
+test('SLA setup is retryable, adds tracking fields, and new priorities sync actual ticket Choice column', async () => {
+  const original = globalThis.fetch; globalThis.fetch = adminFetch();
+  try {
+    const graph = slaGraph(); let changed = 0;
+    const service = new GraphSlaService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'token', () => changed++);
+    assert.equal((await service.getSettings(true)).configured, false);
+    await service.setup();
+    assert.deepEqual(graph.items.map(item => item.fields.Title), ['Low', 'High']);
+    graph.items[0].fields.ResponseMinutes = 30;
+    graph.items[0].fields.ResolutionMinutes = 120;
+    graph.items[0].fields.Active = false;
+    const count = graph.writes.length; await service.setup();
+    assert.equal(graph.items[0].fields.ResponseMinutes, 30);
+    assert.equal(graph.items[0].fields.Active, false);
+    assert.equal(graph.writes.length, count);
+    assert.equal((await service.getSettings()).trackingReady, true);
+    await service.savePriority({name: 'Urgent', responseMinutes: 15, resolutionMinutes: 120, active: true});
+    assert(graph.writes.some(write => write.path.endsWith('/columns/priority-id') && write.body.choice.choices.includes('Urgent')));
+    const settings = await service.getSettings();
+    assert.equal(settings.priorities.find(item => item.name === 'Urgent').responseMinutes, 15);
+    const urgent = settings.priorities.find(item => item.name === 'Urgent');
+    await service.savePriority({...urgent, resolutionMinutes: 180});
+    assert.equal(graph.items.length, 3);
+    await assert.rejects(service.savePriority({...urgent, name: 'Renamed'}), /permanent/);
+    await assert.rejects(service.savePriority({...urgent, responseMinutes: 0}), /positive/);
+    await assert.rejects(service.savePriority({...urgent, resolutionMinutes: 5}), /at least/);
+    globalThis.fetch = adminFetch('0');
+    await assert.rejects(service.savePriority(urgent), /Manage Lists/);
+    assert(changed > 0);
+  } finally {globalThis.fetch = original;}
+});
+test('SLA scoring distinguishes met, breached, pending and unknown without inventing historical timestamps', () => {
+  const now = new Date('2026-10-15T12:00:00Z');
+  const policies = [{name: 'High', active: true, responseMinutes: 60, resolutionMinutes: 120}];
+  const ticket = {Id: 1, Priority: 'High', Created: '2026-10-15T10:00:00Z', Status: 'New', HasResponseTracking: true, HasResolutionTracking: true};
+  assert.equal(ticketSla(ticket, policies, 'response', now), 'Breached');
+  assert.equal(ticketSla(ticket, policies, 'resolution', now), 'Within target');
+  assert.equal(ticketSla({...ticket, FirstRespondedAt: '2026-10-15T11:00:00Z'}, policies, 'response', now), 'Met');
+  assert.equal(ticketSla({...ticket, FirstRespondedAt: '2026-10-15T11:01:00Z'}, policies, 'response', now), 'Breached');
+  assert.equal(ticketSla({...ticket, Status: 'Resolved'}, policies, 'resolution', now), 'Unknown');
+  assert.equal(ticketSla({...ticket, HasResponseTracking: false}, policies, 'response', now), 'Unknown');
+  assert.equal(ticketSla({...ticket, FirstRespondedAt: 'bad'}, policies, 'response', now), 'Unknown');
+  assert.equal(ticketSla(ticket, [{...policies[0], active: false}], 'response', now), 'Not configured');
+  assert.equal(ticketSla({...ticket, Priority: 'Unconfigured'}, policies, 'response', now), 'Not configured');
+});
+test('Response timestamp is recorded once with a version guard; resolution stamps only on real transitions', async () => {
+  const graph = fakeGraph({schema: [...columns, {name: 'FirstRespondedAt', displayName: 'FirstRespondedAt', dateTime: {}}]});
+  let current = {State: 'New'}; const writes = [];
+  const originalGet = graph.get;
+  graph.get = async path => path.includes('/items/') ? path.includes('/fields?') ? current : {eTag: 'version', fields: current} : originalGet(path);
+  graph.patch = async (path, fields, etag) => {writes.push({fields, etag}); current = {...current, ...fields};};
+  const service = new GraphTicketService(graph, config);
+  await service.recordFirstResponse(7); await service.recordFirstResponse(7);
+  assert.equal(writes.length, 1); assert.equal(writes[0].etag, 'version');
+  assert(Number.isFinite(Date.parse(current.FirstRespondedAt)));
+  await service.updateTickets([7], {kind: 'status', status: 'Closed'});
+  assert(Number.isFinite(Date.parse(current.ResolvedAt)));
+  await service.updateTickets([7], {kind: 'status', status: 'Closed'});
+  assert.equal(writes.at(-1).fields.ResolvedAt, undefined);
+  await service.updateTickets([7], {kind: 'status', status: 'New'});
+  assert.equal(current.ResolvedAt, null);
+});
+test('Custom priority choices are accepted by ticket reads, creation and inline updates', async () => {
+  const graph = fakeGraph({schema: columns.map(column => column.name === 'Urgency' ? {...column, choice: {choices: ['Low', 'High', 'Urgent']}} : column)});
+  const writes = []; graph.patch = async (path, fields) => writes.push(fields); graph.post = async (path, body) => {writes.push(body.fields); return {id: '8'};};
+  const service = new GraphTicketService(graph, config);
+  assert((await service.getPriorities()).includes('Urgent'));
+  assert.deepEqual(await service.updateTickets([7], {kind: 'priority', priority: 'Urgent'}), {succeeded: [7], failed: []});
+  await service.createTicket({title: 'New', description: '', priority: 'Urgent'});
+  assert.equal(writes[0].Urgency, 'Urgent'); assert.equal(writes[1].Urgency, 'Urgent');
 });
