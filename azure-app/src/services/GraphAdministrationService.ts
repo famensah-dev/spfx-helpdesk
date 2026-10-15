@@ -2,7 +2,7 @@ import type { IAppConfig } from '../config';
 import type { GraphClient } from './GraphClient';
 import type { AdminPage, IAdminData, IAdminColumn, IColumnInput, IClassificationInput, IClassificationEntry, IAdministrationService } from '../../../src/webparts/helpdeskSystem/interfaces/IAdministration';
 interface Column { id: string; name: string; displayName: string; description?: string; required?: boolean; readOnly?: boolean; hidden?: boolean; text?: { allowMultipleLines?: boolean }; choice?: object; number?: object; boolean?: object; dateTime?: object; personOrGroup?: object; lookup?: { listId: string; allowMultipleValues?: boolean }; [key: string]: unknown; }
-interface Context { path: string; sitePath: string; list: { id: string; displayName: string }; lists: Array<{ id: string; displayName: string }>; }
+interface Context { path: string; sitePath: string; list: { id: string; displayName: string; webUrl?: string }; lists: Array<{ id: string; displayName: string; webUrl?: string }>; }
 const names = { categories: 'Ticket Categories', subcategories: 'Ticket Subcategories', issueTypes: 'Ticket Issue Types' };
 const norm = (value: string): string => value.replace(/\s+/g, '').toLowerCase();
 export class GraphAdministrationService implements IAdministrationService {
@@ -11,7 +11,7 @@ export class GraphAdministrationService implements IAdministrationService {
     const url = new URL(this.config.siteUrl);
     const site = this.config.siteId ? {id: this.config.siteId} : await this.graph.get<{id: string}>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
     const sitePath = `/sites/${encodeURIComponent(site.id)}`;
-    const lists = await this.graph.getAll<{id: string; displayName: string}>(`${sitePath}/lists?$select=id,displayName`);
+    const lists = await this.graph.getAll<{id: string; displayName: string; webUrl?: string}>(`${sitePath}/lists?$select=id,displayName,webUrl`);
     const list = lists.find(item => page === 'schema' ? this.config.listId ? item.id.toLowerCase() === this.config.listId.toLowerCase() : item.displayName === this.config.listName : item.displayName === names[page]);
     if (!list) throw new Error(`The ${page === 'schema' ? this.config.listName : names[page]} list was not found on the configured site.`);
     return {path: `${sitePath}/lists/${encodeURIComponent(list.id)}`, sitePath, list, lists};
@@ -54,21 +54,24 @@ export class GraphAdministrationService implements IAdministrationService {
   private async columns(context: Context): Promise<IAdminColumn[]> {
     const [columns, metadata] = await Promise.all([
       this.schemaGraph.getAll<Column>(`${context.path}/columns`),
-      this.rest<{value: Array<{Id: string; InternalName: string; CanBeDeleted: boolean; Sealed: boolean; ReadOnlyField: boolean; FromBaseType: boolean}>}>(`lists(guid'${encodeURIComponent(context.list.id)}')/fields?$select=Id,InternalName,CanBeDeleted,Sealed,ReadOnlyField,FromBaseType`)
+      this.rest<{value: Array<{Id: string; InternalName: string; CanBeDeleted: boolean; Sealed: boolean; ReadOnlyField: boolean; FromBaseType: boolean; Required?: boolean}>}>(`lists(guid'${encodeURIComponent(context.list.id)}')/fields?$select=Id,InternalName,CanBeDeleted,Sealed,ReadOnlyField,FromBaseType,Required`)
     ]);
+    const contentTypes = await this.schemaGraph.getAll<{id: string; name: string}>(`${context.path}/contentTypes?$select=id,name`);
+    const requirements = await Promise.all(contentTypes.map(async type => ({name: type.name, columns: await this.schemaGraph.getAll<Column>(`${context.path}/contentTypes/${encodeURIComponent(type.id)}/columns`)})));
     return columns.map(column => {
       const field = metadata.value.find(item => item.Id.toLowerCase() === column.id.toLowerCase() || item.InternalName === column.name);
+      const requiredIn = requirements.filter(type => type.columns.some(item => (item.id.toLowerCase() === column.id.toLowerCase() || item.name === column.name) && item.required === true)).map(type => type.name);
       const protectedField = !field || field.Sealed || field.ReadOnlyField || Boolean(column.readOnly) || column.name.startsWith('_');
       const kind = ['text', 'number', 'choice', 'dateTime', 'boolean', 'personOrGroup', 'lookup'].find(type => column[type]) || 'System / other';
       const core = ['title', 'status', 'priority', 'assignedto', 'assigned to', 'issue', 'description', 'issuedescription'].map(norm).includes(norm(column.name)) || ['issue', 'status', 'priority', 'assignedto', 'issuedescription'].includes(norm(column.displayName));
-      return {id: column.id, name: column.name, displayName: column.displayName, description: column.description, required: column.required, readOnly: column.readOnly, hidden: column.hidden, protected: protectedField, canEdit: !protectedField && kind !== 'System / other', canDelete: !protectedField && field?.CanBeDeleted === true && !field.FromBaseType && !core, type: kind === 'text' ? column.text?.allowMultipleLines ? 'Multiple lines of text' : 'Single line of text' : kind, properties: {...column}};
+      return {id: column.id, name: column.name, displayName: column.displayName, description: column.description, required: field?.Required ?? column.required, requiredIn, readOnly: column.readOnly, hidden: column.hidden, protected: protectedField, canEdit: !protectedField && kind !== 'System / other', canDelete: !protectedField && field?.CanBeDeleted === true && !field.FromBaseType && !core, type: kind === 'text' ? column.text?.allowMultipleLines ? 'Multiple lines of text' : 'Single line of text' : kind, properties: {...column}};
     });
   }
   public async getData(page: AdminPage): Promise<IAdminData> {
     const context = await this.context(page); await this.authorize(context);
-    if (page === 'schema') return {listName: context.list.displayName, canManage: true, columns: await this.columns(context), entries: [], parents: [], lists: context.lists.map(item => ({id: item.id, name: item.displayName}))};
+    if (page === 'schema') return {listName: context.list.displayName, listId: context.list.id, siteUrl: this.config.siteUrl, listUrl: context.list.webUrl || this.config.siteUrl, canManage: true, columns: await this.columns(context), entries: [], parents: [], lists: context.lists.map(item => ({id: item.id, name: item.displayName}))};
     const schema = await this.classification(context, page);
-    return {listName: context.list.displayName, canManage: true, columns: [], entries: await this.readEntries(context, schema), parents: schema.parents, lists: []};
+    return {listName: context.list.displayName, listId: context.list.id, siteUrl: this.config.siteUrl, listUrl: context.list.webUrl || `${this.config.siteUrl}/_layouts/15/listedit.aspx?List=${encodeURIComponent(context.list.id)}`, canManage: true, columns: [], entries: await this.readEntries(context, schema), parents: schema.parents, lists: []};
   }
   public async getLookupColumns(listId: string): Promise<Array<{name: string; displayName: string}>> {
     const context = await this.context('schema'); await this.authorize(context);
@@ -79,28 +82,47 @@ export class GraphAdministrationService implements IAdministrationService {
   public async saveColumn(input: IColumnInput, id?: string): Promise<void> {
     const context = await this.context('schema'); await this.authorize(context);
     if (!input.displayName.trim() || input.displayName.length > 255) throw new Error('Enter a display name of 1–255 characters.');
+    let existing: IAdminColumn | undefined;
     if (id) {
-      const column = (await this.columns(context)).find(item => item.id === id);
-      if (!column?.canEdit) throw new Error('This system-managed or read-only column cannot be edited here.');
-      await this.schemaGraph.patch(`${context.path}/columns/${encodeURIComponent(id)}`, {displayName: input.displayName.trim(), description: input.description, required: input.required});
+      existing = (await this.columns(context)).find(item => item.id === id);
+      if (!existing?.canEdit) throw new Error('This system-managed or read-only column cannot be edited here.');
     } else {
-      if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(input.name)) throw new Error('Use an internal name of 1–64 letters, digits, or underscores, starting with a letter.');
+      if (!/^[A-Za-z][A-Za-z0-9_]{0,63}$/.test(input.name)) throw new Error('Use an internal name of 1-64 letters, digits, or underscores, starting with a letter.');
       const columns = await this.graph.getAll<Column>(`${context.path}/columns`);
       if (columns.some(item => norm(item.name) === norm(input.name) || norm(item.displayName) === norm(input.displayName))) throw new Error('A column already uses this name.');
-      const body: Record<string, unknown> = {name: input.name, displayName: input.displayName.trim(), description: input.description, required: input.required};
+    }
+    const body: Record<string, unknown> = {displayName: input.displayName.trim(), description: input.description, required: input.required};
+    if (!id) body.name = input.name;
       switch (input.kind) {
         case 'text': if (!Number.isInteger(input.maxLength) || input.maxLength! < 1 || input.maxLength! > 255) throw new Error('Text length must be between 1 and 255.'); body.text = {allowMultipleLines: false, maxLength: input.maxLength}; break;
         case 'multiline': body.text = {allowMultipleLines: true, linesForEditing: 6, textType: input.richText ? 'richText' : 'plain'}; break;
         case 'number': if ((input.minimum !== undefined && !Number.isFinite(input.minimum)) || (input.maximum !== undefined && !Number.isFinite(input.maximum)) || (input.minimum !== undefined && input.maximum !== undefined && input.minimum > input.maximum)) throw new Error('Enter valid number bounds.'); body.number = {minimum: input.minimum, maximum: input.maximum, decimalPlaces: input.decimals || 'automatic'}; break;
-        case 'choice': { const choices = (input.choices || []).map(value => value.trim()).filter(Boolean); if (!choices.length || new Set(choices).size !== choices.length) throw new Error('Enter unique choices, one per line.'); body.choice = {choices, allowTextEntry: false, displayAs: 'dropDownMenu'}; break; }
+        case 'choice': { const choices = (input.choices || []).map(value => value.trim()).filter(Boolean); if (!choices.length || new Set(choices).size !== choices.length) throw new Error('Enter unique choices, one per line.'); body.choice = {choices, allowTextEntry: Boolean(input.allowTextEntry), displayAs: 'dropDownMenu'}; break; }
         case 'dateTime': body.dateTime = {format: input.dateOnly ? 'dateOnly' : 'dateTime', displayAs: 'default'}; break;
         case 'boolean': body.boolean = {}; break;
         case 'personOrGroup': body.personOrGroup = {allowMultipleSelection: Boolean(input.multiple), chooseFromType: input.peopleOnly === false ? 'peopleAndGroups' : 'peopleOnly', displayAs: 'name'}; break;
         case 'lookup': if (!input.lookupListId || !(await this.getLookupColumns(input.lookupListId)).some(item => item.name === input.lookupColumnName)) throw new Error('Choose a valid source list and column.'); body.lookup = {listId: input.lookupListId, columnName: input.lookupColumnName, allowMultipleValues: Boolean(input.multiple)}; break;
         default: throw new Error('Unsupported column type.');
       }
-      await this.schemaGraph.post(`${context.path}/columns`, body);
-    }
+    if (input.defaultValue !== undefined && input.defaultFormula !== undefined) throw new Error('Choose a default value or formula, not both.');
+    if (input.defaultFormula !== undefined) {
+      if (!input.defaultFormula.trim()) throw new Error('Enter a default formula.');
+      body.defaultValue = {formula: input.defaultFormula.trim()};
+    } else if (input.defaultValue !== undefined && input.defaultValue !== '') {
+      const value = input.defaultValue;
+      if (input.kind === 'number' && (!Number.isFinite(Number(value)) || (input.minimum !== undefined && Number(value) < input.minimum) || (input.maximum !== undefined && Number(value) > input.maximum))) throw new Error('Default must be a number within the allowed range.');
+      if (input.kind === 'boolean' && !['0', '1'].includes(value)) throw new Error('Choose Yes or No for the default.');
+      if (input.kind === 'choice' && !input.allowTextEntry && !(input.choices || []).map(item => item.trim()).includes(value)) throw new Error('Default must match a configured choice, or allow manual values.');
+      if (input.kind === 'text' && value.length > (input.maxLength || 255)) throw new Error('Default exceeds the maximum text length.');
+      if (input.kind === 'dateTime' && Number.isNaN(Date.parse(value))) throw new Error('Enter a valid default date.');
+      body.defaultValue = {value};
+    } else if (existing?.properties.defaultValue) body.defaultValue = null;
+    const facet = input.kind === 'multiline' ? 'text' : input.kind;
+    if (existing) {
+      const oldFacet = ['text', 'number', 'choice', 'dateTime', 'boolean', 'personOrGroup', 'lookup'].find(key => existing!.properties[key]);
+      if (oldFacet === facet) body[facet] = {...(existing.properties[facet] as Record<string, unknown>), ...(body[facet] as Record<string, unknown>)};
+      await this.schemaGraph.patch(`${context.path}/columns/${encodeURIComponent(id!)}`, body);
+    } else await this.schemaGraph.post(`${context.path}/columns`, body);
     this.onSchemaChanged();
   }
   public async deleteColumn(id: string): Promise<void> {

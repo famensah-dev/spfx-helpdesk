@@ -770,6 +770,37 @@
 }
 .adminHint { margin: 0; color: #415575; font-size: 13px; line-height: 1.5; }
 .adminProperties { max-height: 420px; overflow: auto; font-size: 12px; background: #f5f8fc; padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.schemaWorkspace { display: grid; gap: 16px; }
+.schemaTopRow { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding-bottom: 6px; border-bottom: 1px solid #e0e7f1; > .schemaHeading { flex: 1 1 240px; } > .schemaListSummary { flex: 2 1 640px; } }
+.schemaHeading { small { display: block; margin-bottom: 4px; font-size: 13px; color: #647694; } h2 { margin: 0 0 5px; font-size: 16px; font-weight: 600; color: #172536; } p { margin: 0; font-size: 12px; color: #172536; } strong { color: #172536; font-weight: 500; } }
+.schemaListSummary { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding: 12px 0; color: #172536;
+  > div:first-child { border-left: 1px solid #edf1f7; padding-left: 18px; }
+  > div { display: grid; gap: 4px; min-width: 140px; padding-right: 18px; border-right: 1px solid #edf1f7; font-size: 14px; }
+  small { color: #647694; font-size: 13px; } strong { font-weight: 600; color: #293d58; }
+  a { color: #172536; font-size: 14px; text-decoration: none; &:hover { text-decoration: underline; } } > a { margin-left: auto; white-space: nowrap; } > :global(.ms-Button) { margin-left: auto; font-size: 13px; background: transparent; &:hover, &:active { background: transparent; } }
+}
+.schemaListIcon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 5px; background: #1b385c; color: #fff; font-size: 21px; }
+.schemaListIdentifier { flex: 1; > span { display: flex; align-items: center; gap: 4px; color: #172536; font-size: 14px; overflow-wrap: anywhere; } :global(.ms-Button) { width: 24px; height: 24px; } }
+.schemaToolbar { > .ticketActions { margin-left: auto; } display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  > :global(.ms-SearchBox) { width: 340px; max-width: 100%; }
+  > :global(.ms-Dropdown-container) { min-width: 160px; }
+  > :global(.ms-Button--primary) { margin-left: auto; border-radius: 4px; }
+}
+.schemaColumnsLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; &[data-editing='true'] { grid-template-columns: minmax(0, 1fr) 310px; } }
+.schemaTableCard { min-width: 0; overflow: hidden; border: 1px solid #e0e7f1; border-radius: 6px;
+  .ticketTable { font-size: 12px; } .ticketSubjectLink { font-size: 14px; } .ticketTable th { font-size: 13px; font-weight: 600; }
+  .ticketTable td { padding: 6px 10px; } .ticketTable :global(.ms-Button--icon) { height: 24px; width: 28px; background: transparent; }
+}
+.schemaColumnType { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; i { color: #2855b6; font-size: 14px; } }
+.schemaDescription { display: block; max-width: 180px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #647694; }
+.schemaRequired { display: inline-block; border-radius: 999px; background: #f1f3f7; color: #647694; font-size: 11px; padding: 2px 9px; &[data-required='true'] { background: #fff1cc; color: #8a5700; } }
+.schemaEditorCard { border: 1px solid #e0e7f1; border-radius: 6px; background: #fff; padding: 16px;
+  header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; } h3 { margin: 0; font-size: 16px; font-weight: 600; color: #172536; }
+  .adminFormFields { gap: 14px; } :global(.ms-Label) { font-size: 12px; color: #293d58; font-weight: 500; }
+  .faqModalFooter { gap: 6px; > :global(.ms-Button) { min-width: 65px; padding-inline: 8px; } :global(.ms-Button-label) { font-size: 12px; } }
+}
+.schemaAdvanced { padding-top: 12px; border-top: 1px solid #e5ebf3; summary { font-size: 12px; cursor: pointer; color: #415575; } }
+@media (max-width: 1100px) { .schemaColumnsLayout[data-editing='true'] { grid-template-columns: minmax(0, 1fr); } }
 .faqToolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
   > :global(.ms-SearchBox) { flex: 1; min-width: 200px; }
   > :global(.ms-Dropdown-container) { min-width: 160px; }
@@ -821,3 +852,8 @@
 @media (max-width: 620px) { .newTicketFields { grid-template-columns: minmax(0, 1fr); } .newTicketSection { padding: 16px; } }
 
 .ticketTable td.faqQuestionCell, .faqQuestionCell .ticketSubjectLink { color: #172536; }
+
+.ticketControls > :global(.ms-SearchBox) { width: 280px; max-width: 100%; }
+
+.adminAvailabilityLink { border: 0; padding: 0 8px; background: transparent; color: #244a91; font: inherit; font-size: 12px; cursor: pointer; &:hover { text-decoration: underline; } &[data-deactivate='true'] { color: #e11919; } &:disabled { color: #9297a5; cursor: default; } }
+.adminSharePointLink { font-size: 12px; color: #244a91; padding: 0 8px; text-decoration: none; &:hover { text-decoration: underline; } }

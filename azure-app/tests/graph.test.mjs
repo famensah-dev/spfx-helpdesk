@@ -26,6 +26,8 @@ function adminGraph() {
     getAll: async path => {
       calls.push(path);
       if (path.includes('/lists?')) return [{id: 'tickets', displayName: 'Tickets'}, {id: 'cat', displayName: 'Ticket Categories'}, {id: 'sub', displayName: 'Ticket Subcategories'}, {id: 'types', displayName: 'Ticket Issue Types'}];
+      if (path.includes('/contentTypes/')) return [{id: 'custom', name: 'CustomField', displayName: 'Custom field', required: true}];
+      if (path.includes('/contentTypes?')) return [{id: 'item-type', name: 'Item'}];
       if (path.includes('/tickets/columns')) return columns;
       if (path.includes('/columns')) return [{id: 't', name: 'Title', displayName: 'Title', text: {}}, {id: 'a', name: 'Active', displayName: 'Active', boolean: {}}, {id: 'o', name: 'SortOrder', displayName: 'SortOrder', number: {}}, ...(path.includes('/sub/') ? [{id: 'p', name: 'Parent', displayName: 'Category', lookup: {listId: 'cat'}}] : [])];
       if (path.includes('/items')) return [{id: '1', fields: {Title: 'Category', Active: true, SortOrder: 2}}];
@@ -43,7 +45,7 @@ function adminFetch(low = '2048') {
     {Id: 'created', InternalName: 'Created', CanBeDeleted: false, Sealed: true, ReadOnlyField: true, FromBaseType: true}
   ]});
 }
-test('Schema administration loads columns only, blocks system deletion and updates metadata without renaming internal fields', async () => {
+test('Schema administration loads columns only, blocks system deletion and updates type settings without renaming internal fields', async () => {
   const original = globalThis.fetch; globalThis.fetch = adminFetch();
   try {
     const graph = adminGraph(); let invalidated = 0;
@@ -56,12 +58,35 @@ test('Schema administration loads columns only, blocks system deletion and updat
     await assert.rejects(service.deleteColumn('created'), /cannot be deleted/);
     await assert.rejects(service.deleteColumn('title'), /cannot be deleted/);
     await service.saveColumn({name: 'IgnoredRename', displayName: 'Renamed', description: 'Description', required: true, kind: 'number'}, 'custom');
-    assert.deepEqual(graph.writes[0].body, {displayName: 'Renamed', description: 'Description', required: true});
+    assert.deepEqual(graph.writes[0].body, {displayName: 'Renamed', description: 'Description', required: true, number: {minimum: undefined, maximum: undefined, decimalPlaces: 'automatic'}});
+    assert.equal(graph.writes[0].body.name, undefined);
+    assert.equal(graph.writes[0].body.text, undefined);
     await service.deleteColumn('custom');
     assert.equal(graph.writes[1].method, 'DELETE');
     assert.equal(invalidated, 2);
   } finally { globalThis.fetch = original; }
 });
+test('Schema required flags prefer SharePoint field metadata over missing or conflicting Graph flags', async () => {
+  const original = globalThis.fetch;
+  const baseFetch = adminFetch();
+  globalThis.fetch = async url => {
+    const result = await baseFetch(url);
+    if (!url.includes('/fields?')) return result;
+    const data = await result.json();
+    return response({value: data.value.map(field => ({...field, Required: field.InternalName === 'Title'}))});
+  };
+  try {
+    const graph = adminGraph();
+    graph.columns[0].required = false;
+    graph.columns[1].required = true;
+    const service = new GraphAdministrationService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'token');
+    const data = await service.getData('schema');
+    assert.equal(data.columns.find(column => column.name === 'Title').required, true);
+    assert.equal(data.columns.find(column => column.name === 'CustomField').required, false);
+    assert.deepEqual(data.columns.find(column => column.name === 'CustomField').requiredIn, ['Item']);
+  } finally { globalThis.fetch = original; }
+});
+
 test('Admin schema creation validates types and sends one Graph column facet', async () => {
   const original = globalThis.fetch; globalThis.fetch = adminFetch();
   try {
@@ -78,6 +103,25 @@ test('Admin schema creation validates types and sends one Graph column facet', a
     assert.equal(graph.writes[1].body.personOrGroup.chooseFromType, 'peopleOnly');
   } finally { globalThis.fetch = original; }
 });
+test('Schema advanced settings persist manual choices and validate direct and formula defaults', async () => {
+  const original = globalThis.fetch; globalThis.fetch = adminFetch();
+  try {
+    const graph = adminGraph();
+    const service = new GraphAdministrationService(graph, graph, {siteId: 'site', siteUrl: 'https://example.sharepoint.com/sites/support', listName: 'Tickets'}, async () => 'token');
+    const base = {name: 'ExtraChoice', displayName: 'Extra choice', description: '', required: false, kind: 'choice', choices: ['One', 'Two'], allowTextEntry: true, defaultValue: 'Other'};
+    await service.saveColumn(base, 'custom');
+    assert.equal(graph.writes[0].body.choice.allowTextEntry, true);
+    assert.deepEqual(graph.writes[0].body.defaultValue, {value: 'Other'});
+    await assert.rejects(service.saveColumn({...base, allowTextEntry: false}, 'custom'), /configured choice/);
+    await service.saveColumn({...base, kind: 'dateTime', defaultValue: undefined, defaultFormula: '=[Today]'}, 'custom');
+    assert.deepEqual(graph.writes[1].body.defaultValue, {formula: '=[Today]'});
+    await assert.rejects(service.saveColumn({...base, kind: 'number', defaultValue: 'abc'}, 'custom'), /number/);
+    graph.columns[1].defaultValue = {value: 'Old'};
+    await service.saveColumn({...base, defaultValue: undefined}, 'custom');
+    assert.equal(graph.writes[2].body.defaultValue, null);
+  } finally { globalThis.fetch = original; }
+});
+
 test('Admin operations enforce Manage Lists on each write and independent issue types have no parent', async () => {
   const original = globalThis.fetch; globalThis.fetch = adminFetch('14');
   try {
