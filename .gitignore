@@ -36,3 +36,9 @@ obj
 
 # Styles Generated Code
 *.scss.ts
+
+# Protected DeskPilot API runtime data
+azure-app/server/compiled/
+azure-app/server/data/
+azure-app/server/.env.local
+.env.local

@@ -152,14 +152,14 @@
 @media (max-width: 360px) { .dashboardFilters .filterGroup { grid-template-columns: 1fr; } }
 .resolutionGrid div { background: white; border-radius: 2px; }
 .ticketTabs { gap: 6px; padding-bottom: 10px;
-  button { background: #fff; border: 0; border-radius: 2px; color: #244a91; &:hover:not(:disabled) { background: #dce7fc; } }
-  .activeNav { background: #1b385c; color: #fff; &:hover:not(:disabled) { background: #1b385c; color: #fff; } }
-  button:disabled { background: #f5f5f8; color: #9297a5; }
+  button { background: #fff; border: 0; border-bottom: 2px solid transparent; border-radius: 0; color: #244a91; &:hover:not(:disabled) { background: #fff; border-bottom-color: #a9bfd9; } }
+  .activeNav { background: #fff; border-bottom-color: #1b385c; color: #1b385c; &:hover:not(:disabled) { background: #fff; border-bottom-color: #1b385c; color: #1b385c; } }
+  button:disabled { background: #fff; color: #9297a5; }
 }
 .toolbarTitle { margin: 0 36px 0 0; font-size: 16px; font-weight: 600; line-height: 1.5; align-self: center; }
 .ticketActions { gap: 6px; > button { background: transparent; border: 0; border-radius: 2px; color: #244a91; &:hover:not(:disabled), &:active:not(:disabled), &[aria-expanded='true'] { background: transparent; border: 0; color: #1b385c; } &:disabled { background: transparent; color: #9297a5; border: 0; } } }
 .ticketControls select { background: #edf3ff; border-color: #d6e1f4; border-radius: 2px; color: #244a91; }
-.ticketCounts button { background: #f3f6fc; border-radius: 2px; &[data-active='true'] { background: #eaf0ff; color: #244a91; box-shadow: inset 0 -2px #2855b6; } &:hover { background: #e1eafa; } }
+.ticketCounts button { background: #fff; border-bottom: 2px solid transparent; border-radius: 0; &[data-active='true'] { background: #fff; color: #244a91; border-bottom-color: #2855b6; box-shadow: none; } &:hover { background: #fff; } }
 .ticketTable th { background: #eff3fb; color: #415575; }
 .ticketTable tbody tr:hover { background: #f7faff; }
 @media (max-width: 620px) { .mainContent { padding: 12px; } .pageContent { padding: 14px; } .kpiGrid { gap: 10px; } .kpiCard { padding: 14px; } .navigation { padding: 8px 12px; } }
@@ -641,7 +641,7 @@
   :global(.ms-ContextualMenu-checkmarkIcon) { font-size: 10px; width: 12px; margin: 0 5px 0 0; }
   :global(.ms-ContextualMenu-link):hover { background: #edf3fc; }
 }
-.ticketCounts button { border-radius: 6px; }
+.ticketCounts button { border-radius: 0; }
 .ticketTabs button:disabled, .ticketTabs button:disabled:hover { background: transparent; }
 .statusLegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 16px; list-style: none; margin: 10px 0 0; padding: 0;
   li { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #293d58; }
@@ -685,7 +685,9 @@
   }
   .dashboardSplit[data-active='true'] { color: #ffc43d; }
   > button { position: relative; }
-  > button::before { content: ''; position: absolute; left: -3px; top: 25%; height: 50%; border-left: 1px solid #607792; pointer-events: none; }
+  > button::before { content: none; }
+  > button + button::before, > .dashboardSplit + button::before { content: ''; position: absolute; left: -3px; top: 25%; height: 50%; border-left: 1px solid #607792; pointer-events: none; }
+  > .dashboardNav { border-left: 0; &::before, &::after { content: none; display: none; } :global(.ms-Button-splitButtonDivider) { display: none; } }
   > button:hover, .dashboardSplit:hover :global(.ms-Button-label) { text-decoration: underline; text-underline-offset: 4px; }
   button:focus-visible { outline: 2px solid #ffc43d; outline-offset: -2px; }
 }
@@ -761,8 +763,83 @@
 .secondaryPage > :global(.ms-MessageBar) { width: calc(100% + 2 * var(--page-inset)); margin-inline: calc(-1 * var(--page-inset)); padding-inline: calc(var(--page-inset) - 12px); }
 .administrationHeader { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: -6px calc(-1 * var(--page-inset)) 0; padding: 18px calc(var(--page-inset) + 4px) 12px; background: #fff; border-bottom: 1px solid var(--hd-line); }
 .adminTabs { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding: 0;
-  button { border: 0; background: #fff; padding: 7px 10px; color: #244a91; border-radius: 2px; cursor: pointer; font-size: 12px; line-height: 1.45; }
-  button[aria-current='page'] { background: #1b385c; color: #fff; }
+  button { border: 0; border-bottom: 2px solid transparent; background: #fff; padding: 7px 10px; color: #244a91; border-radius: 0; cursor: pointer; font-size: 12px; line-height: 1.45; &:hover:not(:disabled) { border-bottom-color: #a9bfd9; } &:focus-visible { outline: 2px solid #2855b6; outline-offset: 2px; } }
+  button[aria-current='page'], button[aria-current='page']:hover { background: #fff; color: #1b385c; border-bottom-color: #1b385c; font-weight: 600; }
+}
+.accountIdentity { display: flex; align-items: center; gap: 10px; color: #fff; min-width: 0; }
+.accountAvatar { flex-shrink: 0; overflow: hidden; :global(.ms-Button-flexContainer) { width: 100%; height: 100%; } :global(.ms-Button-label) { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; } }
+.accountPhoto { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; display: block; }
+.accountEmail { padding: 10px 18px; color: #415575; font-size: 12px; line-height: 18px; white-space: normal; overflow-wrap: anywhere; border-bottom: 1px solid #e0e7f1; }
+.rolePermissionToolbar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; > :global(.ms-Dropdown-container) { width: 260px; max-width: 100%; } }
+.rolePermissionToolbar :global(.ms-Dropdown):focus::after { border: 1px solid #8ba9cb; border-radius: 4px; }
+.rolePermissionToolbar :global(.ms-Dropdown):hover :global(.ms-Dropdown-title), .rolePermissionToolbar :global(.ms-Dropdown):focus :global(.ms-Dropdown-title) { border-color: #a9bfd9; }
+.rolePermissionsInfo { background: #f1f7ff; border: 1px solid #d0e2ff; border-radius: 4px; }
+.rolePermissionsTable { min-width: 620px;
+  th:first-child, td:first-child { width: 36%; }
+  th:last-child, td:last-child { width: 170px; }
+  tbody td { padding-top: 14px; padding-bottom: 14px; }
+  .permissionCategory th { width: auto; text-align: left; background: #fff; padding-top: 30px; padding-bottom: 14px; color: #172536; font-size: 14px; span { margin-left: 14px; font-weight: 400; font-size: 12px; color: #647694; } }
+}
+.roleScopeSwitch { display: flex; align-items: center; gap: 9px; border: 0; background: transparent; text-align: left; color: #415575; font-size: 12px; padding: 0; cursor: pointer; opacity: 1;
+  &:disabled { cursor: default; opacity: 1; background: transparent; color: #415575; }
+  &:focus-visible { outline: 2px solid #2855b6; outline-offset: 3px; }
+  &[aria-checked='true'] .roleSwitchTrack { background: #2855b6; border-color: #2855b6; }
+  &[aria-checked='true'] .roleSwitchThumb { transform: translateX(16px); }
+}
+.roleSwitchTrack { display: inline-flex; align-items: center; position: relative; box-sizing: border-box; width: 36px; min-width: 36px; height: 20px; border: 1px solid #8090a5; border-radius: 12px; background: #8090a5; flex-shrink: 0; }
+.roleSwitchThumb { display: block; position: absolute; left: 2px; top: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(23,37,54,.2); transition: transform .12s ease; }
+.rolePermissionsFooter { display: flex; gap: 12px; justify-content: flex-end; padding-top: 6px; }
+.userRoleFilters { display: flex; gap: 12px; border-bottom: 1px solid var(--hd-line); button { border: 0; border-bottom: 2px solid transparent; padding: 10px 12px; background: #fff; color: #415575; cursor: pointer; font-size: 13px; &[aria-pressed='true'] { border-bottom-color: #2855b6; color: #244a91; font-weight: 600; } &:focus-visible { outline: 2px solid #2855b6; } } }
+.ticketTable button.userRowActions { background: transparent; border: 0; &:hover, &:active, &:disabled, &[aria-expanded='true'] { background: transparent; border: 0; } }
+.ticketPage > .pageAlerts > .usersInfoAlert { background: #deebff; color: #172536; :global(.ms-MessageBar-icon) { color: #2855b6; } }
+.userIdentity { display: flex; align-items: center; gap: 10px; min-width: 150px; }
+.userRoleBadge, .userStatusBadge { display: inline-flex; align-items: center; gap: 6px; border-radius: 12px; padding: 3px 10px; font-size: 12px; white-space: nowrap; }
+.userRoleBadge { color: #244a91; background: #edf3ff; &[data-role='admin'] { color: #66509d; background: #f3effc; } }
+.userStatusBadge { color: #13794e; background: #e8f6ef; &::before { content: ''; width: 6px; height: 6px; background: currentColor; border-radius: 50%; } &[data-active='false'] { color: #a63b46; background: #fff0f2; } }
+.userTableFooter { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 12px; color: #647694; > div { display: flex; gap: 10px; align-items: center; } }
+.addUsersHeading { display: flex; align-items: center; justify-content: space-between; h3 { margin: 0; font-size: 16px; color: #172536; } }
+.addUsersResults { margin-top: 12px; max-height: 310px; overflow: auto; border-top: 1px solid #e0e7f1; border-bottom: 1px solid #e0e7f1; p { font-size: 13px; color: #647694; padding: 8px 0; margin: 0; } }
+.addUserResult { display: flex; align-items: center; gap: 10px; padding: 12px 2px; border-bottom: 1px solid #edf1f7; > span { flex: 1; min-width: 0; strong { display: block; font-size: 13px; color: #172536; } small { display: block; font-size: 12px; color: #647694; overflow-wrap: anywhere; } } > small { max-width: 90px; color: #415575; font-size: 12px; } }
+.addUsersFooter { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 14px; > span { margin-right: auto; font-size: 12px; color: #647694; } }
+.addUsersSearchControl { width: 620px; max-width: 100%; }
+.addUsersSearchLabel { display: block; margin-bottom: 6px; color: #172536; font-size: 13px; font-weight: 600; cursor: text; }
+.addUsersForm .addUsersSearchRow { display: flex; align-items: stretch; gap: 0; border: 1px solid #cbd7e7; border-radius: 5px; overflow: hidden;
+  &:focus-within { border-color: #789ac4; }
+  > :global(.ms-TextField) { flex: 1; min-width: 0; }
+  > :global(.ms-Dropdown-container) { flex: 0 0 135px; min-width: 0; background: #f4f6fa; border-left: 1px solid #e0e7f1; }
+  :global(.ms-TextField-fieldGroup) { height: 38px; border: 0; border-radius: 0; background: #fff; }
+  :global(.ms-TextField-fieldGroup)::after { border: 0; }
+  :global(.ms-TextField-prefix) { background: #fff; padding: 0 10px 0 12px; color: #2855b6; font-size: 17px; }
+  :global(.ms-Dropdown-title) { height: 38px; line-height: 36px; border: 0; border-radius: 0; background: #f4f6fa; color: #172536; }
+  :global(.ms-Dropdown):focus::after { border: 0; }
+  :global(.ms-Dropdown-caretDownWrapper) { height: 38px; line-height: 38px; }
+}
+@media (max-width: 480px) { .addUsersForm .addUsersSearchRow > :global(.ms-Dropdown-container) { flex-basis: 125px; } }
+.addUsersForm { display: flex; flex-direction: column; gap: 12px;
+  :global(.ms-TextField-fieldGroup) { border: 1px solid #d6e1ee; border-radius: 4px; }
+  :global(.ms-TextField-fieldGroup)::after { border: 1px solid #789ac4; border-radius: 4px; }
+  :global(.ms-TextField-field) { font-size: 13px; }
+  :global(.ms-Dropdown-title) { border-color: #d6e1ee; border-radius: 4px; font-size: 13px; }
+  :global(.ms-Dropdown):focus::after { border: 1px solid #789ac4; border-radius: 4px; }
+  :global(.ms-Checkbox):focus-within :global(.ms-Checkbox-checkbox) { border-color: #789ac4; }
+  .addUsersResults { margin-top: 0; max-height: 250px; }
+}
+.selectedUserTray { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 24px; max-height: 250px; overflow: auto; padding: 0; background: transparent; border: 0; > strong { grid-column: 1 / -1; padding-bottom: 6px; font-size: 12px; color: #415575; } }
+.selectedUserChip { display: flex; align-items: center; gap: 10px; padding: 12px 2px; border-bottom: 1px solid #edf1f7; min-width: 0; > span { flex: 1; font-size: 13px; min-width: 0; small { display: block; color: #647694; font-size: 12px; overflow-wrap: anywhere; } } > :global(.ms-Button) { background: transparent; border: 0; flex-shrink: 0; } }
+@media (max-width: 760px) { .selectedUserTray { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .selectedUserTray { grid-template-columns: minmax(0, 1fr); } }
+.addUserName { flex: 1; min-width: 0; border: 0; background: transparent; padding: 0; text-align: left; cursor: pointer; color: #172536; strong { display: block; font-size: 13px; } small { display: block; font-size: 12px; color: #647694; overflow-wrap: anywhere; } &:disabled { cursor: default; } &:focus-visible { outline: 1px solid #789ac4; outline-offset: 3px; } }
+.addUsersForm {
+  .adminHint, .addUsersSearchLabel, :global(.ms-TextField-field), :global(.ms-Dropdown-title), :global(.ms-Button-label), :global(.ms-MessageBar-text),
+  .addUserName small, .addUserResult > small, .addUsersResults p, .selectedUserTray > strong, .selectedUserChip > span, .selectedUserChip small, .addUsersFooter > span { font-size: 14px; color: #172536; }
+  :global(.ms-TextField-field)::placeholder { color: #172536; opacity: 1; }
+  .addUserName strong { color: #172536; }
+  .addUsersResults p, .addUsersFooter > span, .selectedUserTray > strong, .addUserName small, .selectedUserChip small { font-size: 12px; color: #647694; font-weight: 400; }
+  .selectedUserChip > span { font-weight: 600; }
+  :global(.ms-Button-label) { font-size: 12px; font-weight: 400; }
+  .addUsersSearchRow :global(.ms-Dropdown-title) { font-size: 12px; }
+  :global(.ms-Button--primary:not(:disabled) .ms-Button-label) { color: #fff; }
+  :global(.ms-Button--primary:disabled .ms-Button-label) { color: #9297a5; }
 }
 .adminFormFields { display: grid; gap: 16px; padding-top: 8px;
   :global(.ms-TextField-fieldGroup) { border-color: #d6e1ee; border-radius: 4px; }
@@ -876,3 +953,29 @@
 .dashboardLeftLabels .dashboardBarLabel { text-align: left; }
 
 .slaLegend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; margin-top: 10px; button { display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: transparent; color: #415575; font-size: 12px; cursor: pointer; > span { width: 9px; height: 9px; border-radius: 50%; } &:focus-visible { outline: 2px solid #789ac4; outline-offset: 3px; } } }
+
+.departmentMemberControls { display: flex; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 10px; margin-top: 14px; > :global(.ms-SearchBox) { width: 440px; max-width: 100%; } > :global(.ms-Dropdown-container) { width: 180px; max-width: 100%; } }
+.departmentMemberRoleHint { margin: 10px 0 16px; font-size: 13px; color: #415575; strong { font-weight: 600; color: #172536; } }
+
+.departmentMembersPage { color: #172536; .adminHint, .departmentMemberRoleHint, .adminAvailabilityLink, .ticketTable th, .ticketTable td { color: #172536; } .adminAvailabilityLink[data-deactivate='true'] { color: #e11919; } :global(.ms-SearchBox-field), :global(.ms-Dropdown-title) { color: #172536; } }
+
+.helpdeskUserResults { list-style: none; margin: 0 0 18px; padding: 0; max-width: 640px; max-height: 300px; overflow: auto; li + li { border-top: 1px solid #e5ebf3; } }
+.helpdeskUserResult { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 8px; border: 0; border-radius: 3px; background: transparent; text-align: left; color: #172536; cursor: pointer; font: inherit; &:hover:not(:disabled) { background: #f0f5fc; } &:disabled { opacity: .6; cursor: default; } }
+.helpdeskUserResultText { display: grid; gap: 3px; flex: 1; min-width: 0; > span { font-size: 14px; font-weight: 400; } small { font-size: 12px; color: #415575; overflow-wrap: anywhere; } }
+.helpdeskUserResultAction { font-size: 12px; color: #244a91; flex-shrink: 0; }
+@media (max-width: 480px) { .helpdeskUserResult { flex-wrap: wrap; } .helpdeskUserResultAction { margin-left: 42px; } }
+
+.workspaceGate { display: flex; flex-direction: column; }
+.lightLogo { display: block; flex-shrink: 0; background-position: center; background-repeat: no-repeat; background-size: 100% auto; }
+.lightLogo { width: 156px; height: 38px; background-image: url('../assets/deskpilot-logo-lightmode.png'); }
+.workspaceGateMain { flex: 1; display: grid; place-items: center; padding: 32px 24px 96px; background: #f4f7fc url('../assets/auth-bg.png') center / cover no-repeat; }
+.workspaceGatePanel { width: min(100%, 532px); padding: 40px 48px; background: #fff; border: 1px solid #e0e5ef; border-radius: 6px; box-shadow: 0 8px 24px rgba(38,60,99,.1);
+  h1 { margin: 0 0 14px; font-size: 16px; line-height: 1.4; font-weight: 500; color: #172536; }
+  p { margin: 0; font-size: 14px; line-height: 1.6; color: #415575; overflow-wrap: anywhere; }
+  :global(.ms-Spinner) { align-items: flex-start; }
+  :global(.ms-Spinner-label) { color: #415575; text-align: left; }
+}
+.workspaceGateBrand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; color: #1b385c; font-size: 20px; font-weight: 500;
+  i { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #edf4ff; }
+}
+@media (max-width: 620px) { .workspaceGatePanel { padding: 24px; } }

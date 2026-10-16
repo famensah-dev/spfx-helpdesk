@@ -1,3 +1,5 @@
+import { DepartmentMembersPage } from './DepartmentMembersPage';
+import { canUse } from '../services/appRoleRules';
 import { SlaPrioritiesPage } from './SlaPrioritiesPage';
 import { TicketSchemaWorkspace } from '../components/TicketSchemaWorkspace';
 import * as React from 'react';
@@ -10,9 +12,10 @@ import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import { FaqPage } from './FaqPage';
 import styles from '../components/HelpdeskSystem.module.scss';
 
-const tabs: Array<{key: AdminPage | 'faqs' | 'sla'; text: string}> = [{key: 'schema', text: 'Ticket list schema'}, {key: 'categories', text: 'Categories'}, {key: 'subcategories', text: 'Subcategories'}, {key: 'issueTypes', text: 'Issue Types'}, {key: 'sla', text: 'SLA & Priorities'}, {key: 'faqs', text: 'FAQs'}];
+const tabs: Array<{key: AdminPage | 'faqs' | 'sla' | 'members'; text: string}> = [{key: 'schema', text: 'Ticket list schema'}, {key: 'categories', text: 'Categories'}, {key: 'subcategories', text: 'Subcategories'}, {key: 'issueTypes', text: 'Issue Types'}, {key: 'sla', text: 'SLA & Priorities'}, {key: 'faqs', text: 'FAQs'}, {key: 'members', text: 'Users'}];
 export function AdministrationPage(props: { service: ITicketDataSource; onSettingsChanged?: () => Promise<void> }): React.ReactElement {
-  const [page, setPage] = React.useState<AdminPage | 'faqs' | 'sla'>('schema');
+  const availableTabs = tabs.filter(tab => (tab.key !== 'schema' || !props.service.access || props.service.access.superAdmin) && (tab.key !== 'members' || props.service.members) && (tab.key === 'members' || tab.key === 'schema' || canUse(props.service, tab.key === 'sla' ? 'sla' : tab.key === 'faqs' ? 'manageFaqs' : 'classifications')));
+  const [page, setPage] = React.useState<AdminPage | 'faqs' | 'sla' | 'members'>(availableTabs[0]?.key || 'categories');
   const [data, setData] = React.useState<IAdminData | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -34,7 +37,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const version = React.useRef(0);
   const service = props.service.administration;
   const load = React.useCallback(async (): Promise<void> => {
-    if (page === 'faqs' || page === 'sla') return;
+    if (page === 'faqs' || page === 'sla' || page === 'members') return;
     const current = ++version.current; setLoading(true); setError('');
     try { if (!service) throw new Error('Administration is not configured for this connection.'); const result = await service.getData(page); if (current === version.current) setData(result); }
     catch (reason) { if (current === version.current) { setData(null); setError(reason instanceof Error ? reason.message : 'Unable to load administration data.'); } }
@@ -55,8 +58,8 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const modal = {isBlocking: true, styles: {main: {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760, borderRadius: 6, selectors: {'@media (min-width: 480px)': {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760}}}}};
   return <section className={styles.secondaryPage}>
     <div className={styles.administrationHeader}><h2 className={styles.toolbarTitle}>Administration</h2>
-    <nav className={styles.adminTabs} aria-label="Administration pages">{tabs.map(tab => <button key={tab.key} type="button" disabled={busy} aria-current={page === tab.key ? 'page' : undefined} onClick={() => setPage(tab.key)}>{tab.text}</button>)}</nav></div>
-    {page === 'sla' ? <SlaPrioritiesPage service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage /> : <>
+    <nav className={styles.adminTabs} aria-label="Administration pages">{availableTabs.map(tab => <button key={tab.key} type="button" disabled={busy} aria-current={page === tab.key ? 'page' : undefined} onClick={() => setPage(tab.key)}>{tab.text}</button>)}</nav></div>
+    {page === 'members' ? <DepartmentMembersPage service={props.service} /> : page === 'sla' ? <SlaPrioritiesPage canSetup={!props.service.access || props.service.access.superAdmin} service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage /> : <>
       {error && !columnInput && !entryInput && !deleting && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
       <div className={styles.ticketListCard}>
@@ -72,7 +75,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
       </div>
     </>}
     <Dialog hidden={!entryInput} onDismiss={busy ? undefined : () => {setColumnInput(null); setEntryInput(null); setError('');}} maxWidth={760} dialogContentProps={{type: DialogType.close, title: columnInput ? columnId ? 'Edit column properties' : 'New ticket column' : entryId ? 'Edit entry' : 'New entry', showCloseButton: !busy}} modalProps={modal}>
-      <form onSubmit={event => { event.preventDefault(); if (columnInput) void run(() => service!.saveColumn(columnInput, columnId), 'Column saved.'); else if (entryInput && page !== 'schema' && page !== 'faqs' && page !== 'sla' && (!entryId || data?.entries.find(item => item.id === entryId)?.active === entryInput.active || window.confirm('Change availability for this entry? This affects new ticket selections.'))) void run(() => service!.saveEntry(page, entryInput, entryId), 'Entry saved.'); }}>
+      <form onSubmit={event => { event.preventDefault(); if (columnInput) void run(() => service!.saveColumn(columnInput, columnId), 'Column saved.'); else if (entryInput && page !== 'schema' && page !== 'faqs' && page !== 'sla' && page !== 'members' && (!entryId || data?.entries.find(item => item.id === entryId)?.active === entryInput.active || window.confirm('Change availability for this entry? This affects new ticket selections.'))) void run(() => service!.saveEntry(page, entryInput, entryId), 'Entry saved.'); }}>
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
         {columnInput && data && service && <AdminColumnForm value={columnInput} editing={Boolean(columnId)} disabled={busy} lists={data.lists} service={service} onChange={setColumnInput} onError={setError} />}
         {entryInput && <div className={styles.adminFormFields}><TextField label="Name" required maxLength={255} value={entryInput.title} disabled={busy} onChange={(_, value) => setEntryInput({...entryInput, title: value || ''})} />{page === 'subcategories' && <SearchableSelect label="Parent category" required value={entryInput.parentId ? String(entryInput.parentId) : ''} disabled={busy} options={(data?.parents || []).map(item => ({key: String(item.id), text: item.title + (item.active ? '' : ' (inactive)')}))} onChange={value => setEntryInput({...entryInput, parentId: Number(value)})} />}<TextField label="Sort order" type="number" min={0} value={String(entryInput.sortOrder)} disabled={busy} onChange={(_, value) => setEntryInput({...entryInput, sortOrder: Number(value)})} /><Checkbox label="Active" checked={entryInput.active} disabled={busy} onChange={(_, checked) => setEntryInput({...entryInput, active: Boolean(checked)})} /></div>}
@@ -83,7 +86,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
       <p>{availabilityChange?.active ? 'Make these entries available for new tickets?' : 'Hide these entries from new ticket selections? Existing ticket classifications will be preserved.'}</p>
       <p>{availabilityChange?.entries.length} selected: {availabilityChange?.entries.map(item => item.title).join(', ')}</p>
       <div className={styles.faqModalFooter}><PrimaryButton text="Confirm" disabled={busy} onClick={() => {
-        if (!availabilityChange || page === 'schema' || page === 'faqs' || page === 'sla') return;
+        if (!availabilityChange || page === 'schema' || page === 'faqs' || page === 'sla' || page === 'members') return;
         const change = availabilityChange; setAvailabilityChange(null);
         void run(async () => {
           const results = await Promise.allSettled(change.entries.map(entry => service!.saveEntry(page, {...entry, active: change.active}, entry.id)));

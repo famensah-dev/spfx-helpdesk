@@ -1,0 +1,12 @@
+export interface IAppConfig {
+  tenantId: string;
+  clientId: string;
+  siteUrl: string;
+  siteId?: string;
+  listName: string;
+  listId?: string;
+  faqListName?: string;
+  faqListId?: string;
+  userInformationListId?: string;
+  graphSiteScope: 'Sites.Selected' | 'Sites.Read.All';
+}

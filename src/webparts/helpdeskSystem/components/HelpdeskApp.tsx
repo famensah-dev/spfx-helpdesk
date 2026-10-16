@@ -1,5 +1,6 @@
 import { AdministrationPage } from '../pages/AdministrationPage';
 import { FaqPage } from '../pages/FaqPage';
+import { SharePointRolesPage } from '../pages/SharePointRolesPage';
 import * as React from 'react';
 import { DefaultButton, Icon, ThemeProvider, createTheme, MessageBar, MessageBarType } from '@fluentui/react';
 import { DashboardPage } from '../pages/DashboardPage';
@@ -8,10 +9,11 @@ import { TicketDetails } from './TicketDetails';
 import styles from './HelpdeskSystem.module.scss';
 import { useHelpdeskDashboard } from '../hooks/useHelpdeskDashboard';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
+import { canUse } from '../services/appRoleRules';
 
-export interface IHelpdeskAppProps { service: ITicketDataSource; currentUserEmail: string; accountActions?: React.ReactNode; }
+export interface IHelpdeskAppProps { service: ITicketDataSource; currentUserEmail: string; accountActions?: React.ReactNode; portalTitle?: string; }
 
-const pages = ['Dashboard', 'Tickets', 'FAQs', 'Administration'] as const;
+const pages = ['Dashboard', 'Tickets', 'FAQs', 'Administration', 'Users & roles'] as const;
 type Page = typeof pages[number] | 'My Assigned Tickets' | 'My Dashboard';
 const appTheme = createTheme({
   defaultFontStyle: { fontFamily: "'Segoe UI', sans-serif" },
@@ -21,7 +23,10 @@ const appTheme = createTheme({
   components: {
     Dropdown: { styles: {
       title: { height: 34, lineHeight: '32px', border: '1px solid #d6e1ee', borderRadius: 4, background: '#fff', color: '#293d58', fontSize: 13, padding: '0 34px 0 11px', selectors: { ':hover': { borderColor: '#a9bfd9', background: '#fbfdff' } } },
-      dropdown: { selectors: { ':focus::after': { border: '2px solid #789ac4', borderRadius: 4 } } },
+      dropdown: { selectors: {
+        ':focus::after': { border: '1px solid #8ba9cb', borderRadius: 4 },
+        ':hover .ms-Dropdown-title, :focus .ms-Dropdown-title, :active .ms-Dropdown-title': { borderColor: '#a9bfd9' }
+      } },
       caretDownWrapper: { height: 34, lineHeight: '34px', right: 11 },
       caretDown: { color: '#526e93', fontSize: 10 },
       callout: { borderRadius: 4, border: '1px solid #dce5f1', boxShadow: '0 8px 24px rgba(27,56,92,.12)', overflow: 'hidden' },
@@ -39,7 +44,11 @@ const appTheme = createTheme({
 });
 
 export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElement {
-  const [page, setPage] = React.useState<Page>('Dashboard');
+  const rules = props.service.roleRules;
+  const administrationAllowed = rules ? props.service.access?.superAdmin || ['classifications', 'manageFaqs', 'sla'].some(action => rules.actions.includes(action as 'classifications' | 'manageFaqs' | 'sla')) : !props.service.access?.agent;
+  const permittedPage = (value: Page): boolean => value === 'Users & roles' ? Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
+  const initialPage: Page = rules ? canUse(props.service, 'dashboard') ? 'Dashboard' : canUse(props.service, 'tickets') ? 'Tickets' : canUse(props.service, 'faqs') ? 'FAQs' : 'Administration' : props.service.access?.agent ? 'My Dashboard' : 'Dashboard';
+  const [page, setPage] = React.useState<Page>(initialPage);
   const personal = page === 'My Dashboard' || page === 'My Assigned Tickets';
   const dashboard = useHelpdeskDashboard(props.service, personal ? props.currentUserEmail : undefined);
   const dashboardActive = page === 'Dashboard' || page === 'My Dashboard' || page === 'My Assigned Tickets';
@@ -47,6 +56,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   const dashboardTicket = dashboard.tickets.find(ticket => ticket.Id === dashboardTicketId);
   const heading = React.useRef<HTMLHeadingElement>(null);
   const navigate = (next: Page): void => {
+    if (!permittedPage(next)) return;
     setDashboardTicketId(null);
     setPage(next);
     // Move focus to the new page after React commits its content.
@@ -55,26 +65,28 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   return (
     <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${(page === 'Dashboard' || page === 'My Dashboard') && !dashboardTicket ? ` ${styles.dashboardCanvas}` : ''}`}>
       <header className={styles.appHeader}>
-        <div className={styles.brand}><Icon iconName="Headset" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>IT Helpdesk</span></div>
+        <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
         <div className={styles.headerActions}>{props.accountActions}</div>
       </header>
       <nav className={styles.navigation} aria-label="DeskPilot navigation">
-        <div className={styles.dashboardSplit} data-active={dashboardActive}><DefaultButton text="Dashboard" split onClick={() => navigate('Dashboard')} splitButtonAriaLabel="Choose dashboard view" className={dashboardActive ? styles.activeNav : undefined} menuProps={{ items: [
+        {canUse(props.service, 'dashboard') && (rules ? <button type="button" aria-current={dashboardActive ? 'page' : undefined} className={[styles.dashboardNav, dashboardActive ? styles.activeNav : ''].join(' ')} onClick={() => navigate('Dashboard')}>Dashboard</button> : <div className={[styles.dashboardSplit, styles.dashboardNav].join(' ')} data-active={dashboardActive}><DefaultButton text="Dashboard" split onClick={() => navigate(props.service.access?.agent ? 'My Dashboard' : 'Dashboard')} splitButtonAriaLabel="Choose dashboard view" className={dashboardActive ? styles.activeNav : undefined} menuProps={{ items: [
           { key: 'personal', text: 'My Dashboard', canCheck: true, checked: page === 'My Dashboard', onClick: () => navigate('My Dashboard') },
-          { key: 'global', text: 'Admin Dashboard', canCheck: true, checked: page === 'Dashboard', onClick: () => navigate('Dashboard') }
-        ] }} styles={{ root: { height: 'auto', minWidth: 0 }, label: { fontWeight: dashboardActive ? 600 : 400 }, splitButtonContainer: { height: '100%', border: 0, borderRadius: 2 }, splitButtonMenuButton: { width: 26, minWidth: 26, padding: 0, border: 0 }, splitButtonDivider: { display: 'none' } }} /></div>
-        {pages.filter(item => item !== 'Dashboard').map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item}</button>)}
+          ...(!props.service.access?.agent ? [{ key: 'global', text: 'Admin Dashboard', canCheck: true, checked: page === 'Dashboard', onClick: () => navigate('Dashboard') }] : [])
+        ] }} styles={{ root: { height: 'auto', minWidth: 0 }, label: { fontWeight: dashboardActive ? 600 : 400 }, splitButtonContainer: { height: '100%', border: 0, borderRadius: 2 }, splitButtonMenuButton: { width: 26, minWidth: 26, padding: 0, border: 0 }, splitButtonDivider: { display: 'none' } }} /></div>)}
+        {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item}</button>)}
       </nav>
       <main className={styles.mainContent}>
         {dashboard.warnings.map(warning => <MessageBar key={warning} messageBarType={MessageBarType.warning}>{warning}</MessageBar>)}
         <h1 ref={heading} tabIndex={-1} className={styles.srOnly}>{page === 'Dashboard' ? 'Admin Dashboard' : page}</h1>
         {(page === 'Dashboard' || (page === 'My Dashboard' && dashboard.assignmentIdentityAvailable)) && (dashboardTicket
           ? <TicketDetails key={dashboardTicket.Id} ticket={dashboardTicket} tickets={dashboard.tickets} service={props.service} refresh={dashboard.refresh} backLabel="Back to Dashboard" onBack={() => setDashboardTicketId(null)} />
-          : <DashboardPage {...dashboard} sla={props.service.sla} title={page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={setDashboardTicketId} onViewTickets={() => navigate('Tickets')} />)}
+          : <DashboardPage {...dashboard} sla={props.service.sla} title={rules ? 'Dashboard' : page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={setDashboardTicketId} onViewTickets={canUse(props.service, 'tickets') ? () => navigate('Tickets') : undefined} />)}
         {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} />}
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
         {page === 'FAQs' && <FaqPage service={props.service} />}
-        {page === 'Administration' && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} />}
+        {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} />}
+        {page === 'Users & roles' && props.service.roleManagement && <SharePointRolesPage service={props.service} />}
+        {!permittedPage(page) && <MessageBar>Your role has no enabled pages. Ask a Super Admin to update your role rules.</MessageBar>}
       </main>
     </ThemeProvider>
   );

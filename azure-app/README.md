@@ -2,6 +2,10 @@
 
 This is the standalone version of DeskPilot. It fills the browser content area with DeskPilot's own interface, without SharePoint headers, site navigation, app bars or page margins. SharePoint Online remains the data store; Microsoft Entra ID provides Microsoft 365 sign-in.
 
+## Required: protected API
+
+Role-enforced DeskPilot now requires both the frontend and its Node API. See [protected API setup](<azure app setup instruction.md#protected-api-setup-required-after-assigning-roles>) for Entra access_as_user scope, the server-only credential, Entra app-role management and SharePoint permissions. Run `npm run dev:api` and `npm run dev` in separate terminals after configuration. Static-only hosting is no longer sufficient.
+
 ## Current functionality
 
 - Shared responsive dashboard, date/status/priority/assignee filters, summary cards and charts.
@@ -10,13 +14,13 @@ This is the standalone version of DeskPilot. It fills the browser content area w
 - Searchable read-only Tickets and My Board views.
 - Explicit empty, configuration, access and data errors; no silent sample-data fallback.
 
-FAQs supports searchable published answers, categories, and rich-text content. Administration currently provides FAQ creation, editing, publishing, and deletion with list-permission checks. See [FAQ list setup](<azure app setup instruction.md#faq-list-setup>) before using it. Ticket creation, editing, resolution actions, attachments, comments, notifications, SLA workflows and reports are not implemented by this hosting migration. Existing Power Automate flows can continue operating against the same lists; this app does not provision them.
+FAQs supports searchable published answers, categories, and rich-text content. Administration currently provides FAQ creation, editing, publishing, and deletion with list-permission checks. See [FAQ list setup](<azure app setup instruction.md#faq-list-setup>) before using it. Ticket creation/editing, attachments, comments, SLA tracking and report exports are available. Notification flows remain external. Existing Power Automate flows can continue operating against the same lists; this app does not provision them.
 
 ## Project layout
 
 `azure-app` has an independent package.json and lockfile. It reuses the host-independent components, hooks, interfaces, SCSS and utilities in `../src/webparts/helpdeskSystem`. Keep the repository together when building; copying only azure-app is insufficient. Install this directory's dependencies to build the standalone app. The root's SPFx dependency installation is only needed when building the original web part.
 
-The SPFx adapter supplies the PnPjs service. The Azure entry point supplies GraphTicketService through the same ITicketDataSource interface. No SPFx context, SharePoint page DOM or PnPjs runtime is required by the standalone bundle.
+The SPFx adapter supplies the PnPjs service. The Azure entry point supplies ApiTicketService through the same ITicketDataSource interface; the API invokes GraphTicketService after authorization. No SPFx context, SharePoint page DOM or PnPjs runtime is required by the standalone bundle.
 
 ## 1. Register the Microsoft Entra application
 

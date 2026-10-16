@@ -8,6 +8,7 @@ button:focus-visible { outline: 2px solid #337fe5; outline-offset: 3px; }
 .auth-header-brand { display: flex; align-items: center; gap: 12px; font-size: 18px; }
 .auth-header-brand i { font-size: 21px; }
 .auth-header-brand strong { font-weight: 600; }
+.auth-light-logo { display: block; width: 156px; height: 38px; object-fit: cover; }
 .auth-header-divider { color: #9aaac0; }
 .auth-header-label { font-size: 12px; color: #9aaac0; }
 .auth-shell .landing { flex: 1; min-height: calc(100vh - 64px); min-height: calc(100dvh - 64px); }
@@ -39,3 +40,6 @@ button:focus-visible { outline: 2px solid #337fe5; outline-offset: 3px; }
 .account button.account-avatar { border-radius: 50%; width: 36px; height: 36px; min-width: 36px; padding: 0; flex-shrink: 0; overflow: hidden; background: transparent; color: #fff; }
 .account-menu-email { padding: 12px 14px; white-space: normal; overflow-wrap: anywhere; color: #172536; line-height: 1.5; border-bottom: 1px solid #e9edf4; font-size: 12px; }
 @media (max-width: 620px) { .account > span { display: none; } .landing section { padding: 24px; } }
+
+.microsoft-signin { display: inline-flex; align-items: center; justify-content: center; gap: 10px; }
+.microsoft-signin svg { flex-shrink: 0; }

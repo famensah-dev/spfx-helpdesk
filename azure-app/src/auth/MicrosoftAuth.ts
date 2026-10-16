@@ -5,7 +5,7 @@ export class MicrosoftAuth {
   public readonly client: PublicClientApplication;
   private readonly scopes: string[];
   public constructor(private readonly config: IAppConfig) {
-    this.scopes = ['User.Read', config.graphSiteScope];
+    this.scopes = [`api://${config.clientId}/access_as_user`];
     this.client = new PublicClientApplication({
       auth: { clientId: config.clientId, authority: `https://login.microsoftonline.com/${config.tenantId}`,
         redirectUri: `${window.location.origin}/`, postLogoutRedirectUri: `${window.location.origin}/` },
@@ -31,6 +31,7 @@ export class MicrosoftAuth {
   public async signOut(): Promise<void> {
     await this.client.logoutRedirect({ account: this.client.getActiveAccount() });
   }
+  public async getApiToken(): Promise<string> { return this.getResourceToken(this.scopes); }
   public async getToken(): Promise<string> {
     return this.getResourceToken(this.scopes);
   }

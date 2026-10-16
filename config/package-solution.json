@@ -3,7 +3,12 @@
   "solution": {
     "name": "deskpilot-client-side-solution",
     "id": "8ae06fc9-4e24-458f-8cb8-4572de54a363",
-    "version": "1.0.0.0",
+    "version": "1.1.0.0",
+    "webApiPermissionRequests": [
+      { "resource": "Microsoft Graph", "scope": "Sites.Manage.All" },
+      { "resource": "Microsoft Graph", "scope": "User.Read.All" },
+      { "resource": "Office 365 SharePoint Online", "scope": "AllSites.Manage" }
+    ],
     "includeClientSideAssets": true,
     "skipFeatureDeployment": true,
     "isDomainIsolated": false,

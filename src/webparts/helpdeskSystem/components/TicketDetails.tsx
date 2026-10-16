@@ -1,3 +1,4 @@
+import { canUse } from '../services/appRoleRules';
 import type { IFaqInput } from '../interfaces/IFaq';
 import { TicketClassificationFields } from './TicketClassificationFields';
 import { RichTextEditor, RichTextContent } from './RichTextEditor';
@@ -14,6 +15,8 @@ import styles from './HelpdeskSystem.module.scss';
 
 export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; service?: ITicketDataSource; refresh: () => Promise<void>; onBack: () => void; backLabel?: string }): React.ReactElement {
   const { ticket, service } = props;
+  const agent = !service?.roleRules && service?.access?.agent === true;
+  const canManage = !agent || ticket.AssignedTo?.Email?.toLowerCase() === service?.access?.email.toLowerCase();
   const heading = React.useRef<HTMLHeadingElement>(null);
   const [classificationEdit, setClassificationEdit] = React.useState<{ category?: string; subcategory?: string; issueType?: string }>({});
   const [editing, setEditing] = React.useState(false);
@@ -101,11 +104,11 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
       let faq: IFaqInput | undefined;
       if (saveToFaq) {
         const access = await service.getFaqAccess?.();
-        if (!access?.canManage || !service.saveFaq) throw new Error('You need FAQ management permission to save this comment as an FAQ.');
+        if ((!access?.canManage && !access?.canSubmitDraft) || !service.saveFaq) throw new Error('You need FAQ management permission to save this comment as an FAQ.');
         const category = access.categoryOptions?.find(item => item.name === ticket.Category);
         const subcategory = access.subcategoryOptions?.find(item => item.name === ticket.Subcategory && item.parentId === category?.id);
         const escape = (value: string): string => value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        faq = { question: ticket.Title, answer: '<p>' + escape(comment.trim()).replace(/\n/g, '<br>') + '</p>', category: ticket.Category || '', subcategory: ticket.Subcategory || '', categoryId: category?.id, subcategoryId: subcategory?.id, keywords: '', published: false, sortOrder: 0 };
+        faq = { sourceTicketId: ticket.Id, question: ticket.Title, answer: '<p>' + escape(comment.trim()).replace(/\n/g, '<br>') + '</p>', category: ticket.Category || '', subcategory: ticket.Subcategory || '', categoryId: category?.id, subcategoryId: subcategory?.id, keywords: '', published: false, sortOrder: 0 };
       }
       await service.addComment(ticket.Id, comment); commentSaved = true; setComment(''); setSaveToFaq(false);
       if (faq) {
@@ -125,11 +128,11 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   return <section className={`${styles.pageContent} ${styles.detailWorkspace}`} aria-label={`Ticket #${ticket.Id} details`}>
     <div className={styles.detailToolbar}>
       <div className={styles.detailToolbarTitle}><DefaultButton text={props.backLabel || 'Back to Tickets'} iconProps={{ iconName: 'Back' }} disabled={saving || posting} onClick={props.onBack} /><h2 className={styles.srOnly} ref={heading} tabIndex={-1}>Ticket #{ticket.Id}</h2></div>
-      <div className={styles.detailTopActions}>{service?.recordFirstResponse && ticket.HasResponseTracking && !ticket.FirstRespondedAt && <DefaultButton text="Record first response" disabled={saving || posting} onClick={() => {
+      <div className={styles.detailTopActions}>{service?.recordFirstResponse && canManage && ticket.HasResponseTracking && !ticket.FirstRespondedAt && <DefaultButton text="Record first response" disabled={saving || posting} onClick={() => {
         if (!window.confirm('Confirm you have responded to this ticket now. This records the first response time for SLA tracking.')) return;
         setSaving(true); setError('');
         service.recordFirstResponse!(ticket.Id).then(() => props.refresh()).catch(reason => setError(reason instanceof Error ? reason.message : 'Unable to record response.')).finally(() => setSaving(false));
-      }} />}{!editing ? <PrimaryButton text="Edit Ticket" iconProps={{ iconName: 'Edit' }} disabled={!service?.updateTicket} onClick={beginEdit} /> : <span className={styles.editingIndicator}>Editing ticket</span>}<IconButton iconProps={{ iconName: 'History' }} title="Issue history" ariaLabel="Open issue history" onClick={() => setHistoryOpen(true)} /></div>
+      }} />}{!editing ? <PrimaryButton text="Edit Ticket" iconProps={{ iconName: 'Edit' }} disabled={!service?.updateTicket || !canManage} onClick={beginEdit} /> : <span className={styles.editingIndicator}>Editing ticket</span>}<IconButton iconProps={{ iconName: 'History' }} title="Issue history" ariaLabel="Open issue history" onClick={() => setHistoryOpen(true)} /></div>
     </div>
     {assignmentMessage && <MessageBar messageBarType={assignmentBusy ? MessageBarType.info : MessageBarType.success} onDismiss={assignmentBusy ? undefined : () => setAssignmentMessage('')}>{assignmentMessage}</MessageBar>}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
@@ -159,14 +162,14 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         <nav className={styles.detailSectionNav} aria-label="Ticket sections"><button type="button" data-active={activeSection === 'details'} onClick={() => { setActiveSection('details'); descriptionSection.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }}><Icon iconName="TextDocument" /> Details</button><button type="button" data-active={activeSection === 'comments'} onClick={() => { setActiveSection('comments'); commentsSection.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}><Icon iconName="Comment" /> Comments <span className={styles.commentCount}>{comments.length}</span></button><button type="button" disabled title="Attachments are not available yet"><Icon iconName="Attach" /> Attachments</button><button type="button" onClick={() => setHistoryOpen(true)}><Icon iconName="History" /> History</button><button type="button" disabled title="Related tickets are not available yet"><Icon iconName="BulletedList" /> Related Tickets</button></nav>
         {editing ? <form ref={descriptionSection as React.RefObject<HTMLFormElement>} className={styles.ticketEditForm} onSubmit={event => { void save(event); }}>
           <div className={styles.detailSectionHeading}><Icon iconName="Edit" /><h3>Edit details</h3></div>
-          <TextField label="Issue" required value={title} maxLength={255} disabled={saving} onChange={(_, value) => setTitle(value || '')} />
-          <RichTextEditor value={description} disabled={saving} onChange={setDescription} />
+          <TextField label="Issue" required value={title} maxLength={255} disabled={saving || !canUse(service, 'edit')} onChange={(_, value) => setTitle(value || '')} />
+          <RichTextEditor value={description} disabled={saving || !canUse(service, 'edit')} onChange={setDescription} />
           <div className={styles.detailFormGrid}>
-            <Dropdown label="Priority" selectedKey={priority} disabled={saving} options={Array.from(new Set([...priorityOptions, ticket.Priority])).map(value => ({key: value, text: value}))} onChange={(_, option) => setPriority(option?.key as TicketPriority)} />
-            <Dropdown label="Status" selectedKey={status} disabled={saving} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
-            <FormAssigneePicker service={service} value={assigned ? { Id: assigned, Title: assignedName } : null} disabled={saving} onBusy={setAssignmentBusy} onChange={person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />
+            <Dropdown label="Priority" selectedKey={priority} disabled={saving || agent || !canUse(service, 'priority')} options={Array.from(new Set([...priorityOptions, ticket.Priority])).map(value => ({key: value, text: value}))} onChange={(_, option) => setPriority(option?.key as TicketPriority)} />
+            <Dropdown label="Status" selectedKey={status} disabled={saving || !canUse(service, 'status')} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].filter(value => !agent || !['Resolved', 'Completed', 'Closed'].includes(ticket.Status) || ['Resolved', 'Closed'].includes(value)).map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
+            <FormAssigneePicker service={service} value={assigned ? { Id: assigned, Title: assignedName } : null} disabled={saving || agent || !canUse(service, 'assign')} onBusy={setAssignmentBusy} onChange={person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />
           </div>
-          <TicketClassificationFields service={service} ticket={ticket} disabled={saving} onChange={value => setClassificationEdit(current => ({ ...current, ...value }))} />
+          <TicketClassificationFields service={service} ticket={ticket} disabled={saving || !canUse(service, 'edit')} onChange={value => setClassificationEdit(current => ({ ...current, ...value }))} />
           <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form> : <>
           <section ref={descriptionSection} className={styles.detailSection}><div className={styles.detailSectionHeading}><Icon iconName="AlignLeft" /><h3>Description</h3></div><div className={styles.ticketDescription}>{/<\/?(?:p|div|br|strong|b|em|ul|ol|h[234])\b/i.test(ticket.Description || '') ? <RichTextContent value={ticket.Description!} /> : <MarkdownContent value={ticket.Description || 'No description has been added to this ticket.'} />}</div></section>

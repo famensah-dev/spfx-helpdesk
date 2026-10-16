@@ -10,5 +10,10 @@ module.exports = [
         project: './tsconfig.json'
       }
     }
+  },
+  {
+    files: ['src/webparts/helpdeskSystem/**/*.tsx'],
+    // React ref locks intentionally change across awaits; variable race checks remain enabled.
+    rules: { 'require-atomic-updates': ['error', { allowProperties: true }] }
   }
 ];

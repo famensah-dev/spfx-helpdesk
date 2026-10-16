@@ -11,7 +11,7 @@ import type { IOrganizationUser } from '../../../src/webparts/helpdeskSystem/int
 
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
 interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; lookup?: { listId: string; allowMultipleValues?: boolean }; }
-interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
+interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string; id?: string; email?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
 const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
@@ -345,7 +345,7 @@ export class GraphTicketService implements ITicketDataSource {
         Subcategory: subcategory ? text(values[subcategory.name]) : undefined,
         IssueType: issueType ? text(values[issueType.name]) : undefined,
         Department: department ? text(values[department.name]) : undefined,
-        Requester: item.createdBy?.user?.displayName ? { Title: item.createdBy.user.displayName } : undefined,
+        Requester: item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined,
         StartedAt: started ? text(values[started.name]) || undefined : undefined,
         ClosedAt: closed ? text(values[closed.name]) || undefined : undefined,
         ResolutionSummary: resolutionSummary ? text(values[resolutionSummary.name]) : undefined,

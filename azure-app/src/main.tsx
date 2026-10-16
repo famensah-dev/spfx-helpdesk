@@ -1,22 +1,19 @@
-import { GraphSlaService } from './services/GraphSlaService';
-import { GraphAdministrationService } from './services/GraphAdministrationService';
+import { ApiTicketService } from './services/ApiTicketService';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { Icon } from '@fluentui/react/lib/Icon';
+
 import { initializeIcons } from '@fluentui/react/lib/Icons';
 
 import { readConfig } from './config';
 import { MicrosoftAuth } from './auth/MicrosoftAuth';
-import { GraphClient } from './services/GraphClient';
-import { GraphFaqService } from './services/GraphFaqService';
-import { GraphTicketService } from './services/GraphTicketService';
 import './standalone.css';
 import { AccountMenu } from './AccountMenu';
 
 initializeIcons();
 const root = document.getElementById('root');
 function Landing(props: { title: string; children: React.ReactNode }): React.ReactElement {
-  return <div className="auth-shell"><header className="auth-header"><div className="auth-header-brand"><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className="auth-header-divider" aria-hidden="true">|</span><span className="auth-header-label">IT Helpdesk</span></div></header><main className="landing"><section aria-labelledby="auth-title"><div className="auth-brand"><span className="auth-icon" aria-hidden="true"><Icon iconName="Headset" /></span><span>DeskPilot</span></div><h1 id="auth-title">{props.title}</h1>{props.children}</section></main></div>;
+  return <div className="auth-shell"><header className="auth-header"><div className="auth-header-brand"><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className="auth-header-divider" aria-hidden="true">|</span><span className="auth-header-label">IT Helpdesk</span></div></header><main className="landing"><section aria-labelledby="auth-title"><div className="auth-brand"><img className="auth-light-logo" src="/deskpilot-logo-lightmode.png" alt="DeskPilot" /></div><h1 id="auth-title">{props.title}</h1>{props.children}</section></main></div>;
 }
 function Failure(props: { error: unknown; auth?: MicrosoftAuth }): React.ReactElement {
   const details = props.error instanceof Error ? props.error.message : 'Unable to start DeskPilot.';
@@ -31,19 +28,12 @@ async function start(): Promise<void> {
   try {
     const account = await auth.initialize();
     if (!account) {
-      ReactDOM.render(<Landing title="Your support workspace"><p>Sign in with your organization's Microsoft 365 account to access tickets and your support dashboard.</p><button onClick={() => { auth.signIn().catch(error => renderFailure(error, auth)); }}>Sign in with Microsoft 365</button></Landing>, root);
+      ReactDOM.render(<Landing title="Your support workspace"><p>Sign in with your organization's Microsoft 365 account to access tickets and your support dashboard.</p><button className="microsoft-signin" onClick={() => { auth.signIn().catch(error => renderFailure(error, auth)); }}><svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true" focusable="false"><path fill="#ffffff" d="M0 0h10v10H0z"/><path fill="#ffffff" d="M11 0h10v10H11z"/><path fill="#ffffff" d="M0 11h10v10H0z"/><path fill="#ffffff" d="M11 11h10v10H11z"/></svg><span>Sign in with Microsoft 365</span></button></Landing>, root);
       return;
     }
-    const graph = new GraphClient(() => auth.getToken());
-    const profile = await graph.get<{ displayName: string; mail: string | null; userPrincipalName: string }>('/me?$select=displayName,mail,userPrincipalName');
-    const faqService = new GraphFaqService(graph, config, () => auth.getSharePointToken());
-    const ticketService = new GraphTicketService(graph, config, new GraphClient(() => auth.getDirectoryToken()), () => auth.getSharePointToken());
-    const service = Object.assign(ticketService, {
-      sla: new GraphSlaService(graph, new GraphClient(() => auth.getSchemaToken()), config, () => auth.getSharePointToken(), () => ticketService.invalidateSchema()),
-      administration: new GraphAdministrationService(graph, new GraphClient(() => auth.getSchemaToken()), config, () => auth.getSharePointToken(), () => ticketService.invalidateSchema()),
-      getFaqs: (manage?: boolean) => faqService.getFaqs(manage), getFaqAccess: () => faqService.getAccess(),
-      saveFaq: (input: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').IFaqInput, id?: number) => faqService.save(input, id), deleteFaq: (id: number) => faqService.delete(id), updateFaqs: (ids: number[], action: import('../../src/webparts/helpdeskSystem/interfaces/IFaq').FaqBulkAction) => faqService.updateMany(ids, action)
-    });
+    const service = new ApiTicketService(() => auth.getApiToken());
+    await service.initialize();
+    const profile = {displayName: service.access.name, mail: service.access.email, userPrincipalName: service.access.email};
     const { default: HelpdeskApp } = await import('../../src/webparts/helpdeskSystem/components/HelpdeskApp');
     const actions = <AccountMenu displayName={profile.displayName} email={profile.mail || profile.userPrincipalName} auth={auth} onError={error => renderFailure(error, auth)} />;
     ReactDOM.render(<HelpdeskApp service={service} currentUserEmail={profile.mail || profile.userPrincipalName} accountActions={actions} />, root);

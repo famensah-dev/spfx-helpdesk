@@ -15,6 +15,10 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  roleManagement?: import('./IRoleManagement').IRoleManagement;
+  roleRules?: import('./IRoleManagement').IDeskPilotRole;
+  access?: import('./IWorkspaceAccess').IWorkspaceAccess;
+  members?: import('./IWorkspaceAccess').IWorkspaceMembers;
   sla?: import('./ISla').ISlaService;
   getPriorities?(): Promise<string[]>;
   recordFirstResponse?(id: number): Promise<void>;

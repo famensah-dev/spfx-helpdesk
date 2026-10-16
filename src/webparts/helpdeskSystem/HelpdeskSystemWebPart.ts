@@ -13,7 +13,10 @@ import HelpdeskSystem from './components/HelpdeskSystem';
 import { IHelpdeskSystemProps } from './components/IHelpdeskSystemProps';
 
 export interface IHelpdeskSystemWebPartProps {
+  portalTitle?: string;
   description: string;
+  listName: string;
+  listId?: string;
 }
 
 export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpdeskSystemWebPartProps> {
@@ -26,6 +29,9 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
       HelpdeskSystem,
       {
         description: this.properties.description,
+        portalTitle: this.properties.portalTitle,
+        listName: this.properties.listName || 'Issue Tracker',
+        listId: this.properties.listId,
         isDarkTheme: this._isDarkTheme,
         environmentMessage: this._environmentMessage,
         userDisplayName: this.context.pageContext.user.displayName,
@@ -110,6 +116,9 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
             {
               groupName: strings.BasicGroupName,
               groupFields: [
+                PropertyPaneTextField('portalTitle', { label: 'Workspace title (beside DeskPilot)', placeholder: 'IT Helpdesk', description: 'Set the title for this department’s DeskPilot page.' }),
+                PropertyPaneTextField('listName', { label: 'Tickets list name (on this site)' }),
+                PropertyPaneTextField('listId', { label: 'Tickets list ID (optional; takes precedence over name)' }),
                 PropertyPaneTextField('description', {
                   label: strings.DescriptionFieldLabel
                 })

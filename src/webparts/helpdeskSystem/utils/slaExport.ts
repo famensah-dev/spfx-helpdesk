@@ -1,6 +1,7 @@
 import type { ITicket } from '../interfaces/ITicket';
 import type { SlaState } from './sla';
 export interface ISlaExportRow {ticket: ITicket; response: SlaState; resolution: SlaState;}
+// eslint-disable-next-line no-control-regex -- XML exports must strip characters forbidden by XML 1.0.
 const escapeXml = (value: string): string => value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 export function slaExportRows(rows: ISlaExportRow[]): string[][] {
   return [['Ticket ID', 'Title', 'Priority', 'First response SLA', 'Resolution SLA', 'Created (UTC)', 'First response (UTC)', 'Resolved (UTC)'], ...rows.map(({ticket, response, resolution}) => [String(ticket.Id), ticket.Title, ticket.Priority, response, resolution, ticket.Created, ticket.FirstRespondedAt || '', ticket.ResolvedAt || ''])];

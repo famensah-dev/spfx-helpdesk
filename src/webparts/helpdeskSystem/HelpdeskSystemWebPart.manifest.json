@@ -20,10 +20,11 @@
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70", // Advanced
     "group": { "default": "Advanced" },
     "title": { "default": "DeskPilot" },
-    "description": { "default": "Internal IT support portal and global dashboard" },
+    "description": { "default": "Department support portal with tickets, FAQs and administration" },
     "officeFabricIconFontName": "Page",
     "properties": {
-      "description": "DeskPilot"
+      "description": "DeskPilot",
+      "listName": "Issue Tracker"
     }
   }]
 }

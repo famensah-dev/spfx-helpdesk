@@ -1,5 +1,266 @@
+> **SharePoint migration:** For the current SPFx full-page deployment, follow [SharePoint deployment instructions](../SHAREPOINT-DEPLOYMENT.md). That host uses SharePoint sign-in and site permissions, not the Azure frontend/server environment files. The standalone setup below is retained for the alternative Azure host.
+
 # DeskPilot Azure App Setup Instructions
 
+
+## Users: manage DeskPilot's Entra app assignments
+
+**Current behavior:** Administration > Users is now an interface to **Microsoft Entra ID > Enterprise applications > DeskPilot > Users and groups**. It assigns an existing organization account to DeskPilot and sets its app role in a single operation. It does not create directory users, manage licenses, grant SharePoint access, or change Microsoft 365 administrator roles.
+
+### Required additional permission setup (once)
+
+1. In **App registrations > DeskPilot > API permissions > Add a permission > Microsoft Graph**, select **Delegated permissions**.
+2. Add **Application.Read.All** and **AppRoleAssignment.ReadWrite.All**.
+3. Have your authorized tenant administrator grant **admin consent**. These Graph permissions are broad; the DeskPilot backend narrows its operation to the enterprise application whose appId matches the configured DESKPILOT_CLIENT_ID. No client-supplied application/resource ID or role ID is used.
+4. The signed-in operator must have **DeskPilot.SuperAdmin** and also be authorized by Microsoft Entra to perform app-role assignments. Delegated Graph requires a supported Entra administrator role or an appropriate scoped custom role. Examples Microsoft documents include Application Administrator and Cloud Application Administrator. **DeskPilot.SuperAdmin alone does not supply that directory authority.** Follow your organization's policy; DeskPilot does not grant or request a tenant administrator role for the user.
+5. Restart **npm run dev:api** in azure-app after updating code/configuration, and sign out/sign back in to refresh consent/tokens. No additional client secret or application permission is used for this feature; it uses the existing delegated on-behalf-of flow.
+6. Open **Administration > Users** as your authorized Super Admin. If reads fail, check Application.Read.All consent. If writes fail, check AppRoleAssignment.ReadWrite.All consent and the signed-in operator's Entra authority. A 403 is not resolved by granting a broader DeskPilot role.
+
+### Add and assign a user once
+
+1. Search for an existing organization account by name/email.
+2. Choose **Agent** or **Helpdesk Admin** beside the search field.
+3. Select the user result and review the confirmation. Click **Confirm**.
+4. The API discovers the DeskPilot enterprise application's object ID from its fixed configured client ID, verifies its appId, resolves the enabled named app role, and writes the appRoleAssignedTo relationship in Entra.
+5. Refreshing Users now shows the same direct assignments as Entra. A separate local role/membership assignment is no longer required for this single-site version.
+6. The affected user should sign out and back in. Entra changes can take time to propagate, and previously issued access tokens may remain valid until refreshed or expired.
+
+### Change or remove an assignment
+
+- **Change to Agent / Helpdesk Admin** opens a confirmation. It replaces only the user's direct DeskPilot HelpdeskAdmin/HelpdeskAgent assignments. Existing unrelated/custom/default assignments are preserved.
+- **Remove role** removes only those direct managed roles. It does not delete the organization account or remove SharePoint, licensing, or other application access.
+- A failed replacement may partially succeed because Graph does not provide a transaction for these separate requests. The error tells you to refresh and inspect Entra before retrying. Saved targets/IDs are never guessed, and a downgrade removes the old Admin role before adding Agent so a failed add cannot silently leave the old Admin role in place.
+- The page shows **direct user assignments**. Group-based assignments and inherited roles are managed in Entra. This feature does not require group-based app assignment licensing.
+
+### Authorization boundaries and audit records
+
+- Users management is restricted to **DeskPilot Super Admin**, both in the interface and API. Helpdesk Admins and Agents cannot call the assignment endpoints successfully.
+- Before each role-changing operation, the API verifies the caller still has a **direct Super Admin assignment on the fixed DeskPilot enterprise application**, rather than relying only on a potentially stale token.
+- **Super Admin cannot be granted or removed through DeskPilot.** Existing Super Admin users are protected, and self-changes are rejected. Bootstrap and maintain those assignments directly in Entra.
+- Attempts, successful changes and partial failures are appended to a server-private audit log with actor object ID, target object ID, DeskPilot application/resource IDs, requested role, outcome and UTC time. Default location: **azure-app/server/data/role-audit.jsonl**; set **DESKPILOT_AUDIT_FILE** to a persistent private path in production. The operation fails before mutations if the initial audit record cannot be written. Keep and back up this file; it is an application audit trail, not a tamper-proof compliance archive. Entra's own audit logs also record directory changes.
+- Only the named **DeskPilot.HelpdeskAdmin** and **DeskPilot.HelpdeskAgent** roles are accepted for writes. The backend never calls tenant directory-role assignment endpoints and never accepts arbitrary Graph URLs, application IDs, resource IDs, or role IDs from the UI.
+
+### Migration from the previous local membership file
+
+Entra is now the **only role source** for this configured single-site helpdesk. Existing Entra assignments appear automatically. The old **server/data/members.json** file and **DESKPILOT_MEMBERS_FILE** setting are no longer read for authorization or user management; the file is left intact for reference and is not automatically imported into Entra. A person present only in that file needs a real Entra app assignment using Users or the Entra portal.
+
+This does not implement multiple workspaces yet. When workspace switching is introduced, access to particular workspaces can be stored separately from the Entra app role without asking you to assign the same role twice.
+
+Microsoft references: [List app-role assignments](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-list-approleassignedto), [Grant an app-role assignment](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-post-approleassignedto), and [Delete an app-role assignment](https://learn.microsoft.com/en-us/graph/api/serviceprincipal-delete-approleassignedto).
+
+## Entra app roles: adding users and assigning access
+
+App roles identify each person's intended DeskPilot access. Create the role definitions under **App registrations**, then assign people under **Enterprise applications**. These are DeskPilot application roles, not tenant-wide Entra administrator roles.
+
+### Create the role definitions (once)
+
+1. Open **Microsoft Entra admin center > Entra ID > App registrations > DeskPilot**.
+2. Select **App roles > Create app role**.
+3. Create each role below. Set **Allowed member types** to **Users/Groups**, select **Enable this app role**, and save.
+
+| Display name | Value | Intended access |
+| --- | --- | --- |
+| Super Admin | `DeskPilot.SuperAdmin` | All configured DeskPilot workspaces and capabilities, subject to underlying site/API permissions |
+| Helpdesk Admin | `DeskPilot.HelpdeskAdmin` | Administration and ticket management for authorized department workspaces |
+| Helpdesk Agent | `DeskPilot.HelpdeskAgent` | Assigned ticket work and access to tickets they submitted |
+
+Keep the role values exactly as shown when implementing role checks. Display names can differ; the value is what application code checks.
+
+### Assign your own Super Admin role
+
+1. Open **Entra ID > Enterprise applications > All applications**.
+2. Search for **DeskPilot** and open the enterprise application corresponding to your DeskPilot app registration. Check the Application ID if similarly named entries exist.
+3. Select **Users and groups > Add user/group**.
+4. Under **Users and groups**, click **None selected**.
+5. Search for your account by name or email, select it, and click **Select**.
+6. Under **Select a role**, click **None selected**, choose **Super Admin**, and click **Select**.
+7. Click **Assign**. Confirm your account appears in the assigned-users table with the intended role.
+
+### Add a Helpdesk Admin or Helpdesk Agent
+
+1. In the same **Enterprise applications > DeskPilot > Users and groups** page, click **Add user/group**.
+2. Under **Users and groups**, click **None selected**.
+3. Search for and select the person's existing organization account. Click **Select**.
+4. Under **Select a role**, choose **Helpdesk Admin** or **Helpdesk Agent**, then click **Select**.
+5. Click **Assign** and check the role shown in the assigned-users table.
+6. Repeat for the remaining users. You can select multiple people who should receive the same role; assign administrators and agents separately.
+7. After assignment changes, have the affected user sign out of DeskPilot and sign back in to obtain fresh sign-in claims.
+
+### If groups are unavailable or users seem to be missing
+
+- **"Groups are not available for assignment due to your Active Directory plan level"**: assign individual users using the steps above. Group-based application assignment is not needed for individual role assignments.
+- The initial **Users and groups** table shows accounts already assigned to this enterprise application. It is not the full organization directory. Seeing only your account there does not mean the other accounts are missing.
+- To find unassigned accounts, use **Add user/group > Users and groups > None selected**, then search by name or email.
+- If an account is still missing from the selection dialog, check **Entra ID > Users > All users** and confirm you are in the correct tenant. Adding a person to a SharePoint list or an application record does not create an Entra account or assign an app role.
+- If **Select a role** only shows **Default Access**, check that the roles were created and enabled on the matching app registration and that their allowed member types include Users/Groups. Reopen the assignment dialog after saving roles.
+
+### What these assignments do and do not configure
+
+DeskPilot now enforces these roles through its protected API. Complete the API setup below before running this version. There is no browser-only fallback: if API authentication or role authorization fails, access is denied.
+
+A generic Helpdesk Admin or Agent role does not identify a future department workspace. For the current single-site app, Users manages the actual Entra role assignments. Workspace-specific membership will be separate if multiple sites are introduced. A Super Admin app role does not automatically grant SharePoint access across sites. Entra app assignments, workspace membership, and SharePoint/API permissions must work together; frontend visibility alone is not an access boundary.
+
+Microsoft references: [Create app roles](https://learn.microsoft.com/entra/identity-platform/howto-add-app-roles-in-apps) and [Assign users to an enterprise application](https://learn.microsoft.com/en-us/entra/identity/enterprise-apps/assign-user-or-group-access-portal).
+
+## Protected API setup: required after assigning roles
+
+The standalone app now sends operational requests to **/api/rpc**. The API validates signed Entra access tokens and enforces roles and ticket ownership before calling Microsoft 365 on behalf of the user. Frontend code does not receive the API credential or downstream Graph/SharePoint tokens.
+
+This implementation supports **one configured site / department workspace**. It does not yet aggregate multiple sites. Super Admin has all capabilities in this configured workspace; app roles do not grant additional SharePoint rights.
+
+### 1. Expose the DeskPilot API in Entra
+
+Use the **same DeskPilot app registration** that has the assigned app roles and SPA redirect URI.
+
+1. Open **App registrations > DeskPilot > Expose an API**.
+2. Set **Application ID URI** to `api://YOUR-DESKPILOT-CLIENT-ID` (replace the placeholder with the existing Application/client ID).
+3. Click **Add a scope**. Use **access_as_user** as its name, **Admins only** for consent, **Access DeskPilot** for the admin consent display name, and **Use DeskPilot on behalf of the signed-in user** for its description. Enable and save the scope.
+4. Under **Manifest**, set **api.requestedAccessTokenVersion** to **2** and save. Keep all other manifest properties intact. The API requires v2 access tokens; an ID token or Microsoft Graph token is not accepted as an API bearer token.
+5. First confirm that **Expose an API > Scopes defined by this API** lists the enabled **access_as_user** scope. **My APIs** is a picker for existing exposed APIs, not where a scope is created. For this same-registration setup, do not rely on finding DeskPilot in its own My APIs picker: the frontend requests its exposed scope directly during sign-in. A tenant administrator must approve the admin-only scope through the sign-in/admin-consent process. If the frontend and API are split into separate app registrations later, add the API permission to the frontend registration through My APIs. The current server expects the same client ID for both.
+### What to do after you can see access_as_user under Scopes
+
+Once the enabled **access_as_user** scope appears in Entra, perform these steps in order:
+
+1. In **App registrations > DeskPilot > Manifest**, confirm **api.requestedAccessTokenVersion** is **2**, then save.
+2. Open **Certificates & secrets > Client secrets > New client secret**. Enter **DeskPilot API - Development** as the description, choose an expiry, and click **Add**.
+3. Copy the secret's **Value**, not its Secret ID.
+4. In VS Code, open **D:\Dev\CustomApps\spfx-helpdesk\azure-app\server\.env.local**. This is the file inside the **server** folder. Do not use **azure-app/.env.local** or the repository-root **.env.local** for this secret.
+5. Paste the secret Value after `DESKPILOT_CLIENT_SECRET=` in that server file and save. Confirm `DESKPILOT_TENANT_ID` and `DESKPILOT_CLIENT_ID` are also filled in with your existing tenant and application IDs. Keep the secret private.
+6. Open a terminal in **D:\Dev\CustomApps\spfx-helpdesk\azure-app** and run:
+
+   ```powershell
+   npm run dev:api
+   ```
+
+   Wait until it prints **DeskPilot API listening.** Leave this terminal running. If it reports missing tenant/client/secret settings, correct **azure-app/server/.env.local**, save, and rerun the command.
+7. Open a second terminal in the same **azure-app** directory and run:
+
+   ```powershell
+   npm run dev
+   ```
+
+   Leave this terminal running too. If the frontend is already running, use its existing terminal instead of starting another copy.
+8. Open **http://localhost:5173/**. Sign out and sign back in with your Super Admin account to obtain a fresh token. If Entra requests administrator approval, complete the consent with an authorized tenant administrator account.
+9. Once signed in, open **Administration > Users**. Search for an existing organization user, choose **Helpdesk Admin** or **Agent**, and confirm their Entra assignment. Complete the additional Users permission setup above first.
+
+The scope lets the frontend request access to the API. The secret lets the API call Microsoft 365 on the signed-in user's behalf. Both running processes are needed: the frontend displays DeskPilot, and the API checks permissions and accesses SharePoint.
+
+### Existing Microsoft 365 permissions to retain
+
+6. Keep delegated Microsoft Graph **User.Read**, **User.Read.All**, **Sites.Selected**, **Sites.Manage.All**, and the selected-site write grant as documented below. Keep SharePoint delegated **AllSites.Write**. The API uses the OAuth on-behalf-of flow with those consented permissions; the signed-in user's own SharePoint rights still apply. There is no app-only impersonation or automatic permission elevation.
+7. Sign out and back in after configuration changes. The browser requests `api://YOUR-DESKPILOT-CLIENT-ID/access_as_user`; the API validates signature, issuer, tenant, audience, expiry, client identity, delegated scope and role.
+
+### 2. Configure the server credential and site
+
+Follow these steps after confirming the enabled API scope in step 5 above.
+
+1. Open **App registrations > DeskPilot > Certificates & secrets > Client secrets > New client secret**.
+2. For **Description**, enter **DeskPilot API - Development**. Choose an expiry and click **Add**. For a separate production credential, use **DeskPilot API - Production**.
+3. Copy the newly created secret's **Value**, not its **Secret ID**. The description is only a label; neither the description nor Secret ID is the credential.
+4. In VS Code, open this exact file:
+
+   **D:\Dev\CustomApps\spfx-helpdesk\azure-app\server\.env.local**
+
+   If it does not exist, copy **azure-app/server/.env.example** to **azure-app/server/.env.local**. If it already exists, edit it without overwriting the other settings.
+5. Find the following line and paste the copied secret Value after the equals sign:
+
+   ```env
+   DESKPILOT_CLIENT_SECRET=PASTE_THE_SECRET_VALUE_HERE
+   ```
+
+   Replace the placeholder; do not paste the Secret ID or include the words shown in this example. Do not share the secret in chat.
+6. Save the file. Check that **DESKPILOT_TENANT_ID** and **DESKPILOT_CLIENT_ID** in this same server file contain the existing tenant and app IDs. They must match the registration where you created the scope, roles and secret.
+7. Verify the site/list settings using the table below, then proceed to **3. Run both processes locally**.
+
+**Which .env.local file should I use?** These are different files even though VS Code gives their tabs the same name. Check the full path or use the Explorer tree.
+
+| File relative to the repository root | Purpose | Put the API secret here? |
+| --- | --- | --- |
+| azure-app/server/.env.local | Protected API/server settings; read by npm run dev:api | **Yes: DESKPILOT_CLIENT_SECRET** |
+| azure-app/.env.local | Frontend/Vite settings such as public tenant and client IDs | **No** |
+| .env.local at the repository root | Not read by this API startup command | **No** |
+
+If you previously put the API secret in either of the other files, remove it from there. Keep it only in the server file for local development. In particular, never name it with a VITE_ prefix, which would make it eligible for inclusion in frontend code.
+
+Server settings:
+
+| Server variable | Value |
+| --- | --- |
+| DESKPILOT_TENANT_ID | Existing Directory/tenant ID |
+| DESKPILOT_CLIENT_ID | Existing DeskPilot Application/client ID |
+| DESKPILOT_CLIENT_SECRET | Secret Value from the previous step; server only |
+| DESKPILOT_SITE_URL | https://archwaysdigitalgh.sharepoint.com/sites/ithelpdesk |
+| DESKPILOT_SITE_ID | Existing configured site ID, if available |
+| DESKPILOT_TICKETS_LIST_NAME | Issue Tracker |
+| DESKPILOT_TICKETS_LIST_ID | Existing Tickets list ID, if available |
+| DESKPILOT_FAQS_LIST_NAME | FAQs |
+| DESKPILOT_ALLOWED_ORIGIN | http://localhost:5173 for development; exact frontend HTTPS origin in production |
+| DESKPILOT_AUDIT_FILE | Optional absolute path to a persistent, private Entra role-change audit log |
+
+Never put the secret in a `VITE_` variable, frontend source, or a committed file. The local server environment, compiled output and default membership data directory are git-ignored. In production use protected server settings or a secret store and rotate the credential before expiry.
+
+### 3. Run both processes locally
+
+Open two terminals, both with the working directory **D:\Dev\CustomApps\spfx-helpdesk\azure-app**. Leave both processes running while using the app:
+
+Terminal 1 (API; reads **azure-app/server/.env.local**):
+
+```powershell
+npm run dev:api
+```
+
+After the API prints **DeskPilot API listening.**, start Terminal 2 (frontend):
+
+```powershell
+npm run dev
+```
+
+Open **http://localhost:5173/**. Vite proxies /api to the API on 127.0.0.1:7071. If using another frontend origin, change DESKPILOT_ALLOWED_ORIGIN accordingly. **npm run dev alone is no longer sufficient for this role-enforced version.** Missing scope/consent produces an Entra sign-in error; a missing server credential prevents the API from starting; a missing backend produces the API-unavailable screen. Secrets and access tokens should never be pasted into chat or browser debugging tools for troubleshooting.
+
+**If startup says "Configure the server tenant ID, client ID, and client secret":** one of those three settings is empty or invalid in **azure-app/server/.env.local**. Check that file, not either of the other .env.local files. Save the change, stop the API with Ctrl+C if it is running, and rerun `npm run dev:api`. Changing an environment file does not update an already running API process.
+
+For production, run `npm run build` and `npm run build:server`, deploy the frontend and protected Node API, and route /api to that API through the same HTTPS origin. Start the API with `npm run start:api` and provide server environment settings through the host. Restrict the API listener to the reverse proxy or private network. Static-only hosting without a Node/API host will not enforce these roles and is no longer a supported deployment for this version.
+
+### 4. Add users to this helpdesk
+
+Follow **Users: manage DeskPilot's Entra app assignments** at the beginning of this document. Only Super Admin can open Users. The page reads Entra directly; select an organization account, choose Helpdesk Admin or Agent, then confirm. There is no second local role assignment. Existing Entra assignments are already effective for the current site, subject to SharePoint access and token refresh.
+
+### 5. Enforced access in this site
+
+| Capability | Helpdesk Admin | Helpdesk Agent |
+| --- | --- | --- |
+| Department dashboard/tickets | All accessible department tickets | Dashboard: assigned work; Tickets: assigned or submitted tickets only |
+| Edit details/classification | Department tickets | Assigned tickets only |
+| Status, response, resolution | Department tickets; can reopen | Assigned tickets; cannot reopen resolved/closed work |
+| Priority/assignment/archive | Allowed | Denied (initial priority at creation is allowed) |
+| Comments/attachment upload/history | Department tickets | Assigned or submitted tickets |
+| Published FAQs | Read/manage | Read |
+| Save comment as FAQ | Manage draft | Submit inactive draft for a visible source ticket; cannot edit/publish existing FAQs |
+| Categories/subcategories/issue types | Manage | Use existing values on assigned tickets |
+| SLA targets | Manage | Read through own dashboard calculations |
+| Ticket schema and SLA provisioning | Super Admin only | Denied |
+| Entra app-user/role management | Super Admin only | Denied |
+
+Permanent ticket deletion is not exposed. FAQ and allowed configuration deletion keep their existing confirmation controls. Users without a recognized Entra app role are denied; there is no implicit requester/administrator role. Ticket IDs sent directly to the API are checked against current assignment/submission before reads or writes. The API accepts named operations, not arbitrary Graph URLs or client-supplied role/identity assertions.
+
+### 6. SharePoint permissions remain a separate access boundary
+
+The API enforces DeskPilot-specific rules independently of browser buttons. It uses delegated access, so Microsoft 365 also checks the signed-in user's actual list/item permissions. It cannot grant access that SharePoint denies.
+
+Entra app roles **do not remove direct SharePoint access**. If agents retain broad access to the Tickets/Comments lists or permissions to edit configuration lists, they can use SharePoint or another authorized tool outside DeskPilot. Restrict configuration-list editing to administrators and configure SharePoint item-level permissions/automation if the same assigned/submitted-only boundary must apply outside this application. Standard SharePoint 'own items' settings follow the creator and do not automatically include assigned agents; assignment-aware item ACLs require automation. Keep published FAQs readable and draft confidentiality controlled at the underlying list/item level where required.
+
+### 7. Verify before production use
+
+Test separate signed-in accounts:
+
+- Super Admin: schema/SLA setup and the Users interface to managed Entra roles is available.
+- Helpdesk Admin: department management is available, while schema and provisioning endpoints reject access.
+- Helpdesk Agent: sees assigned/submitted tickets; assignment, priority changes, archive, managed FAQs and administration endpoints reject access. Submitted-but-unassigned tickets allow comments/uploads but no operational edits.
+- No app role: access is denied, including direct API calls.
+
+Local validation: `npm test` includes signature/audience/tenant/scope checks, role enforcement, forged ticket IDs, draft publication denial and escalation attempts. Live Entra consent, credentials, site rights and account tests must be completed in your tenant; unit tests cannot verify those settings.
+
+References: [Microsoft on-behalf-of flow](https://learn.microsoft.com/entra/identity-platform/v2-oauth2-on-behalf-of-flow), [access-token validation](https://learn.microsoft.com/entra/identity-platform/access-tokens), and [expose an API](https://learn.microsoft.com/entra/identity-platform/quickstart-configure-app-expose-web-apis).
 
 ## SLA & Priorities
 

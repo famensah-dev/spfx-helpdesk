@@ -75,7 +75,7 @@ export class GraphFaqService {
     if (!response.ok) throw new Error(`Unable to verify FAQ management permissions (${response.status}). Confirm SharePoint permission consent and list access.`);
     const permissions = await response.json() as { Low: string; High: string };
     // AddListItems, EditListItems, DeleteListItems. Actual writes remain enforced by SharePoint.
-    const value = { canManage: (Number(permissions.Low) & 14) === 14, categories: schema.categories, ...await this.lookupOptions(schema) };
+    const value = { canSubmitDraft: (Number(permissions.Low) & 2) === 2, canManage: (Number(permissions.Low) & 14) === 14, categories: schema.categories, ...await this.lookupOptions(schema) };
     this.accessCache = { expires: Date.now() + 30000, value };
     return value;
   }
@@ -93,9 +93,10 @@ export class GraphFaqService {
       published: item.fields[fields.published] === true, sortOrder: Number(item.fields[fields.sortOrder]) || 0, modified: item.lastModifiedDateTime
     })).sort((a, b) => a.sortOrder - b.sortOrder || a.question.localeCompare(b.question));
   }
-  public async save(input: IFaqInput, id?: number): Promise<void> {
+  public async save(input: IFaqInput, id?: number, draftOnly = false): Promise<void> {
     const schema = await this.schema();
-    if (!(await this.getAccess(true)).canManage) throw new Error('Your account cannot manage this FAQ list.');
+    const access = await this.getAccess(true);
+    if (draftOnly ? (!access.canSubmitDraft || id !== undefined || input.published) : !access.canManage) throw new Error(draftOnly ? 'Your account cannot submit this FAQ draft.' : 'Your account cannot manage this FAQ list.');
     if (!input.question.trim() || input.question.trim().length > 255) throw new Error('Enter a question of 1–255 characters.');
     if (!input.answer.trim()) throw new Error('Enter an answer.');
     if (!Number.isFinite(input.sortOrder) || input.sortOrder < 0) throw new Error('Sort order must be zero or greater.');

@@ -9,6 +9,6 @@ export default defineConfig({
     { find: /^react-chartjs-2$/, replacement: `${rootModules}react-chartjs-2/dist/index.js` },
     { find: /^chart.js$/, replacement: `${rootModules}chart.js/dist/chart.js` }
   ] },
-  server: { port: 5173, strictPort: true, fs: { allow: ['..'] } },
+  server: { proxy: {'/api': {target: 'http://127.0.0.1:7071', changeOrigin: false}}, port: 5173, strictPort: true, fs: { allow: ['..'] } },
   build: { outDir: 'dist', sourcemap: false }
 });

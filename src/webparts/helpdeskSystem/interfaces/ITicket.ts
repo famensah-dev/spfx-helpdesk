@@ -2,6 +2,7 @@ export type TicketStatus = 'New' | 'Assigned' | 'In Progress' | 'On Hold' | 'Res
 export type TicketPriority = string;
 
 export interface IUserLookup {
+  AadId?: string;
   Id?: number;
   Title?: string;
   Email?: string;
