@@ -103,7 +103,7 @@ test('missing configuration never grants a nonowner access and nonowners cannot 
   let writes = 0;
   const context = { pageContext: { web: { absoluteUrl: 'https://example.sharepoint.com/sites/desk' } }, spHttpClient: { get: async () => new Response('', { status: 404 }), post: async () => { writes++; } } };
   const nonowner = new SharePointRoleManagement(context, false);
-  await assert.rejects(nonowner.load(), /do not have access.*Contact your helpdesk administrator/);
+  await assert.rejects(nonowner.load(), /Unable to load DeskPilot access/);
   await assert.rejects(nonowner.save(roles.defaultRoleConfiguration()), /Only SharePoint site owners/);
   assert.equal(writes, 0);
   assert.deepEqual(await new SharePointRoleManagement(context, true).load(), roles.defaultRoleConfiguration());
@@ -116,48 +116,34 @@ test('stale edits use an ETag and report concurrency conflicts', async () => {
     post: async (_, __, options) => { headers = options.headers; return new Response('', { status: 412 }); }
   } };
   const service = new SharePointRoleManagement(context, true);
+  service.ensureList = async () => {};
+  service.secure = async () => {};
+  service.sync = async () => {};
   await service.load();
   await assert.rejects(service.save(config), /another session/);
   assert.equal(headers['IF-MATCH'], '"4"');
 });
 
-test('first setup secures configuration before storing rules and grants assigned users Read only', async () => {
-  let installed = false, secured = false, fields = false, stored;
-  const writes = [];
-  const principals = new Set([99]);
-  const context = { pageContext: { web: { absoluteUrl: 'https://example.sharepoint.com/sites/desk' } }, spHttpClient: {
-    get: async url => {
-      if (url.includes("getbytitle('DeskPilot Access')") && !installed) return new Response('', { status: 404 });
-      let body;
-      if (url.includes('/associatedownergroup?')) body = { Id: 10 };
-      else if (url.includes('/roledefinitions?')) body = { value: [{ Id: 100, RoleTypeKind: 2 }, { Id: 500, RoleTypeKind: 5 }] };
-      else if (url.includes('/roleassignments?')) body = { value: (url.includes('getbytitle') ? [...principals] : [10, 20, 99]).map(PrincipalId => ({ PrincipalId })) };
-      else if (url.includes('/fields?')) body = { value: fields ? [{ InternalName: 'Rules' }] : [] };
-      else if (url.includes('/items?')) body = { value: stored ? [{ Id: 1, Rules: stored, 'odata.etag': '"1"' }] : [] };
-      else body = { Id: 'list', HasUniqueRoleAssignments: secured };
-      return new Response(JSON.stringify(body), { status: 200 });
-    },
-    post: async (url, _, options) => {
-      writes.push(url);
-      if (url.endsWith('/web/lists')) installed = true;
-      else if (url.includes('/breakroleinheritance')) secured = true;
-      else if (url.includes('/addroleassignment')) principals.add(Number(url.match(/principalid=(\d+)/)[1]));
-      else if (url.endsWith('/fields/createfieldasxml')) fields = true;
-      else if (url.endsWith('/items')) { assert.equal(secured, true); stored = JSON.parse(options.body).Rules; }
-      return new Response(null, { status: 204 });
-    }
-  } };
-  const service = new SharePointRoleManagement(context, true);
-  const config = await service.load();
-  config.assignments.push({ userId: 7, name: 'Agent', email: 'agent@example.com', roleId: 'agent' });
-  await service.save(config);
-  assert(writes.some(url => url.includes('principalid=20,roledefid=100')));
-  assert(writes.some(url => url.includes('principalid=7,roledefid=100')));
-  assert(writes.some(url => url.includes('principalid=10,roledefid=500')));
-  assert(!writes.some(url => url.includes('principalid=99,')));
-  assert.deepEqual(await service.load(), config);
+test('private access synchronization deletes revoked rows and updates only each assigned user projection', async () => {
+  const service = new SharePointRoleManagement({pageContext: {web: {absoluteUrl: 'https://example.sharepoint.com'}}}, true);
+  const writes = [], secured = [];
+  service.retireLegacyList = async () => {};
+  service.read = async () => ({value: [{Id: 1, Title: 'Configuration', Rules: '{}'}, {Id: 10, Title: '8', Rules: '{}'}, {Id: 11, Title: '7', Rules: '{}'}]});
+  service.write = async (url, body, headers) => {writes.push({url, body, headers}); return {Id: 12};};
+  service.secure = async (path, userId) => secured.push({path, userId});
+  const config = roles.defaultRoleConfiguration();
+  config.assignments = [{userId: 7, name: 'Agent', email: 'agent@example.com', roleId: 'agent'}, {userId: 8, name: 'Disabled', email: 'disabled@example.com', roleId: 'agent', disabled: true}];
+  await service.sync(config);
+  assert.equal(writes[0].headers['X-HTTP-Method'], 'DELETE');
+  assert(writes[0].url.endsWith('/items(10)'));
+  assert(!writes.some(item => item.url.endsWith('/items(1)')), 'Synchronization must preserve the private configuration item');
+  assert.deepEqual(secured.map(item => item.userId), [7]);
+  const projection = JSON.parse(writes.find(item => item.body?.Rules).body.Rules);
+  assert.equal(projection.assignment.userId, 7);
+  assert.equal(projection.role.id, 'agent');
+  assert.equal(projection.assignments, undefined);
+  assert.equal(projection.roles, undefined);
 });
-
 test('permission editor requires Apply and confirmation; cancel and restore preserve user assignments', async () => {
   const state = [], effects = [];
   let cursor = 0, tree;
