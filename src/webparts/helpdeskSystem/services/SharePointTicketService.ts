@@ -15,6 +15,7 @@ import { SharePointRoleManagement } from './SharePointRoleManagement';
 import { assignedRole, roleActions } from '../interfaces/IRoleManagement';
 import { applyAppRoleRules } from './appRoleRules';
 import { WorkspaceSetupService } from './WorkspaceSetupService';
+import { WorkspaceMaintenanceService } from './WorkspaceMaintenanceService';
 
 /** SharePoint enforces access for every delegated request; UI roles are not a security boundary. */
 export async function createSharePointService(context: WebPartContext, listName: string, listId?: string): Promise<ITicketDataSource> {
@@ -54,6 +55,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
   if (superAdmin) {
+    source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
       const current = await roles.load();
       await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});

@@ -121,3 +121,13 @@ The default list name for new workspaces is Tickets; existing explicit list bind
 The review includes arranging the default SharePoint Tickets view: Title, Status, Priority, Ticket Type, Issue Category, Issue Subcategory, Issue Type, Assigned To, Expected Resolution Date, First Responded At, Resolved At, Closed At, Resolution Summary, Related Issue, Created, Created By, Modified By. Related Issue is a single lookup back to Tickets. Created/Created By/Modified By use SharePoint's built-in Created/Author/Editor fields; they are not duplicate custom columns. Extra existing view fields remain afterward. These view changes run only when initialization is confirmed; the app table's personal column selection remains separate.
 
 Completed At is a legacy alias for Resolved At. DeskPilot prefers the canonical ResolvedAt column when present. Setup never deletes or migrates either column's data. Before manually deleting Completed At, reconcile timestamps and update any Forms/flows/views referring to it.
+
+### Advanced workspace maintenance
+
+Super Admins can open Settings > Application Lists > Advanced workspace maintenance > Open destructive list operations. Both sections start collapsed. Select the operational lists explicitly, review the site, list names and item counts, then type the exact confirmation text:
+
+- `CLEAR LIST ITEMS`: recycle every item (including attachments) in the selected lists; keep their columns and saved bindings.
+- `DELETE APPLICATION LISTS`: recycle the selected lists and clear their saved list IDs.
+- `RESET LIST BINDINGS`: clear all saved resource IDs without deleting any lists or records. Use this when a fresh site has unavailable saved IDs, then reload DeskPilot and run Initialize workspace.
+
+The maintenance service rechecks SharePoint Manage Web and Manage Permissions, resolves targets on the current site, and rejects changed list reviews before writing. SharePoint enforces the actual delegated operation permissions and retention restrictions. Documents, hidden/system lists, DeskPilot Access and DeskPilot User Access are excluded. User roles and access configuration are preserved. These operations are multi-request and may partially complete: on failure, reload and review the remaining resources. Recovery is through SharePoint's recycle bin and depends on retention and permissions. No operation is executed merely by opening the maintenance panel. Validate locally with `node tests/workspaceMaintenance.cjs`.

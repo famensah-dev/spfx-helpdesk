@@ -19,6 +19,7 @@ export interface ITicketDataSource {
   openWorkspaceSetup?: () => void;
   workspaceSettings?: import('./IRoleManagement').IWorkspaceSettings;
   saveWorkspaceSettings?(settings: import('./IRoleManagement').IWorkspaceSettings): Promise<void>;
+  workspaceMaintenance?: import('../services/WorkspaceMaintenanceService').WorkspaceMaintenanceService;
   roleManagement?: import('./IRoleManagement').IRoleManagement;
   roleRules?: import('./IRoleManagement').IDeskPilotRole;
   access?: import('./IWorkspaceAccess').IWorkspaceAccess;
