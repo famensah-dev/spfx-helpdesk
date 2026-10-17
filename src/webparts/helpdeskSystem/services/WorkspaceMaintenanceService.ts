@@ -3,7 +3,7 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { IRoleManagement, IWorkspaceSettings } from '../interfaces/IRoleManagement';
 import { workspaceLists } from '../interfaces/IWorkspaceSetup';
 export type MaintenanceAction = 'clear' | 'drop' | 'reset';
-export interface MaintenanceList { Id: string; Title: string; ItemCount: number; BaseTemplate: number; Hidden: boolean; }
+export interface MaintenanceList { Id: string; Title: string; Description?: string; ItemCount: number; BaseTemplate: number; Hidden: boolean; }
 export const maintenancePhrase = (action: MaintenanceAction): string => ({clear:'CLEAR LIST ITEMS', drop:'DELETE APPLICATION LISTS', reset:'RESET LIST BINDINGS'})[action];
 export class WorkspaceMaintenanceService {
   private review?: string;
@@ -26,7 +26,7 @@ export class WorkspaceMaintenanceService {
     const names = [workspace?.listName || 'Tickets', ...Object.entries(workspaceLists).filter(([key]) => key !== 'access').map(([,name]) => name)];
     const ids = [workspace?.listId, ...Object.entries(workspace?.resourceIds || {}).filter(([key]) => key !== 'access').map(([,id]) => id)].filter(Boolean);
     const values: MaintenanceList[] = [];
-    let path: string | undefined = '/lists?$select=Id,Title,ItemCount,BaseTemplate,Hidden&$top=100';
+    let path: string | undefined = '/lists?$select=Id,Title,Description,ItemCount,BaseTemplate,Hidden&$top=100';
     while (path) {
       const page: {value:MaintenanceList[]; 'odata.nextLink'?:string} = await this.read(path);
       values.push(...page.value);

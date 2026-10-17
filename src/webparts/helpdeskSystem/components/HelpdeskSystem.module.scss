@@ -758,7 +758,6 @@
 .pageContent.ticketPage { padding: 0; gap: 0; background: transparent; box-shadow: none; border-radius: 0; }
 .ticketPage > .ticketTabs { margin: -6px calc(-1 * var(--page-inset)) 0; padding: 18px calc(var(--page-inset) + 4px) 12px; background: #fff; align-items: center; }
 .ticketPage > .pageAlerts { margin: 0 calc(-1 * var(--page-inset)); --alert-inset: var(--page-inset);
-  > :global(.ms-MessageBar) { background: #fff; }
 }
 .ticketListCard { display: grid; gap: 14px; min-width: 0; margin-top: 8px; padding: 16px 22px; background: #fff; border: 1px solid #e0e7f1; border-radius: 6px; box-shadow: 0 3px 18px rgba(36,32,67,.035); }
 .secondaryPage { min-width: 0; }

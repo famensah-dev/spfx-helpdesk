@@ -116,7 +116,7 @@ After successful setup choose Reload DeskPilot. The app does not create site col
 
 ### Setup defaults and default Tickets view
 
-The default list name for new workspaces is Tickets; existing explicit list bindings are preserved. Initialization adds a General category and a General subcategory linked to it if missing, and preserves existing entries. Ticket Type is part of initialization, so its separate Add Ticket Type button has been removed.
+The default list name for new workspaces is Tickets; existing explicit list bindings are preserved. Initialization leaves new Categories and Subcategories lists empty and preserves existing entries. It does not seed General entries. Ticket Type is part of initialization, so its separate Add Ticket Type button has been removed.
 
 The review includes arranging the default SharePoint Tickets view: Title, Status, Priority, Ticket Type, Issue Category, Issue Subcategory, Issue Type, Assigned To, Expected Resolution Date, First Responded At, Resolved At, Closed At, Resolution Summary, Related Issue, Created, Created By, Modified By. Related Issue is a single lookup back to Tickets. Created/Created By/Modified By use SharePoint's built-in Created/Author/Editor fields; they are not duplicate custom columns. Extra existing view fields remain afterward. These view changes run only when initialization is confirmed; the app table's personal column selection remains separate.
 
@@ -124,7 +124,7 @@ Completed At is a legacy alias for Resolved At. DeskPilot prefers the canonical 
 
 ### Advanced workspace maintenance
 
-Super Admins can open Settings > Application Lists > Advanced workspace maintenance > Open destructive list operations. Both sections start collapsed. Select the operational lists explicitly, review the site, list names and item counts, then type the exact confirmation text:
+Super Admins can open Settings > Site Lists > Advanced workspace maintenance. This section starts collapsed and shows its actions vertically when expanded. Select the operational lists explicitly, review the site, list names and item counts in the confirmation modal, then type the exact confirmation text:
 
 - `CLEAR LIST ITEMS`: recycle every item (including attachments) in the selected lists; keep their columns and saved bindings.
 - `DELETE APPLICATION LISTS`: recycle the selected lists and clear their saved list IDs.

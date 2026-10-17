@@ -83,7 +83,6 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
       if (steps.length === before) steps.push({resource:definition.name,action:'Already configured; preserve existing list and records'});
     }
     steps.push({resource: workspaceLists.priorities, action:'Seed missing priorities and missing SLA targets; preserve existing targets'});
-    steps.push({resource:'Categories and Subcategories', action:'Add General if missing, linking the General subcategory to General category'});
     steps.push({resource:this.config.listName, action:'Arrange default view in the requested column order; keep other view fields afterward'});
     steps.push({resource: workspaceLists.access, action:'Initialize/verify private configuration, synchronize user access and save list bindings'});
     this.reviewed = JSON.stringify(steps);
@@ -119,14 +118,6 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
         await this.graph.post(columnPath,body);
       }
     }
-    progress('Adding General category and subcategory...');
-    const categoryItems = await this.graph.getAll<{id:string;fields:Record<string,unknown>}>(`${path}/lists/${ids.categories}/items?$expand=fields`);
-    const general = categoryItems.find(item => String(item.fields.Title).trim().toLowerCase() === 'general') || await this.graph.post<{id:string;fields:Record<string,unknown>}>(`${path}/lists/${ids.categories}/items`,{fields:{Title:'General',Active:true,SortOrder:0}});
-    if (!general?.id) throw new Error('General category creation could not be confirmed. Review again before retrying.');
-    const subColumns = await this.graph.getAll<Column>(`${path}/lists/${ids.subcategories}/columns`);
-    const parent = matchingColumn(subColumns,lookup('Category','categories'))!;
-    const subItems = await this.graph.getAll<{id:string;fields:Record<string,unknown>}>(`${path}/lists/${ids.subcategories}/items?$expand=fields`);
-    if (!subItems.some(item => String(item.fields.Title).trim().toLowerCase() === 'general' && String(item.fields[`${parent.name}LookupId`]) === general!.id)) await this.graph.post(`${path}/lists/${ids.subcategories}/items`,{fields:{Title:'General',Active:true,SortOrder:0,[`${parent.name}LookupId`]:general.id}});
     progress('Adding initial priority targets...');
     const prioritiesPath = `${path}/lists/${ids.priorities}/items`;
     const existing = await this.graph.getAll<{id:string; fields:Record<string,unknown>}>(`${prioritiesPath}?$expand=fields&$top=200`);
