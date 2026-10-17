@@ -143,6 +143,11 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
   const hasIssueType = tickets.some(ticket => Boolean(ticket.IssueType?.trim()));
   const clear = (): void => { setFilters({}); setDepartment(''); };
   return <section className={styles.analyticsDashboard} aria-label={props.title || 'Admin Dashboard'}>
+    {(error || invalidDates || (!loading && lastUpdated && visible.length === 0)) && <div className={styles.pageAlerts}>
+    {error && <MessageBar messageBarType={MessageBarType.error}>{error} {lastUpdated ? 'Showing the last successful snapshot.' : 'No ticket data has been loaded.'}</MessageBar>}
+    {invalidDates && <MessageBar messageBarType={MessageBarType.error}>The end date must be on or after the start date.</MessageBar>}
+      {!loading && lastUpdated && visible.length === 0 && <MessageBar>No tickets match these filters. Try a wider date range or clear filters.</MessageBar>}
+    </div>}
     <div className={styles.dashboardTopRow}>
       <div className={styles.dashboardTitle}><h2>{props.title || 'Admin Dashboard'}</h2><p>Overview of IT support requests, status and performance.</p></div>
       <div className={styles.dashboardTopFilters}>
@@ -158,11 +163,6 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <IconButton iconProps={{ iconName: 'Refresh' }} title="Refresh dashboard" ariaLabel="Refresh dashboard" disabled={loading} onClick={() => { void refresh(); }} />
       </div>
     </div>
-    {(error || invalidDates || (!loading && lastUpdated && visible.length === 0)) && <div className={styles.pageAlerts}>
-    {error && <MessageBar messageBarType={MessageBarType.error}>{error} {lastUpdated ? 'Showing the last successful snapshot.' : 'No ticket data has been loaded.'}</MessageBar>}
-    {invalidDates && <MessageBar messageBarType={MessageBarType.error}>The end date must be on or after the start date.</MessageBar>}
-      {!loading && lastUpdated && visible.length === 0 && <MessageBar>No tickets match these filters. Try a wider date range or clear filters.</MessageBar>}
-    </div>}
     {filtersOpen && <div className={styles.dashboardAdvancedFilters}>
       <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created from" placeholder="Start date" value={filters.startDate || undefined} maxDate={filters.endDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, startDate: date || null }))} />
       <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created to" placeholder="End date" value={filters.endDate || undefined} minDate={filters.startDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, endDate: date || null }))} />

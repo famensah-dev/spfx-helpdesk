@@ -41,5 +41,5 @@ export function WorkspaceSetupPanel(props: {service: ITicketDataSource}): React.
 }
 export function MissingWorkspaceNotice(props: {service?: ITicketDataSource; error?: string | null}): React.ReactElement | null {
   if (!props.service?.workspaceSetup || !props.service.access?.superAdmin || !props.error || !/list.*(not found|not available|unavailable|requires)|needs.*column/i.test(props.error)) return null;
-  return <MessageBar messageBarType={MessageBarType.warning}>This workspace may need setup. <DefaultButton text="Open workspace setup" styles={cancelButtonStyles} onClick={props.service.openWorkspaceSetup} /></MessageBar>;
+  return <MessageBar messageBarType={MessageBarType.warning}><span style={{display:'inline-flex',alignItems:'center',flexWrap:'wrap',gap:16}}>This workspace may need setup. <button type="button" style={{border:0,background:'transparent',padding:0,color:'#2855b6',font:'inherit',lineHeight:'inherit',cursor:'pointer'}} onClick={props.service.openWorkspaceSetup}>Open workspace setup</button></span></MessageBar>;
 }

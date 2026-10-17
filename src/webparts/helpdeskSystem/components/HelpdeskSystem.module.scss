@@ -18,6 +18,7 @@
 }
 .mainContent { width: 100%; min-width: 0; padding: 0 0 20px; }
 .helpdeskSystemShell :global(.ms-MessageBar) {
+  margin-block: 0;
   border: 0;
   border-bottom: 1px solid #c3d6f5;
   border-radius: 0;
@@ -182,10 +183,10 @@
 .pageAlerts > :global(.ms-MessageBar) { padding-inline: calc(var(--alert-inset) - 12px); }
 .analyticsDashboard > .pageAlerts { --alert-inset: calc(var(--page-inset) + 4px); }
 .ticketPage > .pageAlerts { --alert-inset: 22px; }
-.analyticsDashboard > .pageAlerts { margin: -12px calc(-1 * (var(--page-inset) + 4px)) 0; }
+.analyticsDashboard > .pageAlerts { margin: -10px calc(-1 * (var(--page-inset) + 4px)) 0; }
 .ticketPage > .pageAlerts { margin: -14px -22px 0; }
 .mainContent > :global(.ms-MessageBar) { width: calc(100% + 2 * var(--page-inset)); margin: 0 calc(-1 * var(--page-inset)); padding-inline: calc(var(--page-inset) - 12px); }
-.mainContent > :global(.ms-MessageBar):first-child { margin-top: -6px; }
+.mainContent:has(> :global(.ms-MessageBar)), .mainContent:has(> .analyticsDashboard > .pageAlerts) { padding-top: 0; }
 @media (max-width: 620px) {
   .mainContent { --page-inset: 12px; }
   .ticketPage > .pageAlerts { margin-right: -14px; margin-left: -14px; }
@@ -993,4 +994,12 @@
 }
 .faqCategoryTabs :global(.ms-Pivot-link) { font-size: 13px; &:hover { background: transparent; } }
 .faqCategoryTabs :global(.ms-Pivot-overflowMenuButton):hover { background: transparent; }
+.ticketTabs button, .adminTabs button, .userRoleFilters button {
+  position: relative;
+  &, &:hover, &[aria-current='page'], &[aria-pressed='true'], &.activeNav, &.activeNav:hover { border-bottom-color: transparent !important; }
+  &::after { content: ''; position: absolute; bottom: -2px; left: 10px; right: 10px; height: 2px; background: transparent; }
+  &:hover:not(:disabled)::after { background: #a9bfd9; }
+  &.activeNav::after, &.activeNav:hover::after, &[aria-current='page']::after, &[aria-pressed='true']::after { background: #1b385c; }
+}
+.faqCategoryTabs :global(.ms-Pivot-link)::before { left: 8px; right: 8px; }
 .dashboardTicketTypes .dashboardBars { width: 100%; li { grid-template-columns: minmax(80px, 100px) minmax(0, 1fr) auto; } }
