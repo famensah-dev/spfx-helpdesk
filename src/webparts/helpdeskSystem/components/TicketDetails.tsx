@@ -18,7 +18,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const agent = !service?.roleRules && service?.access?.agent === true;
   const canManage = !agent || ticket.AssignedTo?.Email?.toLowerCase() === service?.access?.email.toLowerCase();
   const heading = React.useRef<HTMLHeadingElement>(null);
-  const [classificationEdit, setClassificationEdit] = React.useState<{ category?: string; subcategory?: string; issueType?: string }>({});
+  const [classificationEdit, setClassificationEdit] = React.useState<{ category?: string; subcategory?: string; issueType?: string; ticketType?: string }>({});
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -169,6 +169,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <Dropdown label="Status" selectedKey={status} disabled={saving || !canUse(service, 'status')} options={[...ticketStatuses, ...(ticket.Status === 'Escalated' ? ['Escalated'] : [])].filter(value => !agent || !['Resolved', 'Completed', 'Closed'].includes(ticket.Status) || ['Resolved', 'Closed'].includes(value)).map(value => ({key: value, text: value}))} onChange={(_, option) => setStatus(option?.key as TicketStatus)} />
             <FormAssigneePicker service={service} value={assigned ? { Id: assigned, Title: assignedName } : null} disabled={saving || agent || !canUse(service, 'assign')} onBusy={setAssignmentBusy} onChange={person => { if ((person?.Id || 0) !== assigned) setStatus(person?.Id ? 'Assigned' : 'New'); setAssigned(person?.Id || 0); setAssignedName(person?.Title || person?.Email || 'Unassigned'); }} />
           </div>
+          <Dropdown label="Ticket Type" selectedKey={classificationEdit.ticketType || ticket.TicketType || ''} disabled={saving || !canUse(service, 'edit')} options={[{key: '', text: 'Not specified', disabled: true}, ...['Problem', 'Incident', 'Question', 'Request'].map(value => ({key: value, text: value}))]} onChange={(_,option) => { if (option) setClassificationEdit(current => ({...current, ticketType: String(option.key)})); }} />
           <TicketClassificationFields service={service} ticket={ticket} disabled={saving || !canUse(service, 'edit')} onChange={value => setClassificationEdit(current => ({ ...current, ...value }))} />
           <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form> : <>
@@ -193,7 +194,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <div><dt><Icon iconName="ProgressRingDots" />Status</dt><dd><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></dd></div>
             <div><dt><Icon iconName="Flag" />Priority</dt><dd><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} aria-hidden="true" />{ticket.Priority}</span></dd></div>
             <div><dt><Icon iconName="Tag" />Category</dt><dd>{ticket.Category || 'Not specified'}</dd></div>
-            <div><dt><Icon iconName="Tag" />Sub Category</dt><dd>{ticket.Subcategory || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Issue Type</dt><dd>{ticket.IssueType || 'Not specified'}</dd></div><div><dt><Icon iconName="Work" />Department</dt><dd>—</dd></div><div><dt><Icon iconName="Calendar" />Created</dt><dd>{date(ticket.Created)}</dd></div>
+            <div><dt><Icon iconName="Tag" />Sub Category</dt><dd>{ticket.Subcategory || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Ticket Type</dt><dd>{ticket.TicketType || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Issue Type</dt><dd>{ticket.IssueType || 'Not specified'}</dd></div><div><dt><Icon iconName="Work" />Department</dt><dd>—</dd></div><div><dt><Icon iconName="Calendar" />Created</dt><dd>{date(ticket.Created)}</dd></div>
             <div><dt><Icon iconName="Clock" />Last updated</dt><dd>{date(ticket.Modified)}</dd></div>
             <div><dt><Icon iconName="Contact" />Requested By</dt><dd>—</dd></div><div><dt><Icon iconName="Contact" />Assigned to</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true">{ticket.AssignedTo?.Title ? initials(ticket.AssignedTo.Title) : '?'}</span>{ticket.AssignedTo?.Title || 'Unassigned'}</dd></div>
             {ticket.DueDate && <div><dt><Icon iconName="Calendar" />Due date</dt><dd>{date(ticket.DueDate)}</dd></div>}

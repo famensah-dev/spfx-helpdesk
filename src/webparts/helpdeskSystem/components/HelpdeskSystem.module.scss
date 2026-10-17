@@ -985,3 +985,10 @@
 
 .faqCategoryTabs { background: #fff; margin: 0 calc(-1 * var(--page-inset)); padding: 0 var(--page-inset); border-bottom: 1px solid var(--hd-line); :global(.ms-Pivot) { white-space: nowrap; } :global(.ms-Pivot-link) { font-size: 14px; font-weight: 400; } :global(.ms-Pivot-link.is-selected) { font-weight: 500; } }
 
+.faqTitleRow {
+  display: flex; align-items: center; gap: 6px;
+  > .toolbarTitle { flex-shrink: 0; margin: 0 36px 0 0; }
+  > .faqCategoryTabs { flex: 1; min-width: 0; margin: 0; padding: 0; border-bottom: 0; }
+}
+.faqCategoryTabs :global(.ms-Pivot-link) { font-size: 13px; &:hover { background: transparent; } }
+.faqCategoryTabs :global(.ms-Pivot-overflowMenuButton):hover { background: transparent; }

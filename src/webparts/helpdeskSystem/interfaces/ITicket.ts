@@ -22,6 +22,7 @@ export interface ITicket {
   Category?: string;
   Subcategory?: string;
   IssueType?: string;
+  TicketType?: string;
   Requester?: IUserLookup;
   Department?: string;
   StartedAt?: string;

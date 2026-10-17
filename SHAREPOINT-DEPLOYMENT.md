@@ -100,3 +100,6 @@ Super Admins can choose the Settings gear directly. The sidebar contains General
 SharePoint settings provides native site links and normal/WebView launch links. Application lists shows DeskPilot resources and separates the retired access list. Documents browses visible document libraries and folders and opens files in a new tab; creation, upload and other document-management operations stay in SharePoint. Hidden lists separates DeskPilot resources from other system lists. Existing Users & Roles, schema, classification, FAQ and SLA screens remain unchanged. Verify General saving and the document browser on the deployed site; local builds cannot confirm tenant REST behavior.
 
 
+
+Ticket Type is a separate Choice column from Issue Type. After deployment, a Super Admin can open Settings > General > Add Ticket Type field and confirm creation. Its internal name is TicketType and choices are Problem, Incident, Question, Request. Existing tickets are preserved without assigning an invented type. The field then appears in creation, editing, details and the Tickets column selector. If the column already exists, manage its choices through Ticket list schema instead.
+

@@ -3,11 +3,11 @@ import type { TicketStatus, TicketPriority } from './ITicket';
 import type { IUserLookup } from './ITicket';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from './IFaq';
 export interface IOrganizationUser { id: string; displayName: string; email: string; userPrincipalName: string; department?: string; }
-export interface INewTicketInput { title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; department?: string; dueDate?: string; attachments?: File[]; }
+export interface INewTicketInput { title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; department?: string; dueDate?: string; attachments?: File[]; }
 export interface IClassificationOption { id: string; name: string; parentId?: string; }
 export interface ITicketClassification { categories: IClassificationOption[]; subcategories: IClassificationOption[]; issueTypes: IClassificationOption[]; listIds: { category: string; subcategory: string; issueType: string }; }
-export interface ITicketCreationOptions { classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
-export interface ITicketEdit { title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; }
+export interface ITicketCreationOptions { classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
+export interface ITicketEdit { title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; }
 export interface ITicketComment { id: string; text: string; author: string; created: string; }
 export interface ITicketVersion { id: string; modified: string; author: string; }
 export type TicketBulkAction = { kind: 'status'; status: TicketStatus } | { kind: 'priority'; priority: TicketPriority } | { kind: 'assign'; userId: number | null } | { kind: 'archive' };
@@ -15,6 +15,7 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  setupTicketType?(): Promise<void>;
   workspaceSettings?: import('./IRoleManagement').IWorkspaceSettings;
   saveWorkspaceSettings?(settings: import('./IRoleManagement').IWorkspaceSettings): Promise<void>;
   roleManagement?: import('./IRoleManagement').IRoleManagement;

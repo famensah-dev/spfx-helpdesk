@@ -81,15 +81,16 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
   });
   const change = (value: Partial<IFaqInput>): void => setDraft(current => current ? { ...current, ...value } : current);
   return <section className={styles.secondaryPage}>
-    <div className={styles.secondaryPageHeader}><h2>{props.manage ? 'Administration — FAQs' : 'FAQs'}</h2></div>
-    {error && !draft && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-    {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
+    <div className={`${styles.secondaryPageHeader} ${styles.faqTitleRow}`}><h2 className={styles.toolbarTitle}>{props.manage ? 'Administration — FAQs' : 'FAQs'}</h2>
     <div className={styles.faqCategoryTabs}>
       <Pivot aria-label="FAQ categories" overflowBehavior="menu" overflowAriaLabel="All categories" selectedKey={category || '__all'} onLinkClick={item => { if (!busy && !sortRows) setCategory(item?.props.itemKey === '__all' ? '' : item?.props.itemKey || ''); }}>
         <PivotItem headerText="All categories" itemKey="__all" headerButtonProps={{disabled: busy || Boolean(sortRows)}} />
         {categories.map(value => <PivotItem key={value} headerText={value} itemKey={value} headerButtonProps={{disabled: busy || Boolean(sortRows)}} />)}
       </Pivot>
     </div>
+    </div>
+    {error && !draft && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
+    {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
     <div className={styles.ticketListCard}>
       {loading ? <Spinner label="Loading FAQs…" /> : <>
         <div className={styles.ticketToolbar}>

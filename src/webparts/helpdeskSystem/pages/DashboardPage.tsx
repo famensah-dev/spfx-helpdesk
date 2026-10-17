@@ -91,8 +91,9 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     { key: 'month', text: 'This Month', start: new Date(now.getFullYear(), now.getMonth(), 1), end: new Date(now.getFullYear(), now.getMonth() + 1, 0) },
     { key: 'year', text: 'This Year', start: new Date(now.getFullYear(), 0, 1), end: new Date(now.getFullYear(), 11, 31) }
   ];
-  const dateLabel = filters.startDate && filters.endDate ? `${formatDate(filters.startDate)} – ${formatDate(filters.endDate)}`
-    : filters.startDate ? `From ${formatDate(filters.startDate)}` : filters.endDate ? `Until ${formatDate(filters.endDate)}` : 'All Time';
+  const selectedPeriod = [...periods].sort((a, b) => Number(b.key === 'month') - Number(a.key === 'month')).find(period => filters.startDate?.getTime() === period.start.getTime() && filters.endDate?.getTime() === period.end.getTime());
+  const dateLabel = selectedPeriod?.text || (filters.startDate && filters.endDate ? `${formatDate(filters.startDate)} – ${formatDate(filters.endDate)}`
+    : filters.startDate ? `From ${formatDate(filters.startDate)}` : filters.endDate ? `Until ${formatDate(filters.endDate)}` : 'All Time');
   const invalidDates = Boolean(filters.startDate && filters.endDate && filters.startDate > filters.endDate);
   const summary = getGlobalSummary(visible, now);
   const previousSummary = previous ? getGlobalSummary(previous, now) : null;

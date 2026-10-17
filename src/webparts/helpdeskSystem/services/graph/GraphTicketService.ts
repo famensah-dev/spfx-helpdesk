@@ -17,7 +17,7 @@ const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
   public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.creationFields = []; }
-  private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
+  private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; key: string; content: string };
@@ -69,6 +69,11 @@ export class GraphTicketService implements ITicketDataSource {
     if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
+    if (input.ticketType !== undefined) {
+      const field = this.creationFields.find(item => item.key === 'ticketType');
+      if (!field || !['Problem', 'Incident', 'Question', 'Request'].includes(input.ticketType) || !field.column.choice?.choices.includes(input.ticketType)) throw new Error('Select a configured Ticket Type: Problem, Incident, Question or Request.');
+      fields[field.column.name] = input.ticketType;
+    }
     if (input.description !== undefined) {
       if (!schema.description) throw new Error('The list has no Issue description text column.');
       fields[schema.description] = input.description;
@@ -237,6 +242,7 @@ export class GraphTicketService implements ITicketDataSource {
         }
         value = entry.name;
       }
+      if (field.key === 'ticketType' && !['Problem', 'Incident', 'Question', 'Request'].includes(value)) throw new Error('Select a valid Ticket Type.');
       if (field.column.choice && !field.column.choice.choices.includes(value)) throw new Error(`Select a configured ${field.label} value.`);
       if (field.key === 'dueDate' && !Number.isFinite(new Date(value).getTime())) throw new Error('Enter a valid expected resolution date.');
       fields[field.column.name] = field.key === 'dueDate' ? new Date(value).toISOString() : value;
@@ -299,6 +305,7 @@ export class GraphTicketService implements ITicketDataSource {
     const optionalDisplay = (names: string[], types: Array<'text' | 'choice' | 'dateTime' | 'personOrGroup' | 'lookup'>): IGraphColumn | undefined => names.map(name => columns.find(column => normalize(column.displayName) === normalize(name) && types.some(type => Boolean(column[type]))) || columns.find(column => normalize(column.name) === normalize(name) && types.some(type => Boolean(column[type])))).find(Boolean);
     const subcategory = optionalDisplay(['Issue Subcategory', 'IssueSubcategory', 'Subcategory'], ['text', 'choice', 'lookup']);
     const issueType = optionalDisplay(['Issue Type', 'Issue / Request', 'IssueType'], ['text', 'choice', 'lookup']);
+    const ticketType = optionalDisplay(['Ticket Type', 'TicketType'], ['choice']);
     const department = optionalDisplay(['Department', 'Department / Unit', 'Unit'], ['text', 'choice']);
     const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
     const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
@@ -307,10 +314,11 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'category' as const, label: 'Issue category', column: category },
       { key: 'subcategory' as const, label: 'Issue subcategory', column: subcategory },
       { key: 'issueType' as const, label: 'Issue Type', column: issueType },
+      { key: 'ticketType' as const, label: 'Ticket Type', column: ticketType },
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -343,6 +351,7 @@ export class GraphTicketService implements ITicketDataSource {
         AssignedTo: userId ? users.get(userId) || { Id: userId, Title: text(values[assigned.name]) || `User #${userId}` } : undefined,
         Category: category ? text(values[category.name]) : undefined,
         Subcategory: subcategory ? text(values[subcategory.name]) : undefined,
+        TicketType: ticketType ? text(values[ticketType.name]) : undefined,
         IssueType: issueType ? text(values[issueType.name]) : undefined,
         Department: department ? text(values[department.name]) : undefined,
         Requester: item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined,

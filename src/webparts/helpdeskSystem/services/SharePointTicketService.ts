@@ -49,6 +49,12 @@ export async function createSharePointService(context: WebPartContext, listName:
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
   if (superAdmin) {
+    source.setupTicketType = async () => {
+      const adminService = new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema());
+      const data = await adminService.getData('schema');
+      if (data.columns.some(column => column.name === 'TicketType' || column.displayName === 'Ticket Type')) throw new Error('Ticket Type already exists. Check its choices in Ticket list schema.');
+      await adminService.saveColumn({name: 'TicketType', displayName: 'Ticket Type', description: 'Problem, Incident, Question or Request', required: false, kind: 'choice', choices: ['Problem', 'Incident', 'Question', 'Request'], allowTextEntry: false});
+    };
     source.saveWorkspaceSettings = async settings => {
       if (!settings.listName.trim()) throw new Error('Tickets list name is required.');
       if (settings.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(settings.listId)) throw new Error('Enter a valid list ID.');
