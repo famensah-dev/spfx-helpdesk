@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DefaultButton, PrimaryButton, Dialog, DialogFooter, Spinner, MessageBar, MessageBarType } from '@fluentui/react';
+import { DefaultButton, PrimaryButton, Dialog, DialogFooter, Spinner, Icon, MessageBar, MessageBarType } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { ISetupPlan } from '../interfaces/IWorkspaceSetup';
 import { cancelButtonStyles } from './cancelButtonStyles';
@@ -27,12 +27,15 @@ export function WorkspaceSetupPanel(props: {service: ITicketDataSource}): React.
     finally {lock.current = false; setBusy(false); setRunning(false);}
   };
   return <div style={{margin: '12px 0 20px'}}><PrimaryButton text="Initialize workspace" styles={{root: {background: '#1b385c', borderColor: '#1b385c', height: 32, fontSize: 13}, rootHovered: {background: '#142c49', borderColor: '#142c49'}, rootPressed: {background: '#102339', borderColor: '#102339'}}} iconProps={{iconName:'Database'}} onClick={() => {inspect().catch(() => undefined);}} /><p style={{fontSize:13,color:'#647694'}}>Create missing DeskPilot lists and columns, or check an existing workspace.</p>
-    <Dialog hidden={!open} onDismiss={busy ? undefined : () => setOpen(false)} minWidth={320} maxWidth={760} modalProps={{isBlocking:busy, styles:{main:{width:'min(760px, calc(100vw - 32px))',maxWidth:760,borderRadius:6}}}} dialogContentProps={{title:done ? 'Workspace ready' : running ? 'Initializing workspace' : 'Review workspace setup',showCloseButton:!busy}}>
+    <Dialog hidden={!open} onDismiss={busy ? undefined : () => setOpen(false)} minWidth={Math.min(860, window.innerWidth - 32)} maxWidth={860} modalProps={{isBlocking:busy, styles:{main:{width:'min(860px, calc(100vw - 32px))',maxWidth:860,borderRadius:6}}}} dialogContentProps={{title:done ? 'Workspace ready' : running ? 'Initializing workspace' : 'Review workspace setup',showCloseButton:!busy}}>
       {busy && <Spinner label={running ? 'Creating and configuring SharePoint resources...' : 'Checking lists, columns and lookup relationships...'} styles={{label:{fontSize:14,color:'#172536'}}} />}
       {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {plan && !running && !done && <><p>Existing records and column types are preserved. Missing columns and supported choices will be added. No Forms or flows are created.</p><div style={{maxHeight:'45vh',overflow:'auto'}}><table style={{width:'100%',borderCollapse:'collapse'}}><thead><tr><th style={{textAlign:'left'}}>Resource</th><th style={{textAlign:'left'}}>Planned action</th></tr></thead><tbody>{plan.steps.map((step,index) => <tr key={index} style={{color:step.blocked ? '#b42318' : '#172536'}}><td style={{padding:8,borderBottom:'1px solid #e3e9f1'}}>{step.resource}</td><td style={{padding:8,borderBottom:'1px solid #e3e9f1'}}>{step.blocked ? 'Needs review: ' : ''}{step.action}</td></tr>)}</tbody></table></div></>}
-      {messages.length > 0 && <ol role="log" aria-live="polite" style={{maxHeight:'35vh',overflow:'auto',fontSize:13}}>{messages.map((message,index) => <li key={index}>{message}</li>)}</ol>}
-      <DialogFooter>{!busy && <DefaultButton text={done ? 'Close' : 'Cancel'} styles={cancelButtonStyles} onClick={() => setOpen(false)} />}{done ? <PrimaryButton text="Reload DeskPilot" onClick={() => window.location.reload()} /> : plan ? <PrimaryButton text="Confirm initialize" disabled={busy || plan.steps.some(step => step.blocked)} onClick={() => {run().catch(() => undefined);}} /> : !busy && <PrimaryButton text="Review again" onClick={() => {inspect().catch(() => undefined);}} />}</DialogFooter>
+      {messages.length > 0 && <ol role="log" aria-live="polite" style={{maxHeight:'45vh',overflow:'auto',fontSize:14,lineHeight:1.6,fontFamily:'Consolas, "Courier New", monospace',listStyle:'none',padding:'16px 18px',margin:'20px 0 0',background:'#f4f7fb',borderRadius:6,color:'#172536'}}>{messages.map((message,index) => {
+        const completed = done || index < messages.length - 1;
+        return <li key={index} style={{display:'flex',alignItems:'baseline',gap:12,padding:'7px 0'}}><Icon iconName={completed ? 'CompletedSolid' : error ? 'ErrorBadge' : 'Clock'} ariaLabel={completed ? 'Completed' : error ? 'Failed' : 'In progress'} styles={{root:{color:completed ? '#16834a' : error ? '#c4262e' : '#647694',fontSize:17,flexShrink:0}}} /><span>{message}</span></li>;
+      })}</ol>}
+      <DialogFooter>{!busy && <DefaultButton text={done ? 'Close' : 'Cancel'} styles={cancelButtonStyles} onClick={() => setOpen(false)} />}{done ? <PrimaryButton text="Reload DeskPilot" onClick={() => window.location.reload()} /> : plan && !running ? <PrimaryButton text="Confirm initialize" disabled={busy || plan.steps.some(step => step.blocked)} onClick={() => {run().catch(() => undefined);}} /> : !busy && <PrimaryButton text="Review again" onClick={() => {inspect().catch(() => undefined);}} />}</DialogFooter>
     </Dialog>
   </div>;
 }

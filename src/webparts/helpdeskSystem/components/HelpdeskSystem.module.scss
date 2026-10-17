@@ -538,7 +538,7 @@
 .dashboardCardHeading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 14px; min-height: 18px;
   h3 { margin: 0; font-size: 15px; font-weight: 500; color: #1c2b45; line-height: 1.35; }
 }
-.dashboardCanvas { position: relative; width: 100%; height: 220px; min-width: 0; }
+.dashboardChartCanvas { position: relative; width: 100%; height: 220px; min-width: 0; }
 .dashboardStatusChart { display: flex; align-items: center; gap: 16px; min-height: 220px; }
 .dashboardDonut { position: relative; flex: 1; min-width: 0; height: 176px;
   > div { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; strong { font-size: 24px; font-weight: 650; line-height: 1.3; } span { font-size: 13px; color: #526580; } }
@@ -558,6 +558,7 @@
 }
 .dashboardChartEmpty { min-height: 160px; display: grid; align-content: center; text-align: center; font-size: 12px; color: #7686a0; padding: 18px; }
 .dashboardChartNote { font-size: 12px; line-height: 1.4; color: #7b8ba4; margin: 8px 0 0; }
+.dashboardResolutionCard .dashboardChartNote { margin-top: auto; padding-top: 8px; }
 .dashboardTrendLegend { display: flex; gap: 10px; font-size: 12px; color: #647694; flex-shrink: 0;
   span { display: inline-flex; align-items: center; gap: 5px; }
   i { width: 7px; height: 7px; border-radius: 50%; }
@@ -865,7 +866,7 @@
 }
 .schemaColumnsLayout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; &[data-editing='true'] { grid-template-columns: minmax(0, 1fr) 310px; } }
 .schemaTableCard { min-width: 0; overflow: hidden; border: 1px solid #e0e7f1; border-radius: 6px;
-  .ticketTable { font-size: 14px; } .ticketSubjectLink { font-size: 14px; } .ticketTable th { font-size: 13px; font-weight: 600; }
+  .ticketTable { font-size: 14px; } .ticketSubjectLink { font-size: 13px; } .ticketTable th { font-size: 13px; font-weight: 600; }
   .ticketTable td { padding: 6px 10px; } .ticketTable :global(.ms-Button--icon) { height: 24px; width: 28px; background: transparent; }
 }
 .schemaColumnType { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; i { color: #2855b6; font-size: 14px; } }

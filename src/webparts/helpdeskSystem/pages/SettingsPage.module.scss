@@ -13,6 +13,7 @@
   h3 { font-size: 15px; font-weight: 500; }
   h4 { font-size: 14px; font-weight: 500; margin: 18px 0 10px; }
   table th { font-weight: 500; }
+  table td:first-child a { color: #172536; }
   :global(.ms-TextField-fieldGroup) { border: 1px solid #d6e1ee; border-radius: 4px; &:hover { border-color: #a9bfd9; } &::after { border: 1px solid #a9bfd9; border-radius: 4px; } }
   :global(.ms-TextField-fieldGroup:focus-within) { border-color: #a9bfd9; &::after { border: 1px solid #a9bfd9; } }
   :global(.ms-TextField-field) { font-size: 13px; }

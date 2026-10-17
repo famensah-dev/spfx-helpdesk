@@ -4,6 +4,7 @@ import type { IAdminData, IAdminColumn, IColumnInput, IAdministrationService } f
 import { AdminColumnForm } from './AdminColumnForm';
 import { cancelButtonStyles } from './cancelButtonStyles';
 import styles from './HelpdeskSystem.module.scss';
+const columnTypeLabels: Record<string, string> = {personOrGroup: 'Person', dateTime: 'Date and Time', number: 'Number', choice: 'Choice', boolean: 'Yes/No', lookup: 'Lookup', 'Single line of text': 'Single Line of Text', 'Multiple lines of text': 'Multiple Lines of Text', 'System / other': 'System / Other'};
 export function TicketSchemaWorkspace(props: { data: IAdminData; service: IAdministrationService; busy: boolean; input: IColumnInput | null; editing: boolean; error: string; onInput: (value: IColumnInput | null) => void; onNew: () => void; onEdit: (column: IAdminColumn) => void; onInspect: (column: IAdminColumn) => void; onDelete: (column: IAdminColumn) => void; onSave: () => void; onRefresh: () => void; onError: (message: string) => void }): React.ReactElement {
   const [query, setQuery] = React.useState('');
   const [type, setType] = React.useState('');
@@ -25,8 +26,8 @@ export function TicketSchemaWorkspace(props: { data: IAdminData; service: IAdmin
     </div>
     <div className={styles.schemaToolbar}>
       <SearchBox showIcon iconProps={{iconName: 'Search'}} placeholder="Search columns…" ariaLabel="Search ticket columns" value={query} onChange={(_, value) => setQuery(value || '')} />
-      <Dropdown ariaLabel="Column properties filter" selectedKey={filter} options={[{key: '', text: 'All columns'}, {key: 'required', text: 'Required columns'}, {key: 'editable', text: 'Editable columns'}, {key: 'protected', text: 'Protected columns'}]} onChange={(_, option) => setFilter(String(option?.key || ''))} />
-      <Dropdown ariaLabel="Column type" selectedKey={type} options={[{key: '', text: 'All column types'}, ...types.map(value => ({key: value, text: value}))]} onChange={(_, option) => setType(String(option?.key || ''))} />
+      <Dropdown ariaLabel="Column properties filter" selectedKey={filter} options={[{key: '', text: 'All Columns'}, {key: 'required', text: 'Required Columns'}, {key: 'editable', text: 'Editable Columns'}, {key: 'protected', text: 'Protected Columns'}]} onChange={(_, option) => setFilter(String(option?.key || ''))} />
+      <Dropdown ariaLabel="Column type" selectedKey={type} options={[{key: '', text: 'All Column Types'}, ...types.map(value => ({key: value, text: columnTypeLabels[value] || value}))]} onChange={(_, option) => setType(String(option?.key || ''))} />
       <IconButton iconProps={{iconName: 'Refresh'}} ariaLabel="Refresh columns" disabled={props.busy} onClick={props.onRefresh} />
       <div className={styles.ticketActions}><DefaultButton text="Add Column" iconProps={{iconName: 'Add'}} disabled={props.busy} onClick={props.onNew} /></div>
     </div>

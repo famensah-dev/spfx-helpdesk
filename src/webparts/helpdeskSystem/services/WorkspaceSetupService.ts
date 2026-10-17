@@ -36,7 +36,9 @@ const facet = (column: Column): string => ['text','choice','boolean','number','d
 export function columnConflict(actual: Column, expected: Column, ids: Record<string,string>, allowLegacyClassification = false): string | undefined {
   const kind = facet(expected), actualKind = facet(actual);
   const legacyClassification = allowLegacyClassification && ['Category','Subcategory','IssueType'].includes(expected.name) && ['text','choice'].includes(actualKind);
-  if (actual.readOnly || (kind !== actualKind && !legacyClassification)) return `must be a writable ${kind} column (currently ${actualKind})`;
+  if (actual.readOnly || (kind !== actualKind && !legacyClassification)) return expected.name === 'RelatedIssue'
+    ? `Related Issue must be a writable lookup to this same tickets list (currently ${actualKind}); existing data will not be converted automatically`
+    : `must be a writable ${kind} column (currently ${actualKind})`;
   if (actualKind === 'lookup') {
     const target = expected.lookup as {target?: string}; const value = actual.lookup as {listId: string; allowMultipleValues?: boolean};
     if (value.allowMultipleValues || !ids[target.target!] || value.listId.toLowerCase() !== ids[target.target!].toLowerCase()) return 'lookup points to a different list or allows multiple values';
@@ -75,7 +77,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
         const actual = matchingColumn(columns,expected);
         if (!actual) {steps.push({resource: `${definition.name} / ${expected.name}`, action:'Add column'}); continue;}
         const conflict = columnConflict(actual,expected,ids, definition.key === 'tickets' || definition.key === 'faqs');
-        if (conflict) steps.push({resource: `${definition.name} / ${actual.name}`, action:conflict, blocked:true});
+        if (conflict) steps.push({resource: `${definition.name} / ${actual.displayName || actual.name}`, action:conflict, blocked:true});
         else if (expected.choice && (expected.choice as {choices:string[]}).choices.some(value => !(actual.choice as {choices:string[]}).choices.includes(value))) steps.push({resource:`${definition.name} / ${actual.name}`, action:'Append missing supported choices; preserve existing choices'});
       }
       if (steps.length === before) steps.push({resource:definition.name,action:'Already configured; preserve existing list and records'});

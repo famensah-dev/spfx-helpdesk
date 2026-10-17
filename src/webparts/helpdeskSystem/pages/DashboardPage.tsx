@@ -119,6 +119,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     y: { beginAtZero: true, ticks: { precision: 0, color: '#718099', font: { size: 12 } }, border: { display: false }, grid: { color: '#edf2f8' } },
     x: { ticks: { color: '#526580', font: { size: 12 } }, border: { display: false }, grid: { display: false } }
   } };
+  const trendOptions = { ...chartDefaults, scales: { ...chartDefaults.scales, x: { ...chartDefaults.scales.x, ticks: { ...chartDefaults.scales.x.ticks, font: { size: 10 } } } } };
   const assignedCounts = new Map<string, { name: string; count: number }>();
   visible.forEach(ticket => {
     const person = ticket.AssignedTo;
@@ -184,7 +185,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
       })}</div>
       <div className={styles.dashboardChartsGrid}>
         <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: '#2d88ff' }} />Created</span>{hasResolvedAt && <span><i style={{ background: '#28b47d' }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
-          <div className={styles.dashboardCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={chartDefaults} /></div>
+          <div className={styles.dashboardChartCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={trendOptions} /></div>
         </ChartCard>
         <ChartCard title="Tickets by Status">
           <div className={styles.dashboardStatusChart}>
@@ -193,11 +194,11 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
           </div>
         </ChartCard>
         {props.sla && <div style={{gridColumn: '1 / -1'}}><SlaDashboardCard service={props.sla} tickets={visible} lastUpdated={lastUpdated} onOpenTicket={props.onOpenTicket} /></div>}
-        <ChartCard title="Tickets by Priority"><div className={styles.dashboardCanvas}><Bar role="img" aria-label={priorities.map((priority, index) => `${priority}: ${priorityData.datasets[0].data[index]}`).join(', ')} data={priorityData} plugins={[priorityValueLabels]} options={{ ...chartDefaults, layout: { padding: { top: 16 } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, grace: '15%' } } }} /></div></ChartCard>
+        <ChartCard title="Tickets by Priority"><div className={styles.dashboardChartCanvas}><Bar role="img" aria-label={priorities.map((priority, index) => `${priority}: ${priorityData.datasets[0].data[index]}`).join(', ')} data={priorityData} plugins={[priorityValueLabels]} options={{ ...chartDefaults, layout: { padding: { top: 16 } }, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, grace: '15%' } } }} /></div></ChartCard>
         <ChartCard title="Tickets by Category" className={styles.dashboardLeftLabels}><Breakdown rows={hasCategory ? groupTicketCounts(visible, 'Category') : []} empty="Category information is not available yet." /></ChartCard>
         <ChartCard title="Top Issue Types" className={styles.dashboardLeftLabels}><Breakdown rows={hasIssueType ? groupTicketCounts(visible, 'IssueType') : []} empty={hasIssueType ? 'No tickets in this view.' : 'Issue Type information is not available yet.'} /></ChartCard>
         <ChartCard title="Tickets by Ticket Type" className={styles.dashboardAgingCard}><Breakdown rows={groupTicketCounts(visible, 'TicketType')} empty="No tickets in this view." /></ChartCard>
-        <ChartCard title="Average Resolution Time by Category" note="Days from creation to recorded resolution."><Breakdown rows={hasResolvedAt ? getResolutionByCategory(visible) : []} unit="days" colors={['#9a75f2', '#f45663', '#ff962e', '#28b47d', '#2d88ff', '#ffc329', '#a6b1c2', '#62a0f9']} empty="No recorded resolution dates in this view." /></ChartCard>
+        <ChartCard title="Average Resolution Time by Category" className={styles.dashboardResolutionCard} note="Days from creation to recorded resolution."><Breakdown rows={hasResolvedAt ? getResolutionByCategory(visible) : []} unit="days" colors={['#9a75f2', '#f45663', '#ff962e', '#28b47d', '#2d88ff', '#ffc329', '#a6b1c2', '#62a0f9']} empty="No recorded resolution dates in this view." /></ChartCard>
         <ChartCard title="Open Tickets by Aging" className={styles.dashboardAgingCard} note="Elapsed time since creation, as of today."><Breakdown rows={getOpenTicketAging(visible, now)} colors={['#28b47d', '#2d88ff', '#ffc329', '#ff962e', '#f45663']} /></ChartCard>
         <div className={styles.dashboardTicketsRow}>
         <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.adminAvailabilityLink} onClick={props.onViewTickets}>View all</button>}>
