@@ -11,7 +11,7 @@ import { useHelpdeskDashboard } from '../hooks/useHelpdeskDashboard';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import { canUse } from '../services/appRoleRules';
 
-export interface IHelpdeskAppProps { service: ITicketDataSource; currentUserEmail: string; accountActions?: React.ReactNode; portalTitle?: string; }
+export interface IHelpdeskAppProps { service: ITicketDataSource; currentUserEmail: string; accountActions?: React.ReactNode; portalTitle?: string; settingsContent?: React.ReactNode; }
 
 const pages = ['Dashboard', 'Tickets', 'FAQs', 'Administration', 'Users & roles'] as const;
 type Page = typeof pages[number] | 'My Assigned Tickets' | 'My Dashboard';
@@ -68,14 +68,15 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
         <div className={styles.headerActions}>{props.accountActions}</div>
       </header>
-      <nav className={styles.navigation} aria-label="DeskPilot navigation">
+      {!props.settingsContent && <nav className={styles.navigation} aria-label="DeskPilot navigation">
         {canUse(props.service, 'dashboard') && (rules ? <button type="button" aria-current={dashboardActive ? 'page' : undefined} className={[styles.dashboardNav, dashboardActive ? styles.activeNav : ''].join(' ')} onClick={() => navigate('Dashboard')}>Dashboard</button> : <div className={[styles.dashboardSplit, styles.dashboardNav].join(' ')} data-active={dashboardActive}><DefaultButton text="Dashboard" split onClick={() => navigate(props.service.access?.agent ? 'My Dashboard' : 'Dashboard')} splitButtonAriaLabel="Choose dashboard view" className={dashboardActive ? styles.activeNav : undefined} menuProps={{ items: [
           { key: 'personal', text: 'My Dashboard', canCheck: true, checked: page === 'My Dashboard', onClick: () => navigate('My Dashboard') },
           ...(!props.service.access?.agent ? [{ key: 'global', text: 'Admin Dashboard', canCheck: true, checked: page === 'Dashboard', onClick: () => navigate('Dashboard') }] : [])
         ] }} styles={{ root: { height: 'auto', minWidth: 0 }, label: { fontWeight: dashboardActive ? 600 : 400 }, splitButtonContainer: { height: '100%', border: 0, borderRadius: 2 }, splitButtonMenuButton: { width: 26, minWidth: 26, padding: 0, border: 0 }, splitButtonDivider: { display: 'none' } }} /></div>)}
         {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item}</button>)}
-      </nav>
+      </nav>}
       <main className={styles.mainContent}>
+        {props.settingsContent || <>
         {dashboard.warnings.map(warning => <MessageBar key={warning} messageBarType={MessageBarType.warning}>{warning}</MessageBar>)}
         <h1 ref={heading} tabIndex={-1} className={styles.srOnly}>{page === 'Dashboard' ? 'Admin Dashboard' : page}</h1>
         {(page === 'Dashboard' || (page === 'My Dashboard' && dashboard.assignmentIdentityAvailable)) && (dashboardTicket
@@ -87,6 +88,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} />}
         {page === 'Users & roles' && props.service.roleManagement && <SharePointRolesPage service={props.service} />}
         {!permittedPage(page) && <MessageBar>Your role has no enabled pages. Ask a Super Admin to update your role rules.</MessageBar>}
+        </>}
       </main>
     </ThemeProvider>
   );

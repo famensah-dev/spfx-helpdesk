@@ -15,13 +15,17 @@ const { SharePointRoleManagement } = load('src/webparts/helpdeskSystem/services/
   const config = roles.defaultRoleConfiguration();
   const assignment = {userId: 7, name: 'Test', email: 'test@example.com', roleId: 'agent'};
   const calls = [];
-  let projection = {role: config.roles[0], assignment};
+  const workspace = {title: 'Facilities', description: 'Building support', listName: 'Requests', listId: ''};
+  let projection = {role: config.roles[0], assignment, workspace};
   const context = {pageContext: {web: {absoluteUrl: 'https://example.sharepoint.com/sites/helpdesk'}}, spHttpClient: {
     get: async url => {calls.push(url); return {ok: true, json: async () => url.includes('/currentuser') ? {Id: 7} : {value: [{Id: 1, Rules: JSON.stringify(projection)}]}};},
     post: async () => {throw Error('Unexpected write');}
   }};
   const service = new SharePointRoleManagement(context, false);
-  assert.deepEqual((await service.load()).assignments, [assignment]);
+  const loaded = await service.load();
+  assert.deepEqual(loaded.assignments, [assignment]);
+  assert.deepEqual(loaded.workspace, workspace, 'User entry must carry the workspace settings without exposing other assignments');
+  assert.throws(() => roles.validateRoleConfiguration({...config, workspace: {...workspace, listId: 'invalid'}}), /Invalid workspace/);
   assert(calls.filter(url => url.includes('/items?')).every(url => url.includes("Title eq '7'")), 'Non-admin must query only their own entry in the shared list');
   projection.assignment = {...assignment, userId: 8};
   await assert.rejects(service.load(), /Invalid user access/);

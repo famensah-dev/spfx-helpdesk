@@ -1,4 +1,4 @@
-﻿import { SPHttpClient } from '@microsoft/sp-http';
+import { SPHttpClient } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { defaultRoleConfiguration, validateRoleConfiguration } from '../interfaces/IRoleManagement';
 import type { IRoleConfiguration, IRoleManagement } from '../interfaces/IRoleManagement';
@@ -82,7 +82,7 @@ export class SharePointRoleManagement implements IRoleManagement {
     for (const user of active) {
       const role = configuration.roles.find(item => item.id === user.roleId)!;
       // Only this user's assignment and effective role; never the full configuration.
-      const rules = JSON.stringify({ role, assignment: user });
+      const rules = JSON.stringify({ role, assignment: user, workspace: configuration.workspace });
       let item = items.find(value => value.Title === String(user.userId));
       if (!item) item = await this.write<AccessItem>(`${this.users}/items`, { Title: String(user.userId), Rules: rules });
       const path = `${this.users}/items(${item.Id})`;
@@ -115,6 +115,7 @@ export class SharePointRoleManagement implements IRoleManagement {
       const config = defaultRoleConfiguration();
       config.roles = config.roles.map(role => role.id === projection.role.id ? projection.role : role);
       config.assignments = [projection.assignment]; validateRoleConfiguration(config);
+      config.workspace = projection.workspace;
       return config;
     }
     const response = await this.context.spHttpClient.get(`${this.root}?$select=Id`, SPHttpClient.configurations.v1);
@@ -127,7 +128,6 @@ export class SharePointRoleManagement implements IRoleManagement {
     if (data.value.length !== 1) throw new Error('DeskPilot Access must contain exactly one Configuration item.');
     const item = data.value[0]; const config = JSON.parse(item.Rules) as IRoleConfiguration; validateRoleConfiguration(config);
     this.itemId = item.Id; this.etag = item['odata.etag'] || item['@odata.etag'];
-    // Migration and repair: close old configuration grants first, then provision private rows.
     await this.ensureList(this.root, 'DeskPilot Access');
     await this.secure(`${this.root}/items(${item.Id})`);
     await this.sync(config);

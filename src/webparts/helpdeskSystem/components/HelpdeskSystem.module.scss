@@ -96,7 +96,7 @@
 @media (max-width: 360px) { .filterGroup { grid-template-columns: 1fr; } .portalLabel { display: none; } }
 
 
-.headerActions { display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 16px; }
+.headerActions { display: flex; align-items: center; flex-wrap: nowrap; justify-content: flex-end; gap: 10px; flex-shrink: 0; }
 .ticketPage { gap: 12px; }
 .ticketTabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--hd-line); gap: 4px;
   button { display: flex; align-items: center; gap: 8px; padding: 11px 10px; background: transparent; border: 0; border-bottom: 2px solid transparent; cursor: pointer; font-size: 12px; color: var(--hd-ink); }

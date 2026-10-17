@@ -3,7 +3,8 @@ export type RoleAction = typeof roleActions[number];
 export type TicketScope = 'own' | 'assigned' | 'all';
 export interface IDeskPilotRole { id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
-export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; }
+export interface IWorkspaceSettings { title: string; description: string; listName: string; listId: string; }
+export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
 export interface IRoleManagement { load(): Promise<IRoleConfiguration>; save(configuration: IRoleConfiguration): Promise<void>; }
 export function assignedRole(configuration: IRoleConfiguration, userId: number): IDeskPilotRole | undefined {
   const assignment = configuration.assignments.find(item => item.userId === userId && item.disabled !== true);
@@ -15,6 +16,8 @@ export const defaultRoleConfiguration = (): IRoleConfiguration => ({ roles: [
 ], assignments: [] });
 
 export function validateRoleConfiguration(value: IRoleConfiguration): void {
+  if (value?.workspace && (['title', 'description', 'listName', 'listId'] as const).some(key => typeof value.workspace![key] !== 'string')) throw new Error('Invalid workspace settings.');
+  if (value?.workspace && (!value.workspace.listName.trim() || value.workspace.title.length > 255 || value.workspace.description.length > 4000 || (value.workspace.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.workspace.listId)))) throw new Error('Invalid workspace title, description or ticket list binding.');
   const ids = ['agent', 'admin'];
   if (!value || !Array.isArray(value.roles) || value.roles.length !== 2 || !Array.isArray(value.assignments)) throw new Error('Invalid role configuration.');
   if (new Set(value.roles.map(role => role.id)).size !== 2) throw new Error('Duplicate roles.');

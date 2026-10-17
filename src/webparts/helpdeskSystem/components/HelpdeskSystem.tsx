@@ -6,11 +6,13 @@ import { Icon, Spinner } from '@fluentui/react';
 import styles from './HelpdeskSystem.module.scss';
 import { SharePointAccountMenu } from './SharePointAccountMenu';
 import { SharePointSettingsMenu } from './SharePointSettingsMenu';
+import { SettingsPage } from '../pages/SettingsPage';
 import type { IHelpdeskSystemProps } from './IHelpdeskSystemProps';
 
 export default function HelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
   const [service, setService] = React.useState<ITicketDataSource>();
   const [error, setError] = React.useState('');
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   React.useEffect(() => {
     let active = true;
     setService(undefined); setError('');
@@ -34,6 +36,6 @@ export default function HelpdeskSystem(props: IHelpdeskSystemProps): React.React
     </div>;
   }
   const user = props.spContext.pageContext.user;
-  const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} /><SharePointAccountMenu context={props.spContext} /></>;
-  return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={props.portalTitle} />;
+  const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} onOpenSettings={() => setSettingsOpen(true)} /><SharePointAccountMenu context={props.spContext} /></>;
+  return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={service.workspaceSettings?.title || props.portalTitle} settingsContent={settingsOpen && service.access?.superAdmin ? <SettingsPage context={props.spContext} service={service} portalTitle={props.portalTitle} onBack={() => setSettingsOpen(false)} /> : undefined} />;
 }

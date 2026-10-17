@@ -15,6 +15,8 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  workspaceSettings?: import('./IRoleManagement').IWorkspaceSettings;
+  saveWorkspaceSettings?(settings: import('./IRoleManagement').IWorkspaceSettings): Promise<void>;
   roleManagement?: import('./IRoleManagement').IRoleManagement;
   roleRules?: import('./IRoleManagement').IDeskPilotRole;
   access?: import('./IWorkspaceAccess').IWorkspaceAccess;

@@ -35,17 +35,33 @@ export async function createSharePointService(context: WebPartContext, listName:
   const graph = new GraphClient(() => provider.getToken('https://graph.microsoft.com'));
   const aadId = (await graph.get<{ id: string }>('/me?$select=id')).id;
   const sharePointToken = (): Promise<string> => provider.getToken(new URL(siteUrl).origin);
-  const config = {tenantId: '', clientId: '', siteUrl, listName: listName || 'Issue Tracker', listId: listId || undefined, faqListName: 'FAQs', graphSiteScope: 'Sites.Selected' as const};
+  const workspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Issue Tracker', listId: listId || ''};
+  const config = {tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, faqListName: 'FAQs', graphSiteScope: 'Sites.Selected' as const};
   const tickets = new GraphTicketService(graph, config, graph, sharePointToken);
   const faqs = new GraphFaqService(graph, config, sharePointToken);
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
   const source: ITicketDataSource = Object.assign(tickets, {
+    workspaceSettings,
     access,
     administration: role.actions.includes('classifications') ? new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()) : undefined,
     sla: new GraphSlaService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()),
     getFaqs: faqs.getFaqs.bind(faqs), getFaqAccess: faqs.getAccess.bind(faqs),
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
-  if (superAdmin) { source.roleManagement = roles; source.roleRules = role; return source; }
+  if (superAdmin) {
+    source.saveWorkspaceSettings = async settings => {
+      if (!settings.listName.trim()) throw new Error('Tickets list name is required.');
+      if (settings.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(settings.listId)) throw new Error('Enter a valid list ID.');
+      const siteInfo = await graph.get<{id: string}>(`/sites/${new URL(siteUrl).hostname}:${new URL(siteUrl).pathname}?$select=id`);
+      const lists = await graph.getAll<{id: string; displayName: string}>(`/sites/${encodeURIComponent(siteInfo.id)}/lists?$select=id,displayName`);
+      const target = lists.find(item => settings.listId ? item.id.toLowerCase() === settings.listId.toLowerCase() : item.displayName === settings.listName.trim());
+      if (!target) throw new Error('Tickets list was not found on this site.');
+      const validator = new GraphTicketService(graph, {...config, listName: settings.listName.trim(), listId: target.id}, graph, sharePointToken);
+      await validator.getTickets();
+      const current = await roles.load();
+      await roles.save({...current, workspace: {...settings, listName: settings.listName.trim(), listId: target.id}});
+    };
+    source.roleManagement = roles; source.roleRules = role; return source;
+  }
   return applyAppRoleRules(source, role, currentUserId, access.email, aadId);
 }

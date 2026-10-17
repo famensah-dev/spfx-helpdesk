@@ -92,3 +92,11 @@ Validate with two ordinary accounts: each must be able to read only their own it
 
 A settings gear beside the profile appears only for Super Admins in the SharePoint host. Page view links open the current page with SharePoint controls or with env=WebView while preserving other query parameters. SharePoint links open the site home, Site contents and Site settings. Hidden lists are fetched from the current site whenever the menu opens, including DeskPilot Access and system lists accessible to the signed-in administrator. Entries open each list's default view, with a list-settings fallback where no view is available. These links do not grant permissions. An obsolete DeskPilot User Access list may appear until an owner deletes the retired list after verifying migration.
 
+
+## Simple Settings console
+
+Super Admins can choose the Settings gear directly. The sidebar contains General, SharePoint settings, Application lists, Documents, and Hidden lists. General saves the workspace display name, support description, and validated ticket-list binding in the existing private Configuration item. These non-secret workspace values are copied into private user entries so all assigned users use the same binding; web-part properties remain the initial fallback until settings are saved. This does not rename the SharePoint site or move ticket data. Saving asks for confirmation and reloads the app.
+
+SharePoint settings provides native site links and normal/WebView launch links. Application lists shows DeskPilot resources and separates the retired access list. Documents browses visible document libraries and folders and opens files in a new tab; creation, upload and other document-management operations stay in SharePoint. Hidden lists separates DeskPilot resources from other system lists. Existing Users & Roles, schema, classification, FAQ and SLA screens remain unchanged. Verify General saving and the document browser on the deployed site; local builds cannot confirm tenant REST behavior.
+
+
