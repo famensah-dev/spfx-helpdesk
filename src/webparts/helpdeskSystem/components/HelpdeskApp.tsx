@@ -1,3 +1,4 @@
+import { MissingWorkspaceNotice } from './WorkspaceSetupPanel';
 import { AdministrationPage } from '../pages/AdministrationPage';
 import { FaqPage } from '../pages/FaqPage';
 import { SharePointRolesPage } from '../pages/SharePointRolesPage';
@@ -76,7 +77,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item}</button>)}
       </nav>}
       <main className={`${styles.mainContent}${props.settingsContent ? ` ${styles.settingsMain}` : ''}`}>
-        {props.settingsContent || <>
+        {props.settingsContent || <><MissingWorkspaceNotice service={props.service} error={dashboard.error} />
         {dashboard.warnings.map(warning => <MessageBar key={warning} messageBarType={MessageBarType.warning}>{warning}</MessageBar>)}
         <h1 ref={heading} tabIndex={-1} className={styles.srOnly}>{page === 'Dashboard' ? 'Admin Dashboard' : page}</h1>
         {(page === 'Dashboard' || (page === 'My Dashboard' && dashboard.assignmentIdentityAvailable)) && (dashboardTicket

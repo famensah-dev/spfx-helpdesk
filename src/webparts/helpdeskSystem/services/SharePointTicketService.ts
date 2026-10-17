@@ -10,6 +10,7 @@ import { GraphSlaService } from './graph/GraphSlaService';
 import { SharePointRoleManagement } from './SharePointRoleManagement';
 import { assignedRole, roleActions } from '../interfaces/IRoleManagement';
 import { applyAppRoleRules } from './appRoleRules';
+import { WorkspaceSetupService } from './WorkspaceSetupService';
 
 /** SharePoint enforces access for every delegated request; UI roles are not a security boundary. */
 export async function createSharePointService(context: WebPartContext, listName: string, listId?: string): Promise<ITicketDataSource> {
@@ -35,8 +36,8 @@ export async function createSharePointService(context: WebPartContext, listName:
   const graph = new GraphClient(() => provider.getToken('https://graph.microsoft.com'));
   const aadId = (await graph.get<{ id: string }>('/me?$select=id')).id;
   const sharePointToken = (): Promise<string> => provider.getToken(new URL(siteUrl).origin);
-  const workspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Issue Tracker', listId: listId || ''};
-  const config = {tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, faqListName: 'FAQs', graphSiteScope: 'Sites.Selected' as const};
+  const workspaceSettings: import('../interfaces/IRoleManagement').IWorkspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Issue Tracker', listId: listId || ''};
+  const config = {tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
   const tickets = new GraphTicketService(graph, config, graph, sharePointToken);
   const faqs = new GraphFaqService(graph, config, sharePointToken);
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
@@ -49,6 +50,11 @@ export async function createSharePointService(context: WebPartContext, listName:
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
   if (superAdmin) {
+    source.workspaceSetup = new WorkspaceSetupService(graph, config, async ids => {
+      const current = await roles.load();
+      await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});
+      tickets.invalidateSchema();
+    });
     source.setupTicketType = async () => {
       const adminService = new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema());
       const data = await adminService.getData('schema');

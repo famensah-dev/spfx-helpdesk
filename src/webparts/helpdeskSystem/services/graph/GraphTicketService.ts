@@ -79,7 +79,7 @@ export class GraphTicketService implements ITicketDataSource {
       fields[schema.description] = input.description;
     }
     if ([input.category, input.subcategory, input.issueType].some(value => value !== undefined)) {
-      const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists);
+      const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
       const selected = { category: classification.categories.find(item => item.id === input.category), subcategory: classification.subcategories.find(item => item.id === input.subcategory), issueType: classification.issueTypes.find(item => item.id === input.issueType) };
       if ((input.subcategory && selected.subcategory?.parentId !== selected.category?.id)) throw new Error('Classification entries must belong to their selected parents.');
       for (const key of ['category', 'subcategory', 'issueType'] as const) {
@@ -180,7 +180,7 @@ export class GraphTicketService implements ITicketDataSource {
   public async getCreationOptions(): Promise<ITicketCreationOptions> {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
-    const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists);
+    const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
     return { classification, priorities: this.creationSchema.choices, description: Boolean(this.creationSchema.description), assignment: Boolean(this.updateSchema?.choices.includes('Assigned')), fields: this.creationFields.map(field => ({ key: field.key, label: field.label, choices: field.column.choice?.choices, required: field.column.required })) };
   }
   public async uploadAttachments(id: number, files: File[]): Promise<void> {
@@ -221,7 +221,7 @@ export class GraphTicketService implements ITicketDataSource {
       if (input[key] && !this.creationFields.some(field => field.key === key)) throw new Error(`The ticket list has no writable ${key} column. The selected value cannot be saved.`);
     }
     const hasClassification = Boolean(input.category || input.subcategory || input.issueType);
-    const classification = hasClassification ? await loadClassification(this.graph, this.context!.sitePath, this.context!.lists) : undefined;
+    const classification = hasClassification ? await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds) : undefined;
     if (classification) {
       const category = classification.categories.find(item => item.id === input.category);
       const subcategory = classification.subcategories.find(item => item.id === input.subcategory && item.parentId === category?.id);

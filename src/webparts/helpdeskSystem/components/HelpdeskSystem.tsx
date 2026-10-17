@@ -35,6 +35,7 @@ export default function HelpdeskSystem(props: IHelpdeskSystemProps): React.React
       </main>
     </div>;
   }
+  service.openWorkspaceSetup = () => setSettingsOpen(true);
   const user = props.spContext.pageContext.user;
   const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} onOpenSettings={() => setSettingsOpen(true)} /><SharePointAccountMenu context={props.spContext} /></>;
   return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={service.workspaceSettings?.title || props.portalTitle} settingsContent={settingsOpen && service.access?.superAdmin ? <SettingsPage context={props.spContext} service={service} portalTitle={props.portalTitle} onBack={() => setSettingsOpen(false)} /> : undefined} />;

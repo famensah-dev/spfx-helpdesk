@@ -1,3 +1,4 @@
+import { MissingWorkspaceNotice } from '../components/WorkspaceSetupPanel';
 import { SearchableSelect } from '../components/SearchableSelect';
 import * as React from 'react';
 import { Icon, IconButton, DefaultButton, PrimaryButton, TextField, SearchBox, Pivot, PivotItem, Dropdown, Checkbox, MessageBar, MessageBarType, Spinner, SpinnerSize, Dialog, DialogFooter, DialogType } from '@fluentui/react';
@@ -89,6 +90,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
       </Pivot>
     </div>
     </div>
+    <MissingWorkspaceNotice service={props.service} error={error} />
     {error && !draft && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
     <div className={styles.ticketListCard}>

@@ -1,9 +1,10 @@
+import { workspaceLists } from '../../interfaces/IWorkspaceSetup';
 import type { IAppConfig } from './IAppConfig';
 import type { GraphClient } from './GraphClient';
 import type { AdminPage, IAdminData, IAdminColumn, IColumnInput, IClassificationInput, IClassificationEntry, IAdministrationService } from '../../interfaces/IAdministration';
 interface Column { id: string; name: string; displayName: string; description?: string; required?: boolean; readOnly?: boolean; hidden?: boolean; text?: { allowMultipleLines?: boolean }; choice?: object; number?: object; boolean?: object; dateTime?: object; personOrGroup?: object; lookup?: { listId: string; allowMultipleValues?: boolean }; [key: string]: unknown; }
 interface Context { path: string; sitePath: string; list: { id: string; displayName: string; webUrl?: string }; lists: Array<{ id: string; displayName: string; webUrl?: string }>; }
-const names = { categories: 'Ticket Categories', subcategories: 'Ticket Subcategories', issueTypes: 'Ticket Issue Types' };
+const names = workspaceLists;
 const norm = (value: string): string => value.replace(/\s+/g, '').toLowerCase();
 export class GraphAdministrationService implements IAdministrationService {
   public constructor(private readonly graph: GraphClient, private readonly schemaGraph: GraphClient, private readonly config: IAppConfig, private readonly getSharePointToken: () => Promise<string>, private readonly onSchemaChanged: () => void = () => undefined) {}
@@ -12,7 +13,7 @@ export class GraphAdministrationService implements IAdministrationService {
     const site = this.config.siteId ? {id: this.config.siteId} : await this.graph.get<{id: string}>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
     const sitePath = `/sites/${encodeURIComponent(site.id)}`;
     const lists = await this.graph.getAll<{id: string; displayName: string; webUrl?: string}>(`${sitePath}/lists?$select=id,displayName,webUrl`);
-    const list = lists.find(item => page === 'schema' ? this.config.listId ? item.id.toLowerCase() === this.config.listId.toLowerCase() : item.displayName === this.config.listName : item.displayName === names[page]);
+    const list = lists.find(item => page === 'schema' ? this.config.listId ? item.id.toLowerCase() === this.config.listId.toLowerCase() : item.displayName === this.config.listName : this.config.resourceIds?.[page] ? item.id.toLowerCase() === this.config.resourceIds[page].toLowerCase() : item.displayName === names[page]);
     if (!list) throw new Error(`The ${page === 'schema' ? this.config.listName : names[page]} list was not found on the configured site.`);
     return {path: `${sitePath}/lists/${encodeURIComponent(list.id)}`, sitePath, list, lists};
   }
@@ -36,7 +37,7 @@ export class GraphAdministrationService implements IAdministrationService {
     let parent: Column | undefined; let parents: IClassificationEntry[] = [];
     if (page === 'subcategories') {
       parent = this.find(columns, 'Category', 'lookup');
-      const categoryList = context.lists.find(item => item.displayName === names.categories);
+      const categoryList = context.lists.find(item => this.config.resourceIds?.categories ? item.id.toLowerCase() === this.config.resourceIds.categories.toLowerCase() : item.displayName === names.categories);
       if (!categoryList || parent.lookup?.allowMultipleValues || parent.lookup?.listId.toLowerCase() !== categoryList.id.toLowerCase()) throw new Error('Category must be a single lookup to Ticket Categories.');
       const categoryContext = {...context, list: categoryList, path: `${context.sitePath}/lists/${encodeURIComponent(categoryList.id)}`};
       const schema = await this.classification(categoryContext, 'categories');

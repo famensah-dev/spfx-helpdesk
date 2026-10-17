@@ -1,3 +1,4 @@
+import { MissingWorkspaceNotice } from '../components/WorkspaceSetupPanel';
 import { DepartmentMembersPage } from './DepartmentMembersPage';
 import { canUse } from '../services/appRoleRules';
 import { SlaPrioritiesPage } from './SlaPrioritiesPage';
@@ -60,7 +61,8 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
     <div className={styles.administrationHeader}><h2 className={styles.toolbarTitle}>Administration</h2>
     <nav className={styles.adminTabs} aria-label="Administration pages">{availableTabs.map(tab => <button key={tab.key} type="button" disabled={busy} aria-current={page === tab.key ? 'page' : undefined} onClick={() => setPage(tab.key)}>{tab.text}</button>)}</nav></div>
     {page === 'members' ? <DepartmentMembersPage service={props.service} /> : page === 'sla' ? <SlaPrioritiesPage canSetup={!props.service.access || props.service.access.superAdmin} service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage /> : <>
-      {error && !columnInput && !entryInput && !deleting && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
+      <MissingWorkspaceNotice service={props.service} error={error} />
+    {error && !columnInput && !entryInput && !deleting && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
       <div className={styles.ticketListCard}>
         {loading ? <Spinner label="Loading administration…" /> : data?.canManage && <>
@@ -76,7 +78,8 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
     </>}
     <Dialog hidden={!entryInput} onDismiss={busy ? undefined : () => {setColumnInput(null); setEntryInput(null); setError('');}} maxWidth={760} dialogContentProps={{type: DialogType.close, title: columnInput ? columnId ? 'Edit column properties' : 'New ticket column' : entryId ? 'Edit entry' : 'New entry', showCloseButton: !busy}} modalProps={modal}>
       <form onSubmit={event => { event.preventDefault(); if (columnInput) void run(() => service!.saveColumn(columnInput, columnId), 'Column saved.'); else if (entryInput && page !== 'schema' && page !== 'faqs' && page !== 'sla' && page !== 'members' && (!entryId || data?.entries.find(item => item.id === entryId)?.active === entryInput.active || window.confirm('Change availability for this entry? This affects new ticket selections.'))) void run(() => service!.saveEntry(page, entryInput, entryId), 'Entry saved.'); }}>
-        {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
+        <MissingWorkspaceNotice service={props.service} error={error} />
+    {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
         {columnInput && data && service && <AdminColumnForm value={columnInput} editing={Boolean(columnId)} disabled={busy} lists={data.lists} service={service} onChange={setColumnInput} onError={setError} />}
         {entryInput && <div className={styles.adminFormFields}><TextField label="Name" required maxLength={255} value={entryInput.title} disabled={busy} onChange={(_, value) => setEntryInput({...entryInput, title: value || ''})} />{page === 'subcategories' && <SearchableSelect label="Parent category" required value={entryInput.parentId ? String(entryInput.parentId) : ''} disabled={busy} options={(data?.parents || []).map(item => ({key: String(item.id), text: item.title + (item.active ? '' : ' (inactive)')}))} onChange={value => setEntryInput({...entryInput, parentId: Number(value)})} />}<TextField label="Sort order" type="number" min={0} value={String(entryInput.sortOrder)} disabled={busy} onChange={(_, value) => setEntryInput({...entryInput, sortOrder: Number(value)})} /><Checkbox label="Active" checked={entryInput.active} disabled={busy} onChange={(_, checked) => setEntryInput({...entryInput, active: Boolean(checked)})} /></div>}
         <div className={styles.faqModalFooter}><PrimaryButton type="submit" text={busy ? 'Saving…' : 'Save'} disabled={busy} onRenderIcon={busy ? () => <Spinner size={SpinnerSize.xSmall} /> : undefined} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => {setColumnInput(null); setEntryInput(null); setError('');}} /></div>
@@ -100,7 +103,8 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
     <Dialog hidden={!deleting} onDismiss={busy ? undefined : () => setDeleting(null)} dialogContentProps={{title: 'Delete ticket column?'}} modalProps={{isBlocking: true}}>
       <MessageBar messageBarType={MessageBarType.severeWarning}>Deleting a column removes its stored values and can break forms, reports, and workflows. Review dependencies and back up data first.</MessageBar>
       <p>Type the internal name <strong>{deleting?.name}</strong> to confirm.</p><TextField ariaLabel="Confirm column internal name" value={confirmName} disabled={busy} onChange={(_, value) => setConfirmName(value || '')} />
-      {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
+      <MissingWorkspaceNotice service={props.service} error={error} />
+    {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       <div className={styles.faqModalFooter}><PrimaryButton text={busy ? 'Deleting…' : 'Delete column'} disabled={busy || confirmName !== deleting?.name} onClick={() => { if (deleting) void run(() => service!.deleteColumn(deleting.id), 'Column deleted.'); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setDeleting(null)} /></div>
     </Dialog>
   </section>;

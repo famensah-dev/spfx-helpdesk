@@ -1,13 +1,15 @@
+import { workspaceLists } from '../../interfaces/IWorkspaceSetup';
 import type { GraphClient } from './GraphClient';
 import type { ITicketClassification, IClassificationOption } from '../../interfaces/ITicketDataSource';
 interface Column { name: string; displayName: string; text?: object; boolean?: object; number?: object; lookup?: { listId: string; allowMultipleValues?: boolean }; }
-export async function loadClassification(graph: GraphClient, sitePath: string, lists: Array<{ id: string; displayName: string }>): Promise<ITicketClassification> {
+export async function loadClassification(graph: GraphClient, sitePath: string, lists: Array<{ id: string; displayName: string }>, ids?: Record<string,string>): Promise<ITicketClassification> {
   const getList = (name: string): { id: string; displayName: string } => {
-    const list = lists.find(item => item.displayName === name);
+    const key = Object.entries(workspaceLists).find(([,value]) => value === name)?.[0];
+    const list = lists.find(item => key && ids?.[key] ? item.id.toLowerCase() === ids[key].toLowerCase() : item.displayName === name);
     if (!list) throw new Error(`The ${name} list was not found on the configured site.`);
     return list;
   };
-  const category = getList('Ticket Categories'), subcategory = getList('Ticket Subcategories'), issueType = getList('Ticket Issue Types');
+  const category = getList(workspaceLists.categories), subcategory = getList(workspaceLists.subcategories), issueType = getList(workspaceLists.issueTypes);
   const read = async (list: { id: string; displayName: string }, parent?: { label: string; listId: string }): Promise<IClassificationOption[]> => {
     const path = `${sitePath}/lists/${encodeURIComponent(list.id)}`;
     const columns = await graph.getAll<Column>(`${path}/columns`);

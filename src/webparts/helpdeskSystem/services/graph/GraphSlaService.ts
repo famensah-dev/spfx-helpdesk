@@ -1,9 +1,10 @@
+import { workspaceLists } from '../../interfaces/IWorkspaceSetup';
 import type { GraphClient } from './GraphClient';
 import type { IAppConfig } from './IAppConfig';
 import type { ISlaService, ISlaSettings, ISlaPriority } from '../../interfaces/ISla';
 interface List { id: string; displayName: string; webUrl?: string; }
 interface Column { id: string; name: string; displayName: string; readOnly?: boolean; text?: object; number?: object; boolean?: object; dateTime?: object; choice?: {choices: string[]; [key: string]: unknown}; }
-const listName = 'Ticket Priorities';
+const listName = workspaceLists.priorities;
 const defaultTargets = (name: string): {ResponseMinutes: number; ResolutionMinutes: number} => {
   const values: Record<string, [number, number]> = {critical: [15, 240], high: [60, 480], medium: [240, 1440], low: [480, 4320]};
   const [ResponseMinutes, ResolutionMinutes] = values[name.trim().toLowerCase()] || [240, 1440];
@@ -18,7 +19,7 @@ export class GraphSlaService implements ISlaService {
     const lists = await this.graph.getAll<List>(`${site}/lists?$select=id,displayName,webUrl`);
     const tickets = lists.find(list => this.config.listId ? list.id.toLowerCase() === this.config.listId.toLowerCase() : list.displayName === this.config.listName);
     if (!tickets) throw new Error('The configured ticket list was not found.');
-    return {site, tickets, policies: lists.find(list => list.displayName === listName)};
+    return {site, tickets, policies: lists.find(list => this.config.resourceIds?.priorities ? list.id.toLowerCase() === this.config.resourceIds.priorities.toLowerCase() : list.displayName === listName)};
   }
   private async authorize(id: string): Promise<void> {
     const result = await fetch(`${this.config.siteUrl}/_api/web/lists(guid'${encodeURIComponent(id)}')/EffectiveBasePermissions`, {headers: {Authorization: `Bearer ${await this.token()}`, Accept: 'application/json;odata=nometadata'}, signal: AbortSignal.timeout(30000)});

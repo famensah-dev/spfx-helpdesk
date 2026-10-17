@@ -2,6 +2,7 @@ export interface IAppConfig {
   tenantId: string;
   clientId: string;
   siteUrl: string;
+  resourceIds?: Record<string, string>;
   siteId?: string;
   listName: string;
   listId?: string;
