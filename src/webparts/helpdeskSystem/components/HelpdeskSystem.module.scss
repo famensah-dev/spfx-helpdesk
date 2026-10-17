@@ -982,3 +982,6 @@
 
 .mainContent.settingsMain { padding: 0; }
 
+
+.faqCategoryTabs { background: #fff; margin: 0 calc(-1 * var(--page-inset)); padding: 0 var(--page-inset); border-bottom: 1px solid var(--hd-line); :global(.ms-Pivot) { white-space: nowrap; } :global(.ms-Pivot-link) { font-size: 14px; font-weight: 400; } :global(.ms-Pivot-link.is-selected) { font-weight: 500; } }
+

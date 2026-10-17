@@ -1,3 +1,4 @@
+import { calendarAppearance } from '../components/calendarAppearance';
 import { SlaDashboardCard } from '../components/SlaDashboardCard';
 import * as React from 'react';
 import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
@@ -13,27 +14,7 @@ import styles from '../components/HelpdeskSystem.module.scss';
 import type { ICalendarProps } from '@fluentui/react';
 import type { Plugin } from 'chart.js';
 
-const calendarAppearance: ICalendarProps = {
-  isMonthPickerVisible: false,
-  showGoToToday: true,
-  styles: { root: { width: 248, background: '#fff', borderRadius: 6 }, goTodayButton: { alignSelf: 'stretch', margin: '2px 12px 12px', background: '#f0f5fc', borderRadius: 4, color: '#1b385c', fontSize: 12, fontWeight: 600 } },
-  calendarDayProps: { styles: {
-    root: { width: 224, padding: 12 },
-    monthAndYear: { color: '#1b385c', fontSize: 14, fontWeight: 600 },
-    headerIconButton: { borderRadius: 4, color: '#526e93' },
-    table: { borderCollapse: 'separate', borderSpacing: '0' },
-    dayCell: { width: 32, height: 32, lineHeight: '32px' },
-    dayButton: { width: 28, height: 28, lineHeight: '28px', borderRadius: 5, fontSize: 12 },
-    daySelected: {
-      background: '#fff0bb!important', borderRadius: '6px!important', color: '#735100',
-      selectors: {
-        '&::before': { borderRadius: 'inherit' },
-        '&:hover, &.ms-CalendarDay-hoverStyle, &.ms-CalendarDay-pressedStyle': { background: '#fff0bb!important' }
-      }
-    },
-    dayIsToday: { background: '#1b385c!important', color: '#fff!important', borderRadius: 5 }
-  } }
-};
+
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ArcElement, LineElement, PointElement, Filler, Tooltip, Legend);
 export interface IDashboardPageProps {
@@ -218,7 +199,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <ChartCard title="Average Resolution Time by Category" note="Days from creation to recorded resolution."><Breakdown rows={hasResolvedAt ? getResolutionByCategory(visible) : []} unit="days" colors={['#9a75f2', '#f45663', '#ff962e', '#28b47d', '#2d88ff', '#ffc329', '#a6b1c2', '#62a0f9']} empty="No recorded resolution dates in this view." /></ChartCard>
         <ChartCard title="Open Tickets by Aging" className={styles.dashboardAgingCard} note="Elapsed time since creation, as of today."><Breakdown rows={getOpenTicketAging(visible, now)} colors={['#28b47d', '#2d88ff', '#ffc329', '#ff962e', '#f45663']} /></ChartCard>
         <div className={styles.dashboardTicketsRow}>
-        <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.dashboardTextLink} onClick={props.onViewTickets}>View all</button>}>
+        <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.adminAvailabilityLink} onClick={props.onViewTickets}>View all</button>}>
           <div className={styles.dashboardRecentScroll}><table className={styles.dashboardRecentTable}><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>{recent.map(ticket => <tr key={ticket.Id}>
             <td>#{ticket.Id}</td><td>{props.onOpenTicket ? <button title={ticket.Title} onClick={() => props.onOpenTicket!(ticket.Id)}>{ticket.Title}</button> : ticket.Title}</td><td title={ticket.Category}>{ticket.Category || '—'}</td><td><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></td><td><span className={styles.dashboardPriorityBadge} data-priority={ticket.Priority}>{ticket.Priority}</span></td><td>{formatDate(new Date(ticket.Created))}</td>
           </tr>)}</tbody></table>{!recent.length && <div className={styles.dashboardChartEmpty}>No recent tickets in this view.</div>}</div>

@@ -1,6 +1,6 @@
 import { SearchableSelect } from '../components/SearchableSelect';
 import * as React from 'react';
-import { Icon, IconButton, DefaultButton, PrimaryButton, TextField, SearchBox, Dropdown, Checkbox, MessageBar, MessageBarType, Spinner, SpinnerSize, Dialog, DialogFooter, DialogType } from '@fluentui/react';
+import { Icon, IconButton, DefaultButton, PrimaryButton, TextField, SearchBox, Pivot, PivotItem, Dropdown, Checkbox, MessageBar, MessageBarType, Spinner, SpinnerSize, Dialog, DialogFooter, DialogType } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction } from '../interfaces/IFaq';
 import { RichTextEditor, RichTextContent } from '../components/RichTextEditor';
@@ -84,12 +84,18 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
     <div className={styles.secondaryPageHeader}><h2>{props.manage ? 'Administration — FAQs' : 'FAQs'}</h2></div>
     {error && !draft && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
+    <div className={styles.faqCategoryTabs}>
+      <Pivot aria-label="FAQ categories" overflowBehavior="menu" overflowAriaLabel="All categories" selectedKey={category || '__all'} onLinkClick={item => { if (!busy && !sortRows) setCategory(item?.props.itemKey === '__all' ? '' : item?.props.itemKey || ''); }}>
+        <PivotItem headerText="All categories" itemKey="__all" headerButtonProps={{disabled: busy || Boolean(sortRows)}} />
+        {categories.map(value => <PivotItem key={value} headerText={value} itemKey={value} headerButtonProps={{disabled: busy || Boolean(sortRows)}} />)}
+      </Pivot>
+    </div>
     <div className={styles.ticketListCard}>
       {loading ? <Spinner label="Loading FAQs…" /> : <>
         <div className={styles.ticketToolbar}>
           <div className={styles.ticketControls}>
             <SearchBox ariaLabel="Search FAQs" placeholder="Search" disabled={Boolean(sortRows) || busy} value={query} onChange={(_, value) => setQuery(value || '')} />
-            <Dropdown disabled={Boolean(sortRows) || busy} ariaLabel="FAQ category" selectedKey={category} options={[{ key: '', text: 'All categories' }, ...categories.map(value => ({ key: value, text: value }))]} onChange={(_, value) => setCategory(String(value?.key || ''))} />
+
             {allowed && <div className={styles.ticketCounts} role="group" aria-label="Filter FAQs by status">
               {[{ key: 'all', text: 'Total' }, { key: 'published', text: 'Active' }, { key: 'draft', text: 'Inactive' }].map(item => <button key={item.key} type="button" disabled={busy || Boolean(sortRows)} aria-pressed={visibility === item.key} data-active={visibility === item.key} onClick={() => setVisibility(item.key)}>{item.text}<strong style={{ color: item.key === 'published' ? '#13794e' : item.key === 'draft' ? '#596371' : undefined }}>{item.key === 'all' ? faqs.length : faqs.filter(faq => faq.published === (item.key === 'published')).length}</strong></button>)}
             </div>}

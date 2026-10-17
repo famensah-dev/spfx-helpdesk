@@ -63,7 +63,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
     window.requestAnimationFrame(() => heading.current?.focus());
   };
   return (
-    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${(page === 'Dashboard' || page === 'My Dashboard') && !dashboardTicket ? ` ${styles.dashboardCanvas}` : ''}`}>
+    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard') && !dashboardTicket ? ` ${styles.dashboardCanvas}` : ''}`}>
       <header className={styles.appHeader}>
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
         <div className={styles.headerActions}>{props.accountActions}</div>

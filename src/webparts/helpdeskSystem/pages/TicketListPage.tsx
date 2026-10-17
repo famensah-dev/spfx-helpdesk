@@ -1,8 +1,10 @@
+import { calendarAppearance } from '../components/calendarAppearance';
+import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import { canUse } from '../services/appRoleRules';
 import { OrganizationUserPicker } from '../components/OrganizationUserPicker';
 import * as React from 'react';
 import { PersonaCoin, PersonaSize } from '@fluentui/react';
-import { type IButton, type IButtonProps, Dropdown, Checkbox, Panel, PanelType, DefaultButton, Icon, IconButton, MessageBar, MessageBarType, SearchBox, Spinner, SpinnerSize } from '@fluentui/react';
+import { type IButton, type IButtonProps, DatePicker, Dialog, DialogFooter, PrimaryButton, Dropdown, Checkbox, Panel, PanelType, DefaultButton, Icon, IconButton, MessageBar, MessageBarType, SearchBox, Spinner, SpinnerSize } from '@fluentui/react';
 import { TicketDetails } from '../components/TicketDetails';
 import { NewTicketForm, type INewTicketInput } from '../components/NewTicketForm';
 import type { ITicketDataSource, TicketBulkAction, ITicketBulkResult } from '../interfaces/ITicketDataSource';
@@ -28,7 +30,7 @@ const AssigneeLabel: React.FC<{ person?: ITicket['AssignedTo'] }> = ({ person })
   return <span className={styles.ticketAssigneeLabel}><span aria-hidden="true"><PersonaCoin text={name} size={PersonaSize.size24} /></span><span>{name}</span></span>;
 };
 const columns = ['ID', 'Title', 'Description', 'Status', 'Priority', 'Assigned to', 'Issue Category', 'Issue Subcategory', 'Issue Type', 'Requested By', 'Department / Unit', 'Created Date', 'Last Updated', 'Expected Resolution Date', 'Started At', 'Resolved At', 'Closed At', 'Resolution Summary'];
-const durationOptions = [{key: 'all', text: 'All time'}, {key: 'today', text: 'Today'}, {key: 'yesterday', text: 'Yesterday'}, {key: 'week', text: 'Last 7 days'}, {key: 'lastMonth', text: 'Last month'}, {key: 'last30', text: 'Last 30 days'}, {key: 'year', text: 'This year'}];
+const durationOptions = [{key: 'today', text: 'Today'}, {key: 'thisWeek', text: 'This Week'}, {key: 'month', text: 'This Month'}, {key: 'year', text: 'This Year'}, {key: 'all', text: 'All Time'}];
 const defaultColumns = ['ID', 'Title', 'Status', 'Priority', 'Assigned to', 'Created Date', 'Last Updated'];
 const ticketDescription = (ticket: ITicket): string => ticket.Description ? new DOMParser().parseFromString(ticket.Description, 'text/html').body.textContent || '' : '';
 const sortValue = (ticket: ITicket, column: string): string | number | null => {
@@ -77,6 +79,10 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   const [sort, setSort] = React.useState<{ column: string; descending: boolean } | null>(null);
   const [tab, setTab] = React.useState('All Tickets');
   const [duration, setDuration] = React.useState('all');
+  const [rangeOpen, setRangeOpen] = React.useState(false);
+  const [customStart, setCustomStart] = React.useState<Date>();
+  const [customEnd, setCustomEnd] = React.useState<Date>();
+  const [appliedRange, setAppliedRange] = React.useState<{start: number; end: number}>();
   const [status, setStatus] = React.useState('Total');
   const [visible, setVisible] = React.useState(defaultColumns);
   const [columnSearch, setColumnSearch] = React.useState('');
@@ -84,7 +90,9 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(() => new Set());
   React.useEffect(() => { setSelectedIds(new Set()); }, [title, tab, search, duration, status, tickets]);
   React.useEffect(() => { setTab(title === 'Tickets' ? 'All Tickets' : 'My Assigned Tickets'); setPage(0); }, [title]);
-  const dateRange = getTicketDateRange(duration);
+  const dateRange = duration === 'custom' && appliedRange ? appliedRange : getTicketDateRange(duration);
+  const formatRangeDate = (value: number): string => new Date(value).toLocaleDateString(undefined, {day: 'numeric', month: 'short', year: 'numeric'});
+  const durationLabel = duration === 'all' ? 'All Time' : `${formatRangeDate(dateRange.start)} – ${formatRangeDate(dateRange.end - 1)}`;
   const scoped = tickets.filter(ticket => {
     if (tab === 'My Assigned Tickets' && (!currentUserEmail || ticket.AssignedTo?.Email?.toLowerCase() !== currentUserEmail.toLowerCase())) return false;
     if (tab === 'Created by Me' && !isTicketCreatedBy(ticket, currentUserEmail, service?.access?.oid)) return false;
@@ -196,7 +204,12 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         <div className={styles.ticketCounts} role="group" aria-label="Filter tickets by status">
           {statusFilters.map(label => <button key={label} type="button" aria-pressed={status === label} data-active={status === label} onClick={() => { setStatus(label); setPage(0); }}>{label}<strong data-status={label}>{loading || error ? '—' : label === 'Total' ? scoped.length : countStatus(scoped, label)}</strong></button>)}
         </div>
-        <DefaultButton ariaLabel="Ticket creation duration" className={styles.dashboardDateRange} text={durationOptions.find(option => option.key === duration)?.text} iconProps={{ iconName: 'Calendar' }} menuProps={{ items: durationOptions.map(option => ({ ...option, canCheck: true, checked: duration === option.key, onClick: () => { setDuration(option.key); setPage(0); } })) }} />
+        <Dialog hidden={!rangeOpen} onDismiss={() => setRangeOpen(false)} dialogContentProps={{title: 'Custom date range'}}>
+          <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created from" value={customStart} maxDate={customEnd} onSelectDate={date => setCustomStart(date || undefined)} />
+          <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created to" value={customEnd} minDate={customStart} onSelectDate={date => setCustomEnd(date || undefined)} />
+          <DialogFooter><DefaultButton text="Cancel" styles={cancelButtonStyles} onClick={() => setRangeOpen(false)} /><PrimaryButton text="Apply" disabled={!customStart || !customEnd || customStart > customEnd} onClick={() => { if (!customStart || !customEnd) return; setAppliedRange({start: new Date(customStart.getFullYear(), customStart.getMonth(), customStart.getDate()).getTime(), end: new Date(customEnd.getFullYear(), customEnd.getMonth(), customEnd.getDate() + 1).getTime()}); setDuration('custom'); setPage(0); setSelectedIds(new Set()); setRangeOpen(false); }} /></DialogFooter>
+        </Dialog>
+        <DefaultButton ariaLabel="Ticket creation duration" className={styles.dashboardDateRange} text={durationLabel} iconProps={{ iconName: 'Calendar' }} menuProps={{ items: [...durationOptions.map(option => ({ ...option, canCheck: true, checked: duration === option.key, onClick: () => { setDuration(option.key); setPage(0); } })), {key: 'custom', text: 'Custom Range…', onClick: () => setRangeOpen(true)}] }} />
         <SearchBox ariaLabel="Search tickets by ID or title" placeholder="Search" value={search} onChange={(_, value) => { setSearch(value || ''); setPage(0); }} />
         <IconButton iconProps={{ iconName: 'ClearFilter' }} title="Clear filters" ariaLabel="Clear ticket filters" onClick={() => { setSearch(''); setDuration('all'); setStatus('Total'); setPage(0); }} />
         <IconButton iconProps={{ iconName: 'Refresh' }} title="Refresh" ariaLabel="Refresh tickets" disabled={loading} onClick={() => { refresh().catch(() => undefined); }} />

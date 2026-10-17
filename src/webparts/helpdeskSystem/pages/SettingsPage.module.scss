@@ -21,3 +21,12 @@
 .content { padding: 20px; }
 .heading { margin-bottom: 14px; }
 @media(max-width: 720px) { .settings > header { padding: 12px 16px; } .layout { padding-top: 10px; } }
+.settings {
+  min-height: calc(100vh - 100px);
+  background: #f4f7fc;
+  :global(.ms-TextField-description) { font-size: 13px; line-height: 19px; color: #647694; }
+}
+.links {
+  a, button { border: 0; background: transparent; display: flex; align-items: center; gap: 10px; padding: 12px 10px; }
+  :global(.ms-Icon) { font-size: 18px; width: 20px; flex-shrink: 0; text-decoration: none; }
+}

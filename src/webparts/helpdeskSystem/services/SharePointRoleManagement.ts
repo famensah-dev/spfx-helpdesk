@@ -27,6 +27,17 @@ export class SharePointRoleManagement implements IRoleManagement {
     if (!response.ok) throw new Error(response.status === 412 ? 'Access settings changed in another session. Reload before saving.' : `Unable to update DeskPilot access (${response.status}). Changes may be partially applied; a site owner must reload and retry.`);
     return response.status === 204 ? undefined as T : response.json().catch(() => undefined as T);
   }
+  private async configurationItem(id: number): Promise<AccessItem & {etag: string}> {
+    // No-metadata collection responses can omit ETags. Read the item and its
+    // version together so optimistic concurrency never uses a different snapshot.
+    const response = await this.context.spHttpClient.get(`${this.root}/items(${id})?$select=Id,Rules`, SPHttpClient.configurations.v1, {headers: {Accept: 'application/json;odata=verbose', 'odata-version': ''}});
+    if (!response.ok) throw new Error(`Unable to read the configuration version (${response.status}).`);
+    const data = await response.json();
+    const item = data.d || data;
+    const etag = response.headers.get('ETag') || item.__metadata?.etag || item['odata.etag'] || item['@odata.etag'];
+    if (!etag) throw new Error('SharePoint did not return the configuration version. Refresh and try again.');
+    return {...item, etag};
+  }
   private async info(): Promise<NonNullable<SharePointRoleManagement['identity']>> {
     if (!this.identity) {
       const [user, owners, definitions] = await Promise.all([
@@ -126,8 +137,9 @@ export class SharePointRoleManagement implements IRoleManagement {
     const data = await this.read<{ value: Array<AccessItem & { 'odata.etag'?: string; '@odata.etag'?: string }> }>(`${this.root}/items?$select=Id,Rules&$filter=Title eq 'Configuration'&$top=2`);
     if (!data.value.length) return defaultRoleConfiguration();
     if (data.value.length !== 1) throw new Error('DeskPilot Access must contain exactly one Configuration item.');
-    const item = data.value[0]; const config = JSON.parse(item.Rules) as IRoleConfiguration; validateRoleConfiguration(config);
-    this.itemId = item.Id; this.etag = item['odata.etag'] || item['@odata.etag'];
+    const item = await this.configurationItem(data.value[0].Id);
+    const config = JSON.parse(item.Rules) as IRoleConfiguration; validateRoleConfiguration(config);
+    this.itemId = item.Id; this.etag = item.etag;
     await this.ensureList(this.root, 'DeskPilot Access');
     await this.secure(`${this.root}/items(${item.Id})`);
     await this.sync(config);
@@ -147,7 +159,7 @@ export class SharePointRoleManagement implements IRoleManagement {
     }
     await this.secure(`${this.root}/items(${this.itemId})`);
     await this.sync(configuration);
-    const saved = await this.read<{ 'odata.etag'?: string; '@odata.etag'?: string }>(`${this.root}/items(${this.itemId})`);
-    this.etag = saved['odata.etag'] || saved['@odata.etag'];
+    const saved = await this.configurationItem(this.itemId!);
+    this.etag = saved.etag;
   }
 }

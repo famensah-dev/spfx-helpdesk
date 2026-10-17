@@ -30,7 +30,7 @@ export default function HelpdeskSystem(props: IHelpdeskSystemProps): React.React
         <section className={styles.workspaceGatePanel} aria-label="DeskPilot workspace access">
           <div className={styles.workspaceGateBrand}><span className={styles.lightLogo} role="img" aria-label="DeskPilot" /></div>
           <h1>{error ? accessDenied ? 'Access required' : 'We couldn’t connect to your workspace' : 'Connecting to your workspace'}</h1>
-          {error ? <p role="alert">{accessDenied ? 'You don’t have access to this DeskPilot workspace. Contact your helpdesk administrator to request access.' : error}</p> : <Spinner label="Please wait while we connect to your support workspace." />}
+          {error ? <p role="alert">{accessDenied ? 'You don’t have access to this DeskPilot workspace. Contact your helpdesk administrator to request access.' : error}</p> : <Spinner label="Please wait while we connect to your support workspace." styles={{label: {fontSize: 14, lineHeight: 21, color: '#172536'}}} />}
         </section>
       </main>
     </div>;

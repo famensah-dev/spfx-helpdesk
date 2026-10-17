@@ -51,5 +51,12 @@ const { SharePointRoleManagement } = load('src/webparts/helpdeskSystem/services/
   assert.equal(retiredPaths.length, 3, 'Legacy list and every legacy item must become owner-only');
   assert(retiredPaths[1].endsWith('/items(10)'));
   assert(retiredPaths[2].endsWith('/items(11)'));
+  const versionContext = {pageContext: context.pageContext, spHttpClient: {get: async () => new Response(JSON.stringify({d: {Id: 1, Rules: '{}', __metadata: {etag: '"5"'}}}))}};
+  const versionService = new SharePointRoleManagement(versionContext, true);
+  assert.equal((await versionService.configurationItem(1)).etag, '"5"');
+  versionContext.spHttpClient.get = async () => new Response(JSON.stringify({Id: 1, Rules: '{}'}), {headers: {ETag: '"6"'}});
+  assert.equal((await versionService.configurationItem(1)).etag, '"6"');
+  versionContext.spHttpClient.get = async () => new Response(JSON.stringify({Id: 1, Rules: '{}'}));
+  await assert.rejects(versionService.configurationItem(1), /did not return the configuration version/);
   console.log('Private access checks passed: own-row loading, identity mismatch, disabled users, denied saves and permission pruning.');
 })().catch(error => {console.error(error); process.exitCode = 1;});

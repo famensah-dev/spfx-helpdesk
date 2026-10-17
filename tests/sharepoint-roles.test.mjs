@@ -112,7 +112,7 @@ test('stale edits use an ETag and report concurrency conflicts', async () => {
   let headers;
   const config = roles.defaultRoleConfiguration();
   const context = { pageContext: { web: { absoluteUrl: 'https://example.sharepoint.com/sites/desk' } }, spHttpClient: {
-    get: async url => new Response(JSON.stringify(url.includes('/items?') ? { value: [{ Id: 1, Rules: JSON.stringify(config), 'odata.etag': '"4"' }] } : url.includes('/fields?') ? { value: [{ InternalName: 'Rules' }] } : url.includes('/roleassignments?') ? { value: [] } : url.includes('/roledefinitions?') ? { value: [{ Id: 1073741826, RoleTypeKind: 2 }] } : { HasUniqueRoleAssignments: true }), { status: 200 }),
+    get: async url => new Response(JSON.stringify(url.includes('/items(1)') ? {d: {Id: 1, Rules: JSON.stringify(config), __metadata: {etag: '"4"'}}} : url.includes('/items?') ? { value: [{ Id: 1, Rules: JSON.stringify(config) }] } : url.includes('/fields?') ? { value: [{ InternalName: 'Rules' }] } : url.includes('/roleassignments?') ? { value: [] } : url.includes('/roledefinitions?') ? { value: [{ Id: 1073741826, RoleTypeKind: 2 }] } : { HasUniqueRoleAssignments: true }), { status: 200 }),
     post: async (_, __, options) => { headers = options.headers; return new Response('', { status: 412 }); }
   } };
   const service = new SharePointRoleManagement(context, true);
@@ -156,7 +156,7 @@ test('permission editor requires Apply and confirmation; cancel and restore pres
   };
   const fluent = Object.fromEntries(['Checkbox', 'DefaultButton', 'Dialog', 'DialogFooter', 'Dropdown', 'Link', 'MessageBar', 'PrimaryButton', 'SearchBox', 'Spinner', 'Toggle', 'Icon'].map(name => [name, name]));
   fluent.MessageBarType = {};
-  const { SharePointRolesPage } = load('../src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', { react, '@fluentui/react': fluent, '../interfaces/IRoleManagement': roles, '../components/HelpdeskSystem.module.scss': { default: {} }, './SharePointUsersPage': { SharePointUsersPage: 'SharePointUsersPage' } });
+  const { SharePointRolesPage } = load('../src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', { react, '@fluentui/react': fluent, '../components/cancelButtonStyles': {cancelButtonStyles: {}}, '../interfaces/IRoleManagement': roles, '../components/HelpdeskSystem.module.scss': { default: {} }, './SharePointUsersPage': { SharePointUsersPage: 'SharePointUsersPage' } });
   const config = roles.defaultRoleConfiguration();
   config.assignments = [{ userId: 7, name: 'Agent', email: 'agent@example.com', roleId: 'agent' }];
   const writes = [];

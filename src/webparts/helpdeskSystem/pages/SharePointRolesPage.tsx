@@ -1,3 +1,4 @@
+import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import * as React from 'react';
 import { DefaultButton, Dialog, DialogFooter, Dropdown, Icon, MessageBar, MessageBarType, PrimaryButton, Spinner } from '@fluentui/react';
 import { SharePointUsersPage } from './SharePointUsersPage';
@@ -113,7 +114,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
           </tbody>)}
         </table>
       </div>}
-      <div className={styles.rolePermissionsFooter}><DefaultButton text="Cancel editing" disabled={busy || !draft} onClick={() => { setDraft(undefined); setError(''); }} /><PrimaryButton text="Apply changes" iconProps={{ iconName: 'Save' }} disabled={busy || !draft} onClick={prepareApply} /></div>
+      <div className={styles.rolePermissionsFooter}><DefaultButton styles={cancelButtonStyles} text="Cancel editing" disabled={busy || !draft} onClick={() => { setDraft(undefined); setError(''); }} /><PrimaryButton text="Apply changes" iconProps={{ iconName: 'Save' }} disabled={busy || !draft} onClick={prepareApply} /></div>
       </>}
       {tab === 'users' && <SharePointUsersPage service={props.service} configuration={config} busy={busy} onReload={load} onNotice={setUserNotice} onSave={async assignments => {
         if (!saved.current || lock.current) throw new Error('Settings are busy. Please try again.');
@@ -130,7 +131,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
       <p>{confirmation?.restore ? `Restore the default permissions for ${confirmation.role.name}? This replaces this role's custom permissions and ticket view.` : `Apply these permission changes to ${confirmation?.role.name}?`}</p>
       {permissionChanges.length ? <ul>{permissionChanges.map(value => <li key={value}>{value}</li>)}</ul> : <p>No permission differences from the saved role.</p>}
       <p>User assignments and other roles will stay unchanged. Affected users must refresh DeskPilot.</p>
-      <DialogFooter><PrimaryButton text={busy ? 'Applying...' : confirmation?.restore ? 'Confirm restore' : 'Confirm apply'} disabled={busy} onClick={() => { applyPermissions().catch(() => undefined); }} /><DefaultButton text="Cancel" disabled={busy} onClick={() => setConfirmation(undefined)} /></DialogFooter>
+      <DialogFooter><PrimaryButton text={busy ? 'Applying...' : confirmation?.restore ? 'Confirm restore' : 'Confirm apply'} disabled={busy} onClick={() => { applyPermissions().catch(() => undefined); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setConfirmation(undefined)} /></DialogFooter>
     </Dialog>
   </section>;
 }
