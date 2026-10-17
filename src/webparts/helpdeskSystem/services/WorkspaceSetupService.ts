@@ -10,8 +10,9 @@ const choice = (name: string, choices: string[], value?: string): Column => ({na
 const date = (name: string): Column => ({name, dateTime: {format: 'dateTime', displayAs: 'default'}});
 const lookup = (name: string, key: WorkspaceListKey): Column => ({name, lookup: {target: key, columnName: 'Title', allowMultipleValues: false}});
 const common = (): Column[] => [text('Title'), {name: 'Active', boolean: {}, defaultValue: {value: '1'}}, {name: 'SortOrder', number: {decimalPlaces: 'none'}, defaultValue: {value: '0'}}];
+export const ticketViewOrder = ['Title','Status','Priority','TicketType','Category','Subcategory','IssueType','AssignedTo','DueDate','FirstRespondedAt','ResolvedAt','ClosedAt','ResolutionSummary','RelatedIssue','Created','Author','Editor'];
 export function workspaceDefinitions(ticketName: string): Definition[] {
-  return [
+  const definitions: Definition[] = [
     {key: 'categories', name: workspaceLists.categories, columns: common()},
     {key: 'subcategories', name: workspaceLists.subcategories, columns: [...common(), {...lookup('Category', 'categories'), required: true}]},
     {key: 'issueTypes', name: workspaceLists.issueTypes, columns: common()},
@@ -19,6 +20,11 @@ export function workspaceDefinitions(ticketName: string): Definition[] {
     {key: 'tickets', name: ticketName, columns: [text('Title'), {...text('Description', true), displayName: 'Issue description'}, choice('Status', ['New','Assigned','In Progress','On Hold','Resolved','Closed','Escalated'], 'New'), choice('Priority', ['Low','Medium','High','Critical'], 'Medium'), {name: 'AssignedTo', displayName: 'Assigned To', personOrGroup: {allowMultipleSelection: false, chooseFromType: 'peopleOnly', displayAs: 'name'}}, choice('TicketType', ['Problem','Incident','Question','Request']), lookup('Category','categories'), {...lookup('Subcategory','subcategories'), displayName: 'Issue Subcategory'}, {...lookup('IssueType','issueTypes'), displayName: 'Issue Type'}, text('Department'), date('DueDate'), date('FirstRespondedAt'), date('ResolvedAt'), date('StartedAt'), date('ClosedAt'), text('ResolutionSummary', true), {name: 'Archived', boolean: {}, defaultValue: {value: '0'}}, {name: 'Escalated', boolean: {}, defaultValue: {value: '0'}}]},
     {key: 'faqs', name: workspaceLists.faqs, columns: [text('Title'), {...text('Answer',true), required: true}, lookup('Category','categories'), lookup('Subcategory','subcategories'), text('Keywords'), {name:'Active', boolean:{}, defaultValue:{value:'0'}}, {name:'SortOrder',number:{decimalPlaces:'none'},defaultValue:{value:'0'}}]}
   ];
+  const tickets = definitions.find(item => item.key === 'tickets')!;
+  tickets.columns.push({...lookup('RelatedIssue','tickets'), displayName:'Related Issue'});
+  const labels: Record<string,string> = {Category:'Issue Category', DueDate:'Expected Resolution Date', FirstRespondedAt:'First Responded At', ResolvedAt:'Resolved At', ClosedAt:'Closed At', ResolutionSummary:'Resolution Summary'};
+  tickets.columns = tickets.columns.map(column => ({...column, ...(labels[column.name] ? {displayName:labels[column.name]} : {})})).sort((a,b) => (ticketViewOrder.includes(a.name) ? ticketViewOrder.indexOf(a.name) : 100) - (ticketViewOrder.includes(b.name) ? ticketViewOrder.indexOf(b.name) : 100));
+  return definitions;
 }
 const normalize = (value: string): string => value.replace(/[^a-z0-9]/gi, '').toLowerCase();
 const aliases: Record<string, string[]> = {Title:['Question','Issue'], Description:['Issue description'], Category:['Issue Category'], Subcategory:['Issue Subcategory'], AssignedTo:['Assigned To'], DueDate:['Expected Resolution Date'], ResolvedAt:['Resolved At','Completed At'], ClosedAt:['Closed At (New)']};
@@ -41,7 +47,7 @@ export function columnConflict(actual: Column, expected: Column, ids: Record<str
 }
 export class WorkspaceSetupService implements IWorkspaceSetup {
   private reviewed?: string;
-  public constructor(private graph: GraphClient, private config: IAppConfig, private finish: (ids: Record<string,string>) => Promise<void>) {}
+  public constructor(private graph: GraphClient, private config: IAppConfig, private finish: (ids: Record<string,string>, orderedFields: string[]) => Promise<void>) {}
   private async snapshot(): Promise<{path: string; definitions: Definition[]; ids: Record<string,string>; lists: List[]}> {
     const url = new URL(this.config.siteUrl);
     const site = await this.graph.get<{id:string}>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
@@ -75,6 +81,8 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
       if (steps.length === before) steps.push({resource:definition.name,action:'Already configured; preserve existing list and records'});
     }
     steps.push({resource: workspaceLists.priorities, action:'Seed missing priorities and missing SLA targets; preserve existing targets'});
+    steps.push({resource:'Categories and Subcategories', action:'Add General if missing, linking the General subcategory to General category'});
+    steps.push({resource:this.config.listName, action:'Arrange default view in the requested column order; keep other view fields afterward'});
     steps.push({resource: workspaceLists.access, action:'Initialize/verify private configuration, synchronize user access and save list bindings'});
     this.reviewed = JSON.stringify(steps);
     return {steps};
@@ -109,6 +117,14 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
         await this.graph.post(columnPath,body);
       }
     }
+    progress('Adding General category and subcategory...');
+    const categoryItems = await this.graph.getAll<{id:string;fields:Record<string,unknown>}>(`${path}/lists/${ids.categories}/items?$expand=fields`);
+    const general = categoryItems.find(item => String(item.fields.Title).trim().toLowerCase() === 'general') || await this.graph.post<{id:string;fields:Record<string,unknown>}>(`${path}/lists/${ids.categories}/items`,{fields:{Title:'General',Active:true,SortOrder:0}});
+    if (!general?.id) throw new Error('General category creation could not be confirmed. Review again before retrying.');
+    const subColumns = await this.graph.getAll<Column>(`${path}/lists/${ids.subcategories}/columns`);
+    const parent = matchingColumn(subColumns,lookup('Category','categories'))!;
+    const subItems = await this.graph.getAll<{id:string;fields:Record<string,unknown>}>(`${path}/lists/${ids.subcategories}/items?$expand=fields`);
+    if (!subItems.some(item => String(item.fields.Title).trim().toLowerCase() === 'general' && String(item.fields[`${parent.name}LookupId`]) === general!.id)) await this.graph.post(`${path}/lists/${ids.subcategories}/items`,{fields:{Title:'General',Active:true,SortOrder:0,[`${parent.name}LookupId`]:general.id}});
     progress('Adding initial priority targets...');
     const prioritiesPath = `${path}/lists/${ids.priorities}/items`;
     const existing = await this.graph.getAll<{id:string; fields:Record<string,unknown>}>(`${prioritiesPath}?$expand=fields&$top=200`);
@@ -123,7 +139,8 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
       else {const fields: Record<string,number> = {}; if (item.fields.ResponseMinutes == null) fields.ResponseMinutes = targets[0]; if (item.fields.ResolutionMinutes == null) fields.ResolutionMinutes = targets[1]; if (Object.keys(fields).length) await this.graph.patch(`${prioritiesPath}/${item.id}/fields`,fields);}
     }
     progress('Securing configuration and saving workspace connections...');
-    await this.finish(ids);
+    const orderedFields = ticketViewOrder.map(name => ['Created','Author','Editor'].includes(name) ? name : matchingColumn(ticketColumns,{name})?.name).filter((name): name is string => Boolean(name));
+    await this.finish(ids,orderedFields);
     progress('Workspace initialized successfully.');
   }
 }

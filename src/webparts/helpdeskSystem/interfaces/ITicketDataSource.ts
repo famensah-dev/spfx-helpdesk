@@ -17,7 +17,6 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 export interface ITicketDataSource {
   workspaceSetup?: import('./IWorkspaceSetup').IWorkspaceSetup;
   openWorkspaceSetup?: () => void;
-  setupTicketType?(): Promise<void>;
   workspaceSettings?: import('./IRoleManagement').IWorkspaceSettings;
   saveWorkspaceSettings?(settings: import('./IRoleManagement').IWorkspaceSettings): Promise<void>;
   roleManagement?: import('./IRoleManagement').IRoleManagement;

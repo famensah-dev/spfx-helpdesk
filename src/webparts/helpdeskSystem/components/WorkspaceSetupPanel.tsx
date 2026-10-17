@@ -1,4 +1,4 @@
-﻿import * as React from 'react';
+import * as React from 'react';
 import { DefaultButton, PrimaryButton, Dialog, DialogFooter, Spinner, MessageBar, MessageBarType } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { ISetupPlan } from '../interfaces/IWorkspaceSetup';
@@ -26,7 +26,7 @@ export function WorkspaceSetupPanel(props: {service: ITicketDataSource}): React.
     catch (reason) {setError(`${reason instanceof Error ? reason.message : 'Setup failed.'} Completed changes are retained. Review again to retry the remaining steps.`); setPlan(undefined);}
     finally {lock.current = false; setBusy(false); setRunning(false);}
   };
-  return <div style={{margin: '12px 0 20px'}}><DefaultButton text="Initialize workspace" iconProps={{iconName:'Database'}} onClick={() => {inspect().catch(() => undefined);}} /><p style={{fontSize:13,color:'#647694'}}>Create missing DeskPilot lists and columns, or check an existing workspace.</p>
+  return <div style={{margin: '12px 0 20px'}}><PrimaryButton text="Initialize workspace" styles={{root: {background: '#1b385c', borderColor: '#1b385c', height: 32, fontSize: 13}, rootHovered: {background: '#142c49', borderColor: '#142c49'}, rootPressed: {background: '#102339', borderColor: '#102339'}}} iconProps={{iconName:'Database'}} onClick={() => {inspect().catch(() => undefined);}} /><p style={{fontSize:13,color:'#647694'}}>Create missing DeskPilot lists and columns, or check an existing workspace.</p>
     <Dialog hidden={!open} onDismiss={busy ? undefined : () => setOpen(false)} minWidth={320} maxWidth={760} modalProps={{isBlocking:busy, styles:{main:{width:'min(760px, calc(100vw - 32px))',maxWidth:760,borderRadius:6}}}} dialogContentProps={{title:done ? 'Workspace ready' : running ? 'Initializing workspace' : 'Review workspace setup',showCloseButton:!busy}}>
       {busy && <Spinner label={running ? 'Creating and configuring SharePoint resources...' : 'Checking lists, columns and lookup relationships...'} styles={{label:{fontSize:14,color:'#172536'}}} />}
       {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}

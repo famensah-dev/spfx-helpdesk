@@ -30,7 +30,7 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
       {
         description: this.properties.description,
         portalTitle: this.properties.portalTitle,
-        listName: this.properties.listName || 'Issue Tracker',
+        listName: this.properties.listName || 'Tickets',
         listId: this.properties.listId,
         isDarkTheme: this._isDarkTheme,
         environmentMessage: this._environmentMessage,

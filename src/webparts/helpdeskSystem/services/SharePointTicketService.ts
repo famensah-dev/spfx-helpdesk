@@ -1,5 +1,9 @@
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient } from '@microsoft/sp-http';
+import { spfi, SPFx } from '@pnp/sp';
+import '@pnp/sp/webs';
+import '@pnp/sp/lists';
+import '@pnp/sp/views';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { IWorkspaceAccess } from '../interfaces/IWorkspaceAccess';
 import { GraphClient } from './graph/GraphClient';
@@ -36,7 +40,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const graph = new GraphClient(() => provider.getToken('https://graph.microsoft.com'));
   const aadId = (await graph.get<{ id: string }>('/me?$select=id')).id;
   const sharePointToken = (): Promise<string> => provider.getToken(new URL(siteUrl).origin);
-  const workspaceSettings: import('../interfaces/IRoleManagement').IWorkspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Issue Tracker', listId: listId || ''};
+  const workspaceSettings: import('../interfaces/IRoleManagement').IWorkspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Tickets', listId: listId || ''};
   const config = {tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
   const tickets = new GraphTicketService(graph, config, graph, sharePointToken);
   const faqs = new GraphFaqService(graph, config, sharePointToken);
@@ -50,17 +54,18 @@ export async function createSharePointService(context: WebPartContext, listName:
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
   if (superAdmin) {
-    source.workspaceSetup = new WorkspaceSetupService(graph, config, async ids => {
+    source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
       const current = await roles.load();
       await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});
+      const fields = spfi().using(SPFx(context)).web.lists.getById(ids.tickets).defaultView.fields;
+      const existing = (await fields()).Items;
+      for (let index = 0; index < orderedFields.length; index++) {
+        const field = orderedFields[index] === 'Title' && existing.includes('LinkTitle') ? 'LinkTitle' : orderedFields[index];
+        if (!existing.includes(field)) {await fields.add(field); existing.push(field);}
+        await fields.move(field,index);
+      }
       tickets.invalidateSchema();
     });
-    source.setupTicketType = async () => {
-      const adminService = new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema());
-      const data = await adminService.getData('schema');
-      if (data.columns.some(column => column.name === 'TicketType' || column.displayName === 'Ticket Type')) throw new Error('Ticket Type already exists. Check its choices in Ticket list schema.');
-      await adminService.saveColumn({name: 'TicketType', displayName: 'Ticket Type', description: 'Problem, Incident, Question or Request', required: false, kind: 'choice', choices: ['Problem', 'Incident', 'Question', 'Request'], allowTextEntry: false});
-    };
     source.saveWorkspaceSettings = async settings => {
       if (!settings.listName.trim()) throw new Error('Tickets list name is required.');
       if (settings.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(settings.listId)) throw new Error('Enter a valid list ID.');

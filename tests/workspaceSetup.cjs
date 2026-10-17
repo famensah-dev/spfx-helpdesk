@@ -31,6 +31,9 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   const sub=lists.find(value=>value.displayName==='Ticket Subcategories');
   const cats=lists.find(value=>value.displayName==='Ticket Categories');
   assert.equal(columns.get(sub.id).find(value=>value.name==='Category').lookup.listId,cats.id);
+  assert.equal(items.get(cats.id).filter(value=>value.fields.Title==='General').length,1);
+  assert.equal(items.get(sub.id).filter(value=>value.fields.Title==='General').length,1);
+  assert.equal(items.get(sub.id)[0].fields.CategoryLookupId,items.get(cats.id)[0].id);
   const priorityList=lists.find(value=>value.displayName==='Ticket Priorities');
   assert.equal(items.get(priorityList.id).length,4);
   items.get(priorityList.id)[0].fields.ResponseMinutes=777;
