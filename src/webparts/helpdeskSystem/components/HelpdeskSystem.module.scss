@@ -2,7 +2,7 @@
   --hd-surface: #ffffff; --hd-canvas: #f5f5f9; --hd-ink: #252939; --hd-line: #e9eaf1;
   --hd-header: #101e32; --hd-blue: #219dcd; --hd-green: #008959; --hd-amber: #e8a500;
   --hd-closed: #337fe5; --hd-pink: #df5d85; --hd-overdue: #d9512b;
-  width: 100%; min-width: 0; min-height: calc(100vh - 48px); background: var(--hd-canvas);
+  width: 100%; min-width: 0; min-height: 100vh; background: var(--hd-canvas);
   font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: var(--hd-ink); line-height: 1.45;
   *, *::before, *::after { box-sizing: border-box; }
   button, input, select { font-family: inherit; }
