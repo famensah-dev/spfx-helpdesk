@@ -181,7 +181,7 @@
 .mainContent { --page-inset: 20px; }
 .pageAlerts { min-width: 0; }
 .pageAlerts > :global(.ms-MessageBar) { padding-inline: calc(var(--alert-inset) - 12px); }
-.analyticsDashboard > .pageAlerts { --alert-inset: calc(var(--page-inset) + 4px); }
+.analyticsDashboard > .pageAlerts { --alert-inset: var(--page-inset); }
 .ticketPage > .pageAlerts { --alert-inset: 22px; }
 .analyticsDashboard > .pageAlerts { margin: -10px calc(-1 * (var(--page-inset) + 4px)) 0; }
 .ticketPage > .pageAlerts { margin: -14px -22px 0; }
@@ -194,7 +194,7 @@
 }
 @media (max-width: 560px) {
   .analyticsDashboard > .pageAlerts { margin-right: calc(-1 * (var(--page-inset) + 8px)); margin-left: calc(-1 * (var(--page-inset) + 8px)); }
-  .analyticsDashboard > .pageAlerts { --alert-inset: calc(var(--page-inset) + 8px); }
+  .analyticsDashboard > .pageAlerts { --alert-inset: var(--page-inset); }
 }
 .navigation { padding-top: 6px; padding-bottom: 6px; min-height: 40px;
   button { padding-top: 8px; padding-bottom: 8px; }
