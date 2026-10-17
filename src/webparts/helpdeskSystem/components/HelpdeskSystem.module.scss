@@ -992,3 +992,4 @@
 }
 .faqCategoryTabs :global(.ms-Pivot-link) { font-size: 13px; &:hover { background: transparent; } }
 .faqCategoryTabs :global(.ms-Pivot-overflowMenuButton):hover { background: transparent; }
+.dashboardTicketTypes .dashboardBars { width: 100%; li { grid-template-columns: minmax(80px, 100px) minmax(0, 1fr) auto; } }

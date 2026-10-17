@@ -4,7 +4,7 @@ import { isResolved } from './ticketStatuses';
 const dayMs = 86400000;
 export interface DashboardBar { label: string; value: number; }
 
-export function groupTicketCounts(tickets: ITicket[], field: 'Category' | 'IssueType' | 'Department', limit = 9): DashboardBar[] {
+export function groupTicketCounts(tickets: ITicket[], field: 'Category' | 'IssueType' | 'Department' | 'TicketType', limit = 9): DashboardBar[] {
   const groups = new Map<string, number>();
   tickets.forEach(ticket => {
     const label = ticket[field]?.trim() || 'Not specified';
