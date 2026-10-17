@@ -5,6 +5,7 @@ import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import { Icon, Spinner } from '@fluentui/react';
 import styles from './HelpdeskSystem.module.scss';
 import { SharePointAccountMenu } from './SharePointAccountMenu';
+import { SharePointSettingsMenu } from './SharePointSettingsMenu';
 import type { IHelpdeskSystemProps } from './IHelpdeskSystemProps';
 
 export default function HelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
@@ -33,6 +34,6 @@ export default function HelpdeskSystem(props: IHelpdeskSystemProps): React.React
     </div>;
   }
   const user = props.spContext.pageContext.user;
-  const accountActions = <SharePointAccountMenu context={props.spContext} />;
+  const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} /><SharePointAccountMenu context={props.spContext} /></>;
   return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={props.portalTitle} />;
 }
