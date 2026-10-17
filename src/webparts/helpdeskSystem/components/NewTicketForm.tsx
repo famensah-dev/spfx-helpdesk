@@ -3,7 +3,7 @@ import { attachmentAccept, validateTicketAttachments } from '../utils/ticketAtta
 import { RichTextEditor } from './RichTextEditor';
 import { cancelButtonStyles } from './cancelButtonStyles';
 import * as React from 'react';
-import { TextField, DirectionalHint, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Label, Icon, IconButton } from '@fluentui/react';
+import { TextField, ChoiceGroup, DirectionalHint, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Label, Icon, IconButton } from '@fluentui/react';
 import type { INewTicketInput, ITicketDataSource, ITicketCreationOptions } from '../interfaces/ITicketDataSource';
 import type { IUserLookup } from '../interfaces/ITicket';
 import { FormAssigneePicker } from './FormAssigneePicker';
@@ -74,7 +74,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
           <DefaultButton text="Choose files" disabled={saving || Boolean(createdTicketId) || files.length >= 10} onClick={() => fileInput.current?.click()} />
         </div><ul className={styles.ticketUploadList}>{files.map(file => <li key={file.name}><span>{file.name}<small>{(file.size / (1024 * 1024)).toFixed(2)} MB</small></span><IconButton iconProps={{ iconName: 'Cancel' }} ariaLabel={`Remove ${file.name}`} disabled={saving || Boolean(createdTicketId)} onClick={() => setFiles(current => current.filter(value => value !== file))} /></li>)}</ul></div>
         </div>
-        <div className={styles.newTicketClassification}>{options.fields.filter(item => item.key === 'ticketType').map(field)}<Dropdown label="Priority" required selectedKey={input.priority} disabled={saving} options={options.priorities.map(value => ({ key: value, text: value }))} onChange={(_, option) => change('priority', String(option?.key || ''))} />
+        <div className={styles.newTicketClassification}>{options.fields.filter(item => item.key === 'ticketType').map(field)}<ChoiceGroup className={styles.ticketPriorityChoices} label="Priority" required selectedKey={input.priority} disabled={saving} options={options.priorities.map(value => ({ key: value, text: value }))} onChange={(_, option) => change('priority', String(option?.key || ''))} />
         {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}</div>
         <div className={styles.newTicketClassification}>{options.fields.filter(item => ['category', 'subcategory', 'issueType'].includes(item.key)).map(field)}</div>
         {options.fields.some(item => ['department', 'dueDate'].includes(item.key)) && <details className={styles.newTicketAdvanced} open={options.fields.some(item => ['department', 'dueDate'].includes(item.key) && item.required) || undefined}><summary>Advanced fields</summary><div className={styles.newTicketFields}>{options.fields.filter(item => ['department', 'dueDate'].includes(item.key)).map(field)}</div></details>}

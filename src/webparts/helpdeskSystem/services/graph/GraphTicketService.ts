@@ -12,7 +12,7 @@ import type { IOrganizationUser } from '../../interfaces/ITicketDataSource';
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
 interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; lookup?: { listId: string; allowMultipleValues?: boolean }; }
 interface IGraphItem { id: string; webUrl?: string; createdBy?: { user?: { displayName?: string; id?: string; email?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
-const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
+const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {

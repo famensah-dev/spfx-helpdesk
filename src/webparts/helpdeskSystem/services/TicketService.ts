@@ -45,7 +45,7 @@ export class TicketService {
       for (const item of batch) {
         if (item[status] === 'Pending') item[status] = 'On Hold';
         if (item[status] === 'Completed') item[status] = 'Resolved';
-        if (['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed', 'Escalated'].indexOf(item[status]) < 0 ||
+        if (['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed', 'Escalated'].indexOf(item[status]) < 0 ||
           ['Low', 'Medium', 'High', 'Critical'].indexOf(item[priority]) < 0) {
           throw new Error(`Ticket ${item.Id} has an unsupported status or priority. Review the list choice values.`);
         }

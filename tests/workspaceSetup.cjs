@@ -46,6 +46,7 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   assert.equal(items.get(priorityList.id)[0].fields.ResponseMinutes,777);
   const ticket=lists.find(value=>value.displayName==='Tickets');
   const status=columns.get(ticket.id).find(value=>value.name==='Status');
+  assert(status.choice.choices.includes('Waiting on Third Party'));
   status.choice.choices.push('Legacy');
   status.choice.choices=status.choice.choices.filter(value=>value!=='Assigned');
   await setup.inspect(); await setup.run(()=>{});

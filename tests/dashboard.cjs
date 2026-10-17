@@ -10,6 +10,8 @@ const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.Module
 const loaded = {exports: {}};
 new Function('exports', 'require', 'module', compiled.outputText)(loaded.exports, dashboardRequire, loaded);
 const {filterTickets, getDashboardStats, getStatusChartData, getPriorityChartData} = loaded.exports;
+assert(statusesModule.exports.ticketStatuses.includes('Waiting on Third Party'));
+assert.equal(statusesModule.exports.isResolved('Waiting on Third Party'),false);
 const now = new Date();
 const start = new Date(now.getFullYear(), now.getMonth(), 1, 8);
 const resolution = new Date(start.getTime() + 2 * 3600000);
@@ -30,7 +32,7 @@ assert.deepEqual([from.getTime(), to.getTime()], before);
 assert.equal(filterTickets(tickets, {assignedTo: '7'}).length, 1);
 assert.equal(filterTickets(tickets, {assignedTo: 'unassigned'}).length, 4);
 assert.equal(filterTickets(tickets, {status: 'Assigned', priority: 'Critical', assignedTo: '7'}).length, 1);
-assert.deepEqual(getStatusChartData(tickets).datasets[0].data, [1, 1, 0, 0, 2, 1]);
+assert.deepEqual(getStatusChartData(tickets).datasets[0].data, [1, 1, 0, 0, 0, 2, 1]);
 assert.deepEqual(getPriorityChartData(tickets).datasets[0].data, [5, 0, 0, 0]);
 console.log('Dashboard checks passed: metrics, missing and invalid resolution dates, immutable inclusive date filters, assignees, combined filters, and chart totals.');
 
@@ -56,14 +58,14 @@ assert.equal(manyCategories.datasets[0].data.reduce((sum, n) => sum + n, 0), 12)
 assert.equal(getStatusChartData(extended).datasets[0].data.reduce((sum, n) => sum + n, 0), 6);
 console.log('Global dashboard checks passed: pending/escalated states, escalation deduplication, overdue boundaries, category grouping, and extended chart totals.');
 
-const lifecycleTickets = ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed'].map((Status, index) => ({...base, Id: index + 10, Status}));
-assert.deepEqual(getStatusChartData(lifecycleTickets).labels, ['New', 'Assigned', 'In Progress', 'On Hold', 'Resolved', 'Closed']);
-assert.deepEqual(getStatusChartData(lifecycleTickets).datasets[0].data, [1, 1, 1, 1, 1, 1]);
-assert.equal(getDashboardStats(lifecycleTickets).totalOpenTickets, 4);
+const lifecycleTickets = ['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed'].map((Status, index) => ({...base, Id: index + 10, Status}));
+assert.deepEqual(getStatusChartData(lifecycleTickets).labels, ['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed']);
+assert.deepEqual(getStatusChartData(lifecycleTickets).datasets[0].data, [1, 1, 1, 1, 1, 1, 1]);
+assert.equal(getDashboardStats(lifecycleTickets).totalOpenTickets, 5);
 assert.equal(filterTickets(extended, {status: 'On Hold'}).length, 1);
 assert.equal(filterTickets(tickets, {status: 'Resolved'}).length, 2);
-assert.equal(getStatusChartData(lifecycleTickets).datasets[0].backgroundColor.length, 6);
-console.log('Lifecycle checks passed: six statuses, legacy aliases, unresolved totals, filters and chart colors.');
+assert.equal(getStatusChartData(lifecycleTickets).datasets[0].backgroundColor.length, 7);
+console.log('Lifecycle checks passed: seven statuses, legacy aliases, unresolved totals, filters and chart colors.');
 const dateRangeModule = {exports: {}};
 const dateRangeSource = fs.readFileSync('src/webparts/helpdeskSystem/utils/ticketDateRanges.ts', 'utf8');
 new Function('exports', 'require', 'module', ts.transpileModule(dateRangeSource, {compilerOptions: {module: ts.ModuleKind.CommonJS}}).outputText)(dateRangeModule.exports, require, dateRangeModule);

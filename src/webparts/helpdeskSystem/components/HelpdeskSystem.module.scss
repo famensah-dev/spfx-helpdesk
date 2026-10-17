@@ -653,6 +653,7 @@
 .columnPanelHint { color: #657187; font-size: 11px; line-height: 1.5; margin: 8px 4px; }
 .statusPill[data-status='In Progress'] { background: #fff0bb; color: #815900; }
 .statusPill[data-status='On Hold'] { background: #edf0f3; color: #596371; }
+.statusPill[data-status='Waiting on Third Party'] { background: #fff4d6; color: #946200; }
 .statusPill[data-status='Resolved'] { background: #e0f5e9; color: #13794e; }
 .statusPill[data-status='Closed'] { background: #fde7ec; color: #b53650; }
 .ticketCounts { flex-wrap: wrap;
@@ -706,6 +707,16 @@
 }
 .newTicketForm { display: grid; gap: 16px; max-width: 1100px; width: 100%; margin-inline: auto; }
 .newTicketClassification { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.ticketPriorityChoices {
+  :global(.ms-ChoiceFieldGroup-flexContainer) { display: flex; flex-wrap: wrap; gap: 6px; }
+  :global(.ms-ChoiceField) { margin-top: 0; }
+  :global(.ms-ChoiceField-field) { padding: 5px 8px 5px 0; border: 1px solid #d6e1ee; border-radius: 18px; min-height: 32px;
+    &::before { left: 7px; top: 5px; border-color: #a9bfd9; }
+    &::after { left: 12px; top: 10px; }
+    :global(.ms-ChoiceFieldLabel) { padding-left: 32px; font-size: 13px; }
+    &:global(.is-checked) { border-color: #a9bfd9; background: #eff4ff; }
+  }
+}
 .formAssigneePicker {
   :global(.ms-BasePicker-text) { min-height: 34px; border: 1px solid #d6e1ee; border-radius: 4px; background: #fff; &::after { border: 1px solid #789ac4; border-radius: 4px; } }
   :global(.ms-BasePicker-input) { font-size: 12px; min-height: 30px; }

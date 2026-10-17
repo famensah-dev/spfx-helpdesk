@@ -1,4 +1,4 @@
-export type TicketStatus = 'New' | 'Assigned' | 'In Progress' | 'On Hold' | 'Resolved' | 'Closed' | 'Completed' | 'Pending' | 'Escalated';
+export type TicketStatus = 'New' | 'Assigned' | 'In Progress' | 'On Hold' | 'Waiting on Third Party' | 'Resolved' | 'Closed' | 'Completed' | 'Pending' | 'Escalated';
 export type TicketPriority = string;
 
 export interface IUserLookup {
