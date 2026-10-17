@@ -7,3 +7,17 @@
 .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; a, button { padding: 14px; border: 1px solid #e0e7f1; border-radius: 4px; text-align: left; font: inherit; color: #2855b6; background: #fff; text-decoration: none; cursor: pointer; &:hover { background: #f4f7fc; text-decoration: underline; } } }
 .folder { border: 0; background: transparent; padding: 0; font: inherit; cursor: pointer; &:hover { text-decoration: underline; } }
 @media(max-width: 720px) { .layout { grid-template-columns: 1fr; padding: 16px; gap: 12px; > nav { flex-direction: row; flex-wrap: wrap; } } .content { padding: 16px; } }
+.settings {
+  > header { padding: 12px 30px; gap: 12px; > div > p { margin: 4px 0 0; font-size: 13px; } }
+  h2 { font-size: 16px; line-height: 1.4; font-weight: 500; }
+  h3 { font-size: 15px; font-weight: 500; }
+  h4 { font-size: 14px; font-weight: 500; margin: 18px 0 10px; }
+  table th { font-weight: 500; }
+  :global(.ms-TextField-fieldGroup) { border: 1px solid #d6e1ee; border-radius: 4px; &:hover { border-color: #a9bfd9; } &::after { border: 1px solid #a9bfd9; border-radius: 4px; } }
+  :global(.ms-TextField-fieldGroup:focus-within) { border-color: #a9bfd9; &::after { border: 1px solid #a9bfd9; } }
+  :global(.ms-TextField-field) { font-size: 13px; }
+}
+.layout { padding-top: 12px; gap: 20px; > nav button { font-weight: 400; &[aria-current=page] { font-weight: 500; } } }
+.content { padding: 20px; }
+.heading { margin-bottom: 14px; }
+@media(max-width: 720px) { .settings > header { padding: 12px 16px; } .layout { padding-top: 10px; } }

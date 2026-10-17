@@ -979,3 +979,6 @@
   i { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #edf4ff; }
 }
 @media (max-width: 620px) { .workspaceGatePanel { padding: 24px; } }
+
+.mainContent.settingsMain { padding: 0; }
+
