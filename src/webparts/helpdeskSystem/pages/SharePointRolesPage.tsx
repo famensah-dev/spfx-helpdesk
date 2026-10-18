@@ -49,8 +49,9 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
       const value = { ...saved.current, roles: saved.current.roles.map(role => role.id === pending.role.id ? pending.role : role) };
       validateRoleConfiguration(value);
       await props.service.roleManagement!.save(value);
-      saved.current = value;
-      setConfig(current => current ? { ...current, roles: value.roles } : value);
+      const updated = await props.service.roleManagement!.load();
+      saved.current = updated;
+      setConfig(updated);
       setDraft(undefined); setConfirmation(undefined);
       setMessage(`${pending.role.name} permissions ${pending.restore ? 'restored to defaults' : 'applied'}. Affected users must refresh DeskPilot.`);
     } catch (reason) { setConfirmation(undefined); setError(reason instanceof Error ? reason.message : 'Unable to apply permissions.'); }
@@ -68,11 +69,11 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
       <button type="button" aria-current={tab === 'roles' ? 'page' : undefined} className={tab === 'roles' ? styles.activeNav : undefined} disabled={busy} onClick={() => setTab('roles')}><Icon iconName="Shield" />Roles &amp; Permissions</button>
     </nav>
     {tab === 'users' && <div className={styles.pageAlerts}>
-      <MessageBar className={styles.usersInfoAlert}>Add existing Microsoft 365 users and assign helpdesk roles. Active and inactive refer to assigned DeskPilot access. Site owners retain Super Admin access.</MessageBar>
+      <MessageBar className={styles.usersInfoAlert}>Assign a role to configure DeskPilot and this site's SharePoint access together. Agents can edit assigned tickets; Helpdesk Admins manage tickets. Site owners retain Super Admin access.</MessageBar>
       {userNotice && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setUserNotice('')}>{userNotice}</MessageBar>}
     </div>}
     {tab === 'roles' && <div className={styles.pageAlerts}>
-      <MessageBar className={styles.usersInfoAlert}>Super Admin permissions are fixed and managed through SharePoint site ownership. Role permissions here control what users can do in DeskPilot. SharePoint and list permissions still apply.</MessageBar>
+      <MessageBar className={styles.usersInfoAlert}>Super Admin access comes from SharePoint site ownership. Agents use assigned-ticket access and cannot create tickets in this permission model. Role controls govern DeskPilot actions; SharePoint enforces item access.</MessageBar>
     </div>}
     <div className={styles.ticketListCard}>
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
@@ -95,14 +96,14 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
             <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>Ticket visibility<span>Choose one ticket view for this role.</span></th></tr>
             {scopeOptions.map(option => <tr key={option.key}>
               <td>{option.text}</td><td>{option.key === 'assigned' ? 'View tickets assigned to this user.' : option.key === 'own' ? 'View tickets created by this user.' : 'View all tickets their SharePoint access allows.'}</td>
-              <td><button type="button" role="radio" aria-checked={displayedRole.scope === option.key} aria-label={option.text} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'] }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span><span>{displayedRole.scope === option.key ? 'Allowed' : 'Not allowed'}</span></button></td>
+              <td><button type="button" role="radio" aria-checked={displayedRole.scope === option.key} aria-label={option.text} disabled={busy || !draft || (displayedRole.id === 'agent' && option.key !== 'assigned')} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'] }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span><span>{displayedRole.scope === option.key ? 'Allowed' : 'Not allowed'}</span></button></td>
             </tr>)}
           </tbody>
           {permissionGroups.map(group => <tbody key={group.name}>
             <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>{group.name}<span>{group.description}</span></th></tr>
             {group.actions.map(action => <tr key={action}>
               <td>{labels[action]}</td><td>{descriptions[action]}</td>
-              <td><button type="button" role="switch" aria-label={labels[action]} aria-checked={displayedRole.actions.includes(action)} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => {
+              <td><button type="button" role="switch" aria-label={labels[action]} aria-checked={displayedRole.actions.includes(action)} disabled={busy || !draft || (displayedRole.id === 'agent' && action === 'create')} className={styles.roleScopeSwitch} onClick={() => {
               if (!draft) return;
               const checked = !draft.actions.includes(action);
               let actions = checked ? [...draft.actions.filter(value => value !== action), action] : draft.actions.filter(value => value !== action);
@@ -122,7 +123,8 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
         try {
           const value = { ...saved.current, assignments };
           await props.service.roleManagement!.save(value);
-          saved.current = value; setConfig(value);
+          const updated = await props.service.roleManagement!.load();
+          saved.current = updated; setConfig(updated);
         } finally { lock.current = false; setBusy(false); }
       }} />}
     </>}

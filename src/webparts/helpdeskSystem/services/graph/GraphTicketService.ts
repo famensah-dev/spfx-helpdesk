@@ -16,6 +16,7 @@ const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', '
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
+  public setTicketPermissions(value: {prepare:(listId:string,id:number)=>Promise<void>;complete:(listId:string,id:number)=>Promise<void>}): void {this.ticketPermissions = value;}
   public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.creationFields = []; }
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
@@ -24,7 +25,8 @@ export class GraphTicketService implements ITicketDataSource {
   private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
-    private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>) {}
+    private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>,
+    private ticketPermissions?: {prepare:(listId:string,id:number)=>Promise<void>;complete:(listId:string,id:number)=>Promise<void>}) {}
   public async getPriorities(): Promise<string[]> { if (!this.editSchema) await this.getTickets(); return [...this.editSchema!.priorities]; }
   public async searchUsers(query: string, department?: string): Promise<IOrganizationUser[]> {
     if (!this.directory) throw new Error('Organization user search is not configured.');
@@ -99,7 +101,14 @@ export class GraphTicketService implements ITicketDataSource {
       }
     }
     await this.addResolutionTimestamp(id, status, fields);
+    let reassigned = false;
+    if (this.ticketPermissions) {
+      const current = await this.graph.get<Record<string,unknown>>(`${schema.path}/items/${id}/fields?$select=${workflow.assigned}LookupId`);
+      reassigned = Number(current[`${workflow.assigned}LookupId`] || 0) !== Number(input.assignedToId || 0);
+      if (reassigned) await this.ticketPermissions.prepare(this.context!.listId,id);
+    }
     await this.graph.patch(`${schema.path}/items/${id}/fields`, fields);
+    if (reassigned) await this.ticketPermissions!.complete(this.context!.listId,id);
   }
   private async addResolutionTimestamp(id: number, next: string, fields: Record<string, unknown>): Promise<void> {
     const schema = this.updateSchema!;
@@ -135,14 +144,33 @@ export class GraphTicketService implements ITicketDataSource {
     return { ...this.commentSchema, ticketKey: `${this.context!.listId}:${id}` };
   }
   public async getComments(id: number): Promise<ITicketComment[]> {
+    if (this.ticketPermissions) {
+      const data = await this.nativeComments<{value:Array<{id:string;text:string;createdDate:string;author?:{name?:string}}>}>(id);
+      return data.value.map(value => ({id:String(value.id),text:value.text,created:value.createdDate,author:value.author?.name || 'Organization user'})).sort((a,b) => a.created.localeCompare(b.created));
+    }
     const schema = await this.commentsContext(id);
     const items = await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`);
     return items.filter(item => item.fields[schema.key] === schema.ticketKey).map(item => ({ id: item.id, text: text(item.fields[schema.content]), author: item.createdBy?.user?.displayName || 'Organization user', created: item.createdDateTime })).sort((a, b) => a.created.localeCompare(b.created));
   }
   public async addComment(id: number, value: string): Promise<void> {
+    if (this.ticketPermissions) {
+      if (!value.trim() || value.trim().length > 10000) throw new Error('Enter a comment of 1-10,000 characters.');
+      await this.nativeComments(id,value.trim()); return;
+    }
     if (!value.trim() || value.trim().length > 10000) throw new Error('Enter a comment of 1–10,000 characters.');
     const schema = await this.commentsContext(id);
     await this.graph.post(`${schema.path}/items`, { fields: { Title: `Ticket #${id}`, [schema.key]: schema.ticketKey, [schema.content]: value.trim() } });
+  }
+  private async nativeComments<T = unknown>(id:number,value?:string): Promise<T> {
+    if (!Number.isSafeInteger(id) || id < 1) throw new Error('Invalid ticket ID.');
+    if (!this.context) await this.getTickets();
+    if (!this.getSharePointToken) throw new Error('SharePoint comments are not configured.');
+    const token = await this.getSharePointToken();
+    const response = await fetch(`${this.config.siteUrl}/_api/web/lists(guid'${this.context!.listId}')/items(${id})/comments`,{
+      method:value === undefined ? 'GET' : 'POST',headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=nometadata','Content-Type':'application/json;odata=nometadata'},body:value === undefined ? undefined : JSON.stringify({text:value}),signal:AbortSignal.timeout(30000)
+    });
+    if (!response.ok) throw new Error(`Cannot access this ticket's comments (${response.status}). Check ticket permissions and that SharePoint list comments are enabled.`);
+    return response.json();
   }
   public async updateTickets(ids: number[], action: TicketBulkAction): Promise<ITicketBulkResult> {
     if (!this.updateSchema) await this.getTickets();
@@ -172,7 +200,14 @@ export class GraphTicketService implements ITicketDataSource {
     if (!unique.length || unique.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new Error('Select valid tickets first.');
     const result: ITicketBulkResult = { succeeded: [], failed: [] };
     for (const id of unique) {
-      try { const update = {...fields}; if (fields[schema.status] !== undefined) await this.addResolutionTimestamp(id, String(fields[schema.status]), update); await this.graph.patch(`${schema.path}/items/${id}/fields`, update); result.succeeded.push(id); }
+      try {
+        const update = {...fields};
+        if (fields[schema.status] !== undefined) await this.addResolutionTimestamp(id, String(fields[schema.status]), update);
+        if (action.kind === 'assign' && this.ticketPermissions) await this.ticketPermissions.prepare(this.context!.listId,id);
+        await this.graph.patch(`${schema.path}/items/${id}/fields`, update);
+        if (action.kind === 'assign' && this.ticketPermissions) await this.ticketPermissions.complete(this.context!.listId,id);
+        result.succeeded.push(id);
+      }
       catch (error) { result.failed.push({ id, message: error instanceof Error ? error.message : 'Update failed.' }); }
     }
     return result;
@@ -254,6 +289,14 @@ export class GraphTicketService implements ITicketDataSource {
       fields[schema.status] = 'Assigned';
     }
     const created = await this.graph.post<{ id: string }>(`${schema.path}/items`, { fields });
+    if (this.ticketPermissions) {
+      const id = Number(created?.id);
+      try {await this.ticketPermissions.complete(this.context!.listId,id);}
+      catch (reason) {
+        const error = new Error(`Ticket #${id} was created, but its permissions need an administrator to retry assignment. ${reason instanceof Error ? reason.message : 'Permission update failed.'}`) as Error & {createdTicketId:number};
+        error.createdTicketId = id; throw error;
+      }
+    }
     if (input.attachments?.length) {
       const id = Number(created?.id);
       if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Ticket creation returned no valid ID. Refresh the ticket list before trying again.');

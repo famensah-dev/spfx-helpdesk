@@ -1,0 +1,31 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');const ts=require('typescript');
+function load(path,deps={}){const module={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name]||require(name),module,module.exports);return module.exports;}
+const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'./GraphClassificationService':{},'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}},'./GraphClient':{}});
+const {applyAppRoleRules}=load('src/webparts/helpdeskSystem/services/appRoleRules.ts');
+(async()=>{
+  const calls=[];let rejectPrepare=false,rejectComplete=false;
+  const graph={patch:async()=>calls.push('patch'),get:async()=>({AssignedToLookupId:'7'}),post:async()=>{calls.push('create');return{id:'1'};}};
+  const handler={prepare:async()=>{calls.push('revoke');if(rejectPrepare)throw Error('revoke failed');},complete:async()=>{calls.push('grant');if(rejectComplete)throw Error('grant failed');}};
+  const service=new GraphTicketService(graph,{siteUrl:'https://example.sharepoint.com/sites/test'},undefined,async()=> 'token',handler);
+  service.context={listId:'11111111-1111-1111-1111-111111111111',sitePath:'/sites/test',lists:[]};
+  service.updateSchema={path:'/tickets',status:'Status',choices:['New','Assigned'],assigned:'AssignedTo'};
+  service.editSchema={path:'/tickets',title:'Title',priority:'Priority',priorities:['Low']};
+  let result=await service.updateTickets([1],{kind:'assign',userId:8});
+  assert.deepEqual(calls,['revoke','patch','grant']);assert.deepEqual(result.succeeded,[1]);
+  calls.length=0;rejectPrepare=true;
+  result=await service.updateTickets([1],{kind:'assign',userId:8});
+  assert.deepEqual(calls,['revoke']);assert.equal(result.failed.length,1);rejectPrepare=false;
+  calls.length=0;rejectComplete=true;
+  result=await service.updateTickets([1],{kind:'assign',userId:8});
+  assert.deepEqual(calls,['revoke','patch','grant']);assert.equal(result.succeeded.length,0);assert.equal(result.failed.length,1);rejectComplete=false;
+  calls.length=0;
+  await service.updateTicket(1,{title:'Test',priority:'Low',status:'Assigned',assignedToId:7});
+  assert.deepEqual(calls,['patch'],'Editing an assigned ticket without reassignment must not require Manage Permissions');
+  calls.length=0;
+  await service.updateTicket(1,{title:'Test',priority:'Low',status:'Assigned',assignedToId:8});
+  assert.deepEqual(calls,['revoke','patch','grant']);
+  const agent=applyAppRoleRules({workspaceSettings:{assignedTicketPermissions:true},createTicket:async()=>{}},{id:'agent',scope:'assigned',actions:['create']},7,'');
+  assert.equal(agent.createTicket,undefined,'Agents must not create list-inheriting tickets in assigned-only mode');
+  console.log('Ticket permission integration checks passed: revoke-before-write, assignment grants, failed updates, ordinary agent edits and restricted creation.');
+})().catch(error=>{console.error(error);process.exitCode=1;});
