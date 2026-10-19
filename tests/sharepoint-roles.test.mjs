@@ -160,8 +160,7 @@ test('permission editor requires Apply and confirmation; cancel and restore pres
   const config = roles.defaultRoleConfiguration();
   config.assignments = [{ userId: 7, name: 'Agent', email: 'agent@example.com', roleId: 'agent' }];
   const writes = [];
-  let storedConfig = structuredClone(config);
-  const service = { roleManagement: { load: async () => structuredClone(storedConfig), save: async value => {storedConfig = structuredClone(value); writes.push(structuredClone(value));} } };
+  const service = { roleManagement: { load: async () => structuredClone(config), save: async value => writes.push(structuredClone(value)) } };
   const render = () => { cursor = 0; tree = SharePointRolesPage({ service }); while (effects.length) effects.shift()(); return tree; };
   const find = (predicate, node = tree) => {
     if (!node || typeof node !== 'object') return undefined;
@@ -182,13 +181,13 @@ test('permission editor requires Apply and confirmation; cancel and restore pres
   click('Cancel');
   assert.equal(writes.length, 0);
   click('Apply changes'); click('Confirm apply');
-  await new Promise(resolve => setImmediate(resolve)); render();
+  await Promise.resolve(); render();
   assert.equal(writes.length, 1);
   assert(writes[0].roles[0].actions.includes('assign'));
   assert.deepEqual(writes[0].assignments, config.assignments);
   click('Restore defaults');
   assert.equal(writes.length, 1);
-  click('Confirm restore'); await new Promise(resolve => setImmediate(resolve)); render();
+  click('Confirm restore'); await Promise.resolve(); render();
   assert.equal(writes.length, 2);
   assert.deepEqual(writes[1].roles, config.roles);
   assert.deepEqual(writes[1].assignments, config.assignments);

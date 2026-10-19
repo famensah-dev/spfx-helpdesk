@@ -16,7 +16,6 @@ import { assignedRole, roleActions } from '../interfaces/IRoleManagement';
 import { applyAppRoleRules } from './appRoleRules';
 import { WorkspaceSetupService } from './WorkspaceSetupService';
 import { WorkspaceMaintenanceService } from './WorkspaceMaintenanceService';
-import { SharePointWorkspacePermissions } from './SharePointWorkspacePermissions';
 
 /** SharePoint enforces access for every delegated request; UI roles are not a security boundary. */
 export async function createSharePointService(context: WebPartContext, listName: string, listId?: string): Promise<ITicketDataSource> {
@@ -28,10 +27,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const low = Number(permissions.Low);
   if (!Number.isFinite(low)) throw new Error('SharePoint did not return valid permissions.');
   const superAdmin = (low & 1073741824) !== 0 && (low & 33554432) !== 0; // ManageWeb and ManagePermissions
-  const permissionsService = new SharePointWorkspacePermissions(context);
-  const roles = new SharePointRoleManagement(context, superAdmin, async value => {
-    if (value.workspace?.assignedTicketPermissions) await permissionsService.sync(value);
-  });
+  const roles = new SharePointRoleManagement(context, superAdmin);
   const configuration = await roles.load();
   const currentUserResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/currentuser`, SPHttpClient.configurations.v1);
   if (!currentUserResponse.ok) throw new Error('Unable to identify your SharePoint user.');
@@ -47,10 +43,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const sharePointToken = (): Promise<string> => provider.getToken(new URL(siteUrl).origin);
   const workspaceSettings: import('../interfaces/IRoleManagement').IWorkspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Tickets', listId: listId || ''};
   const config = {tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
-  const tickets = new GraphTicketService(graph, config, graph, sharePointToken, workspaceSettings.assignedTicketPermissions ? {
-    prepare: (listId,id) => permissionsService.ticket(listId,id,true),
-    complete: (listId,id) => permissionsService.ticket(listId,id)
-  } : undefined);
+  const tickets = new GraphTicketService(graph, config, graph, sharePointToken);
   const faqs = new GraphFaqService(graph, config, sharePointToken);
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
   const source: ITicketDataSource = Object.assign(tickets, {
@@ -87,14 +80,7 @@ export async function createSharePointService(context: WebPartContext, listName:
       const current = await roles.load();
       await roles.save({...current, workspace: {...settings, listName: settings.listName.trim(), listId: target.id}});
     };
-    source.roleManagement = {load:() => roles.load(),save:async value => {
-      if (value.roles.find(item => item.id === 'agent')?.scope !== 'assigned') throw new Error('Agents must use the Assigned tickets scope when SharePoint access is managed by DeskPilot.');
-      const workspace = {...workspaceSettings,...value.workspace,assignedTicketPermissions:true};
-      const assignedRoles = value.roles.map(item => item.id === 'agent' ? {...item,actions:item.actions.filter(action => action !== 'create')} : item);
-      await roles.save({...value,roles:assignedRoles,workspace});
-      tickets.setTicketPermissions({prepare:(listId,id) => permissionsService.ticket(listId,id,true),complete:(listId,id) => permissionsService.ticket(listId,id)});
-      source.workspaceSettings = workspace;
-    }}; source.roleRules = role; return source;
+    source.roleManagement = roles; source.roleRules = role; return source;
   }
   return applyAppRoleRules(source, role, currentUserId, access.email, aadId);
 }

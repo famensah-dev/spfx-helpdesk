@@ -12,7 +12,7 @@ export class SharePointRoleManagement implements IRoleManagement {
   private itemId?: number;
   private etag?: string;
   private identity?: { user: number; owners: number; read: number; full: number };
-  public constructor(private context: WebPartContext, private owner: boolean, private synchronizePermissions?: (configuration:IRoleConfiguration) => Promise<void>) {
+  public constructor(private context: WebPartContext, private owner: boolean) {
     this.web = `${context.pageContext.web.absoluteUrl}/_api/web`;
     this.root = `${this.web}/lists/getbytitle('DeskPilot Access')`;
     this.users = this.root;
@@ -159,7 +159,6 @@ export class SharePointRoleManagement implements IRoleManagement {
     }
     await this.secure(`${this.root}/items(${this.itemId})`);
     await this.sync(configuration);
-    if (this.synchronizePermissions) await this.synchronizePermissions(configuration);
     const saved = await this.configurationItem(this.itemId!);
     this.etag = saved.etag;
   }

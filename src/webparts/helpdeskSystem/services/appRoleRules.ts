@@ -26,7 +26,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
     if (!role.actions.includes('dashboard') && !role.actions.includes('tickets')) return { tickets: [], isMockData: false, sourceLabel: 'SharePoint', hasResolvedAt: false, hasCategory: false, hasDueDate: false, hasEscalated: false, hasPending: false };
     const data = await source.getTickets(); return { ...data, tickets: data.tickets.filter(visible) };
   };
-  if (source.createTicket) result.createTicket = role.actions.includes('create') && !(source.workspaceSettings?.assignedTicketPermissions && role.id === 'agent') ? async input => {
+  if (source.createTicket) result.createTicket = role.actions.includes('create') ? async input => {
     requireAction('create');
     if (input.assignedToId !== null && input.assignedToId !== undefined) requireAction('assign');
     await source.createTicket!(input);
