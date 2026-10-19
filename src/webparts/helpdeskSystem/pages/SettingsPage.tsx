@@ -68,7 +68,7 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save settings.'); }
     finally { saveLock.current = false; setSaving(false); }
   };
-  const appNames = ['Ticket Categories', 'Ticket Subcategories', 'Ticket Issue Types', 'FAQs', 'Ticket Priorities', 'DeskPilot Access'];
+  const appNames = ['Ticket Categories', 'Ticket Subcategories', 'Ticket Issue Types', 'FAQs', 'Ticket Priorities', 'TicketComments', 'DeskPilot Access'];
   const relevant = (item: List): boolean => item.Title === initial.listName || item.Id.toLowerCase() === initial.listId.toLowerCase() || appNames.includes(item.Title) || Object.values(initial.resourceIds || {}).some(id => id.toLowerCase() === item.Id.toLowerCase());
   const listTable = (items: List[]): React.ReactElement => <table><thead><tr><th>List name</th><th>Visibility</th><th /></tr></thead><tbody>{items.map(item => <tr key={item.Id}><td><a href={url(item.DefaultViewUrl || `${site}/_layouts/15/listedit.aspx?List=${encodeURIComponent(item.Id)}`)}>{item.Title}</a></td><td>{item.Hidden ? 'Hidden' : 'Visible'}</td><td><a href={url(item.DefaultViewUrl || `${site}/_layouts/15/listedit.aspx?List=${encodeURIComponent(item.Id)}`)}>Open list</a></td></tr>)}</tbody></table>;
   const links = [

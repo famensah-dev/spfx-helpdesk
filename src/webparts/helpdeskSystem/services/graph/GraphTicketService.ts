@@ -2,7 +2,8 @@ import { loadClassification } from './GraphClassificationService';
 import { validateTicketAttachments } from '../../utils/ticketAttachments';
 import type { INewTicketInput, ITicketCreationOptions } from '../../interfaces/ITicketDataSource';
 import type { ITicketDataSource } from '../../interfaces/ITicketDataSource';
-import type { TicketBulkAction, ITicketBulkResult, ITicketEdit, ITicketComment, ITicketVersion } from '../../interfaces/ITicketDataSource';
+import type { TicketBulkAction, ITicketBulkResult, ITicketEdit, ITicketComment, ITicketVersion, ITicketAttachment, ICommentPostOptions } from '../../interfaces/ITicketDataSource';
+import { SharePointAttachments } from './SharePointAttachments';
 import type { ITicketQueryResult } from '../../interfaces/IDashboard';
 import type { ITicket, IUserLookup, TicketStatus, TicketPriority } from '../../interfaces/ITicket';
 import type { IAppConfig } from './IAppConfig';
@@ -20,7 +21,7 @@ export class GraphTicketService implements ITicketDataSource {
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
-  private commentSchema?: { path: string; key: string; content: string };
+  private commentSchema?: { path: string; listId: string; key: string; content: string };
   private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
@@ -119,30 +120,82 @@ export class GraphTicketService implements ITicketDataSource {
     if (!item.eTag) throw new Error('Unable to verify the ticket version. Refresh and try again.');
     await this.graph.patch(`${schema.path}/items/${id}/fields`, {[schema.response]: new Date().toISOString()}, item.eTag);
   }
-  private async commentsContext(id: number): Promise<{ path: string; key: string; content: string; ticketKey: string }> {
+  private async commentsContext(id: number): Promise<{ path: string; listId: string; key: string; content: string; ticketKey: string }> {
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
     if (!this.context) await this.getTickets();
     if (!this.commentSchema) {
-      const list = this.context!.lists.find(value => value.displayName === 'TicketComments');
-      if (!list) throw new Error('Comments need a TicketComments list on this site, with an indexed TicketKey text column and a Content multiple-lines-of-text column.');
+      const list = this.context!.lists.find(value => this.config.resourceIds?.comments ? value.id.toLowerCase() === this.config.resourceIds.comments.toLowerCase() : value.displayName === 'TicketComments');
+      if (!list) throw new Error('Comments need the TicketComments list. Ask a Super Admin to run Initialize workspace in Settings > Site Lists.');
       const path = `${this.context!.sitePath}/lists/${encodeURIComponent(list.id)}`;
       const columns = await this.graph.getAll<IGraphColumn>(`${path}/columns`);
       const key = columns.find(value => (value.name === 'TicketKey' || value.displayName === 'TicketKey') && value.text);
       const content = columns.find(value => (value.name === 'Content' || value.displayName === 'Content') && value.text);
       if (!key || !content) throw new Error('TicketComments requires TicketKey and Content text columns. Index TicketKey in List settings.');
-      this.commentSchema = { path, key: key.name, content: content.name };
+      this.commentSchema = { path, listId: list.id, key: key.name, content: content.name };
     }
     return { ...this.commentSchema, ticketKey: `${this.context!.listId}:${id}` };
   }
   public async getComments(id: number): Promise<ITicketComment[]> {
     const schema = await this.commentsContext(id);
     const items = await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`);
-    return items.filter(item => item.fields[schema.key] === schema.ticketKey).map(item => ({ id: item.id, text: text(item.fields[schema.content]), author: item.createdBy?.user?.displayName || 'Organization user', created: item.createdDateTime })).sort((a, b) => a.created.localeCompare(b.created));
+    const result:ITicketComment[] = [];
+    const matching = items.filter(item => item.fields[schema.key] === schema.ticketKey);
+    for (let offset = 0; offset < matching.length; offset += 4) {
+      result.push(...await Promise.all(matching.slice(offset,offset + 4).map(async item => {
+        const comment:ITicketComment = {id:item.id,text:text(item.fields[schema.content]),author:item.createdBy?.user?.displayName || 'Organization user',created:item.createdDateTime};
+        if (item.fields.Attachments !== false) {
+          try {comment.attachments = await this.attachments().list(schema.listId,Number(item.id));}
+          catch (reason) {comment.attachmentError = reason instanceof Error ? reason.message : 'Unable to load files. Refresh comments to retry.';}
+        }
+        return comment;
+      })));
+    }
+    return result.sort((a,b) => a.created.localeCompare(b.created));
   }
-  public async addComment(id: number, value: string): Promise<void> {
+  public async addComment(id: number, value: string, options: ICommentPostOptions = {}): Promise<void> {
     if (!value.trim() || value.trim().length > 10000) throw new Error('Enter a comment of 1–10,000 characters.');
     const schema = await this.commentsContext(id);
-    await this.graph.post(`${schema.path}/items`, { fields: { Title: `Ticket #${id}`, [schema.key]: schema.ticketKey, [schema.content]: value.trim() } });
+    const files = options.files || [];
+    validateTicketAttachments(files);
+    if (files.length) await this.attachments().ensureEnabled(schema.listId);
+    if (options.requestId && !/^[a-f0-9-]{36}$/i.test(options.requestId)) throw new Error('Invalid comment request ID.');
+    const title = `Ticket #${id}${options.requestId ? ` [${options.requestId}]` : ''}`;
+    // Reuse a confirmed comment after an uncertain save response; don't create it again on an upload retry.
+    const previous = options.requestId ? (await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`)).filter(item => item.fields[schema.key] === schema.ticketKey && item.fields.Title === title) : [];
+    if (previous.length > 1) throw new Error('Multiple matching comments were found. Refresh comments before continuing.');
+    if (previous[0] && previous[0].fields[schema.content] !== value.trim()) throw new Error('This comment was already saved with different text. Refresh before posting a changed comment.');
+    const created = previous[0] || await this.graph.post<{id:string}>(`${schema.path}/items`, { fields: { Title: title, [schema.key]: schema.ticketKey, [schema.content]: value.trim() } });
+    if (!created?.id || !/^[1-9]\d*$/.test(String(created.id))) throw new Error('The comment save returned no valid ID. Refresh comments before retrying.');
+    if (files.length) {
+      try {
+        if (previous[0]) await this.uploadCommentAttachments(id,String(created.id),files,options.onProgress);
+        else await this.attachments().upload(schema.listId,Number(created.id),files,options.onProgress);
+      }
+      catch (reason) {
+        const error = new Error(`Your comment was saved, but some attachments need to be uploaded. ${reason instanceof Error ? reason.message : 'Upload failed.'}`) as Error & {createdCommentId:string};
+        error.createdCommentId = String(created.id); throw error;
+      }
+    }
+  }
+  private attachments(): SharePointAttachments {
+    if (!this.getSharePointToken) throw new Error('SharePoint attachments are not configured in this host.');
+    return new SharePointAttachments(this.config.siteUrl,this.getSharePointToken);
+  }
+  public async getAttachments(id:number): Promise<ITicketAttachment[]> {
+    if (!this.context) await this.getTickets();
+    return this.attachments().list(this.context!.listId,id);
+  }
+  public async uploadCommentAttachments(ticketId:number,commentId:string,files:File[],progress?:(message:string)=>void): Promise<void> {
+    const schema = await this.commentsContext(ticketId);
+    if (!/^[1-9]\d*$/.test(commentId)) throw new Error('Invalid comment ID.');
+    if (!this.getSharePointToken) throw new Error('SharePoint attachments are not configured.');
+    const token = await this.getSharePointToken();
+    const response = await fetch(`${this.config.siteUrl}/_api/web/currentuser?$select=Id`,{headers:{Authorization:`Bearer ${token}`,Accept:'application/json;odata=nometadata'},signal:AbortSignal.timeout(30000)});
+    if (!response.ok) throw new Error('Unable to verify the comment author.');
+    const user = await response.json() as {Id:number};
+    const item = await this.graph.get<IGraphItem>(`${schema.path}/items/${commentId}?$expand=fields`);
+    if (item.fields[schema.key] !== schema.ticketKey || Number(item.fields.AuthorLookupId) !== user.Id) throw new Error('You can retry attachments only on your own comment for this ticket.');
+    await this.attachments().upload(schema.listId,Number(commentId),files,progress);
   }
   public async updateTickets(ids: number[], action: TicketBulkAction): Promise<ITicketBulkResult> {
     if (!this.updateSchema) await this.getTickets();
@@ -183,25 +236,9 @@ export class GraphTicketService implements ITicketDataSource {
     const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
     return { classification, priorities: this.creationSchema.choices, description: Boolean(this.creationSchema.description), assignment: Boolean(this.updateSchema?.choices.includes('Assigned')), fields: this.creationFields.map(field => ({ key: field.key, label: field.label, choices: field.column.choice?.choices, required: field.column.required })) };
   }
-  public async uploadAttachments(id: number, files: File[]): Promise<void> {
-    validateTicketAttachments(files);
-    if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
+  public async uploadAttachments(id: number, files: File[], progress?: (message:string) => void): Promise<void> {
     if (!this.context) await this.getTickets();
-    if (!this.getSharePointToken) throw new Error('SharePoint attachment uploads are not configured.');
-    const token = await this.getSharePointToken();
-    const base = `${this.config.siteUrl}/_api/web/lists(guid'${encodeURIComponent(this.context!.listId)}')/items(${id})/AttachmentFiles`;
-    const existing = await fetch(base, { headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;odata=nometadata' }, signal: AbortSignal.timeout(30000) });
-    if (!existing.ok) throw new Error(`Unable to check ticket #${id} attachments (${existing.status}).`);
-    const data = await existing.json() as { value: Array<{ FileName: string }> };
-    const names = new Set(data.value.map(file => file.FileName.toLowerCase()));
-    if (names.size + files.filter(file => !names.has(file.name.toLowerCase())).length > 10) throw new Error('This ticket would exceed the 10-file limit.');
-    for (const file of files) {
-      // On retry, do not duplicate files already accepted by SharePoint.
-      if (names.has(file.name.toLowerCase())) continue;
-      const name = encodeURIComponent(file.name.replace(/'/g, "''")).replace(/'/g, '%27');
-      const response = await fetch(`${base}/add(FileName='${name}')`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;odata=nometadata', 'Content-Type': 'application/octet-stream' }, body: file, signal: AbortSignal.timeout(60000) });
-      if (!response.ok) throw new Error(`Unable to upload ${file.name} (${response.status}). Confirm list attachments are enabled and your account can edit the ticket.`);
-    }
+    await this.attachments().upload(this.context!.listId,id,files,progress);
   }
   public async createTicket(input: INewTicketInput): Promise<void> {
     validateTicketAttachments(input.attachments || []);
@@ -253,6 +290,7 @@ export class GraphTicketService implements ITicketDataSource {
       fields[`${this.updateSchema.assigned}LookupId`] = String(input.assignedToId);
       fields[schema.status] = 'Assigned';
     }
+    if (input.attachments?.length) await this.attachments().ensureEnabled(this.context!.listId);
     const created = await this.graph.post<{ id: string }>(`${schema.path}/items`, { fields });
     if (input.attachments?.length) {
       const id = Number(created?.id);

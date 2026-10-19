@@ -49,8 +49,10 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   } : undefined;
   if (source.getComments) result.getComments = async id => { await requireTicket(id); return source.getComments!(id); };
   if (source.getHistory) result.getHistory = async id => { await requireTicket(id); return source.getHistory!(id); };
-  if (source.addComment) result.addComment = role.actions.includes('comment') ? async (id, text) => { requireAction('comment'); await requireTicket(id); await source.addComment!(id, text); } : undefined;
-  if (source.uploadAttachments) result.uploadAttachments = role.actions.includes('edit') ? async (id, files) => { requireAction('edit'); await requireTicket(id); await source.uploadAttachments!(id, files); } : undefined;
+  if (source.addComment) result.addComment = role.actions.includes('comment') ? async (id, text, options) => { requireAction('comment'); await requireTicket(id); await source.addComment!(id, text, options); } : undefined;
+  if (source.uploadCommentAttachments) result.uploadCommentAttachments = role.actions.includes('comment') ? async (id, commentId, files, progress) => {requireAction('comment'); await requireTicket(id); await source.uploadCommentAttachments!(id,commentId,files,progress);} : undefined;
+  if (source.getAttachments) result.getAttachments = async id => {await requireTicket(id); return source.getAttachments!(id);};
+  if (source.uploadAttachments) result.uploadAttachments = role.actions.includes('edit') ? async (id, files, progress) => { requireAction('edit'); await requireTicket(id); await source.uploadAttachments!(id, files, progress); } : undefined;
   if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireTicket(id); await source.recordFirstResponse!(id); } : undefined;
   if (!role.actions.includes('classifications')) result.administration = undefined;
   if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canSubmitDraft: false }; };

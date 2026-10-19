@@ -14,6 +14,7 @@ export const ticketViewOrder = ['Title','Status','Priority','TicketType','Catego
 export function workspaceDefinitions(ticketName: string): Definition[] {
   const definitions: Definition[] = [
     {key: 'categories', name: workspaceLists.categories, columns: common()},
+    {key: 'comments', name: workspaceLists.comments, columns: [text('Title'),{...text('TicketKey'),indexed:true,required:true},{name:'Content',text:{allowMultipleLines:true,textType:'plain'},required:true}]},
     {key: 'subcategories', name: workspaceLists.subcategories, columns: [...common(), {...lookup('Category', 'categories'), required: true}]},
     {key: 'issueTypes', name: workspaceLists.issueTypes, columns: common()},
     {key: 'priorities', name: workspaceLists.priorities, columns: [text('Title'), {name: 'Active', boolean: {}, defaultValue: {value: '1'}}, {name: 'ResponseMinutes', number: {minimum: 1}}, {name: 'ResolutionMinutes', number: {minimum: 1}}]},
@@ -44,7 +45,7 @@ export function columnConflict(actual: Column, expected: Column, ids: Record<str
     if (value.allowMultipleValues || !ids[target.target!] || value.listId.toLowerCase() !== ids[target.target!].toLowerCase()) return 'lookup points to a different list or allows multiple values';
   }
   if (actualKind === 'personOrGroup' && (actual.personOrGroup as {allowMultipleSelection?: boolean}).allowMultipleSelection) return 'must allow a single person';
-  if (expected.name === 'Answer' && actualKind === 'text' && !(actual.text as {allowMultipleLines?: boolean}).allowMultipleLines) return 'must allow multiple lines';
+  if (['Answer','Content'].includes(expected.name) && actualKind === 'text' && !(actual.text as {allowMultipleLines?: boolean}).allowMultipleLines) return 'must allow multiple lines';
   return undefined;
 }
 export class WorkspaceSetupService implements IWorkspaceSetup {
@@ -77,6 +78,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
         const actual = matchingColumn(columns,expected);
         if (!actual) {steps.push({resource: `${definition.name} / ${expected.name}`, action:'Add column'}); continue;}
         const conflict = columnConflict(actual,expected,ids, definition.key === 'tickets' || definition.key === 'faqs');
+        if (expected.indexed && !actual.indexed) steps.push({resource:`${definition.name} / ${actual.displayName || actual.name}`,action:'Index column for comment lookup'});
         if (conflict) steps.push({resource: `${definition.name} / ${actual.displayName || actual.name}`, action:conflict, blocked:true});
         else if (expected.choice && (expected.choice as {choices:string[]}).choices.some(value => !(actual.choice as {choices:string[]}).choices.includes(value))) steps.push({resource:`${definition.name} / ${actual.name}`, action:'Append missing supported choices; preserve existing choices'});
       }
@@ -107,6 +109,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
         if (actual) {
           const conflict = columnConflict(actual,expected,ids, definition.key === 'tickets' || definition.key === 'faqs');
           if (conflict) throw new Error(`${definition.name}.${actual.name}: ${conflict}. Existing records preserved.`);
+          if (expected.indexed && !actual.indexed) await this.graph.patch(`${columnPath}/${actual.id}`,{indexed:true});
           if (expected.choice) {
             const choices = [...new Set([...(actual.choice as {choices:string[]}).choices,...(expected.choice as {choices:string[]}).choices])];
             if (choices.length !== (actual.choice as {choices:string[]}).choices.length) await this.graph.patch(`${columnPath}/${actual.id}`, {choice:{...actual.choice as object, choices}});
