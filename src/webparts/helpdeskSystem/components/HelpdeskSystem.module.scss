@@ -422,9 +422,9 @@
   .detailSidebarMetadata dt { font-size: 12px; font-weight: 500; }
   .detailSidebarMetadata dd { font-size: 12px; font-weight: 500; }
   .commentEntry strong { font-size: 12px; font-weight: 600; }
-  .commentEntry p { font-size: 13px; }
+  .commentEntry p { font-size: 14px; line-height: 1.6; }
   .commentEntry time { font-size: 11px; font-weight: 500; }
-  .commentEditor :global(.ms-TextField-field) { font-size: 13px; }
+  .commentEditor :global(.ms-TextField-field) { font-size: 14px; line-height: 1.6; }
   .commentComposerFooter > button:last-child { font-size: 12px; }
   .detailInternalNote, .detailAttachButton, .detailTopActions select { font-size: 11px; font-weight: 500; }
   .detailTopActions > button, .detailToolbarTitle > button { font-size: 13px; }
@@ -719,6 +719,7 @@
 }
 .attachmentLinks { list-style: none; margin: 12px 0; padding: 0; li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid #e0e7f1; } a { color: #2855b6; overflow-wrap: anywhere; } }
 .attachmentPicker { display: grid; gap: 10px; margin: 12px 0; padding: 12px; border: 1px dashed #c1d0e3; border-radius: 4px; > button { justify-self: start; } > span, small { font-size: 12px; color: #647694; } ul { list-style: none; padding: 0; margin: 0; li { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #e0e7f1; > span { flex: 1; overflow-wrap: anywhere; } } } }
+.attachmentDropArea { display: flex; align-items: center; gap: 10px; padding: 8px 0; cursor: pointer; color: #334e70; font-size: 14px; &:focus-visible { outline: 2px solid #91b3df; outline-offset: 3px; } &[aria-disabled='true'] { cursor: default; opacity: .55; } }
 .formAssigneePicker {
   :global(.ms-BasePicker-text) { min-height: 34px; border: 1px solid #d6e1ee; border-radius: 4px; background: #fff; &::after { border: 1px solid #789ac4; border-radius: 4px; } }
   :global(.ms-BasePicker-input) { font-size: 12px; min-height: 30px; }
