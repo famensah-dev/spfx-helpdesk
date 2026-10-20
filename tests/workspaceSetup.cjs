@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs');
+const fs = require('node:fs');
 const ts = require('typescript');
 const assert = require('node:assert/strict');
 function load(file, dependencies = {}) {const module = {exports:{}}; const code = ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText; new Function('require','module','exports',code)(name => dependencies[name] || require(name),module,module.exports); return module.exports;}
@@ -27,7 +27,7 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   const setup = new WorkspaceSetupService(graph,{siteUrl:'https://example.sharepoint.com/sites/test',listName:'Tickets'},async ids => {assert(ids.tickets && ids.categories); finished++;});
   assert.equal((await setup.inspect()).steps.some(step=>step.blocked),false);
   await setup.run(()=>{});
-  assert.equal(lists.length,7);
+  assert.equal(lists.length,8);
   const comments = lists.find(value=>value.displayName==='TicketComments');
   assert(columns.get(comments.id).find(value=>value.name==='TicketKey').indexed);
   const sub=lists.find(value=>value.displayName==='Ticket Subcategories');

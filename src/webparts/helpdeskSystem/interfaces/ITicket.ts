@@ -24,6 +24,10 @@ export interface ITicket {
   IssueType?: string;
   TicketType?: string;
   Requester?: IUserLookup;
+  CreatedBy?: IUserLookup;
+  RequesterEmail?: string;
+  EmailRequesterUpdates?: boolean;
+  HasRequesterNotificationSettings?: boolean;
   Department?: string;
   StartedAt?: string;
   ClosedAt?: string;

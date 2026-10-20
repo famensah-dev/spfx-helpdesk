@@ -21,11 +21,13 @@ test('Created by Me matches requester identity without using names or assignees'
   assert.equal(isTicketCreatedBy({ Requester: { Email: 'other@example.com' }, AssignedTo: { Email: 'me@example.com' } }, 'me@example.com'), false);
   assert.equal(isTicketCreatedBy({ Requester: { Title: 'Same name' } }, '', ''), false);
   assert.equal(isTicketCreatedBy({}, 'me@example.com', 'user-123'), false);
+  assert.equal(isTicketCreatedBy({CreatedBy:{Email:'flow@example.com'},Requester:{Email:'me@example.com'}},'me@example.com'),false);
+  assert.equal(isTicketCreatedBy({CreatedBy:{Email:'flow@example.com'},Requester:{Email:'me@example.com'}},'flow@example.com'),true);
 });
 const { applyAppRoleRules, ticketInScope, canUse } = load('../src/webparts/helpdeskSystem/services/appRoleRules.ts');
 const { SharePointRoleManagement } = load('../src/webparts/helpdeskSystem/services/SharePointRoleManagement.ts', {
   '@microsoft/sp-http': { SPHttpClient: { configurations: { v1: {} } } },
-  '../interfaces/IRoleManagement': roles
+  '../interfaces/INotifications': load('../src/webparts/helpdeskSystem/interfaces/INotifications.ts'), '../interfaces/IRoleManagement': roles
 });
 const tickets = [
   { Id: 1, Title: 'Assigned', Status: 'New', Priority: 'Low', AssignedTo: { Id: 7, Email: 'agent@example.com' } },
@@ -156,7 +158,7 @@ test('permission editor requires Apply and confirmation; cancel and restore pres
   };
   const fluent = Object.fromEntries(['Checkbox', 'DefaultButton', 'Dialog', 'DialogFooter', 'Dropdown', 'Link', 'MessageBar', 'PrimaryButton', 'SearchBox', 'Spinner', 'Toggle', 'Icon'].map(name => [name, name]));
   fluent.MessageBarType = {};
-  const { SharePointRolesPage } = load('../src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', { react, '@fluentui/react': fluent, '../components/cancelButtonStyles': {cancelButtonStyles: {}}, '../interfaces/IRoleManagement': roles, '../components/HelpdeskSystem.module.scss': { default: {} }, './SharePointUsersPage': { SharePointUsersPage: 'SharePointUsersPage' } });
+  const { SharePointRolesPage } = load('../src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', { react, '@fluentui/react': fluent, '../components/cancelButtonStyles': {cancelButtonStyles: {}}, '../interfaces/INotifications': load('../src/webparts/helpdeskSystem/interfaces/INotifications.ts'), '../interfaces/IRoleManagement': roles, '../components/HelpdeskSystem.module.scss': { default: {} }, './SharePointUsersPage': { SharePointUsersPage: 'SharePointUsersPage' } });
   const config = roles.defaultRoleConfiguration();
   config.assignments = [{ userId: 7, name: 'Agent', email: 'agent@example.com', roleId: 'agent' }];
   const writes = [];

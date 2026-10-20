@@ -2,6 +2,8 @@ import { SPHttpClient } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { defaultRoleConfiguration, validateRoleConfiguration } from '../interfaces/IRoleManagement';
 import type { IRoleConfiguration, IRoleManagement } from '../interfaces/IRoleManagement';
+import { defaultNotificationSettings, validateNotificationSettings } from '../interfaces/INotifications';
+import type { INotificationSettings, INotificationLogEntry } from '../interfaces/INotifications';
 
 interface AccessItem { Id: number; Title: string; Rules: string; }
 /** SharePoint ACLs protect configuration and each user's access projection. */
@@ -11,6 +13,38 @@ export class SharePointRoleManagement implements IRoleManagement {
   private readonly users: string;
   private itemId?: number;
   private etag?: string;
+  private notificationEtag?: string;
+  public async notificationLog(id?:string):Promise<INotificationLogEntry[]> {
+    if (!this.owner) throw new Error('Only site owners can view the notification log.');
+    if (!id || !/^[a-f0-9-]{36}$/i.test(id)) throw new Error('Initialize workspace and reload DeskPilot to create the notification log.');
+    return (await this.read<{value:INotificationLogEntry[]}>(`${this.web}/lists(guid'${id}')/items?$select=Id,TicketId,Event,Recipients,DeliveryStatus,Created,SentAt,LastError&$orderby=Id desc&$top=20`)).value;
+  }
+  public async loadNotifications():Promise<INotificationSettings> {
+    if (!this.owner) throw new Error('Only site owners can manage notifications.');
+    if (!this.itemId) return defaultNotificationSettings();
+    const item = await this.configurationItem(this.itemId);
+    this.notificationEtag = item.etag;
+    const value = (JSON.parse(item.Rules) as IRoleConfiguration).notifications || defaultNotificationSettings();
+    validateNotificationSettings(value); return value;
+  }
+  public async saveNotifications(value:INotificationSettings):Promise<void> {
+    if (!this.owner) throw new Error('Only site owners can manage notifications.');
+    validateNotificationSettings(value);
+    if (!this.itemId || !this.notificationEtag) throw new Error('Initialize workspace, then reload notification settings before saving.');
+    const current = await this.configurationItem(this.itemId);
+    if (current.etag !== this.notificationEtag) throw new Error('Settings changed in another session. Reload notifications before saving.');
+    const configuration = {...JSON.parse(current.Rules) as IRoleConfiguration,notifications:value};
+    if (value.enabled && !configuration.workspace?.resourceIds?.notificationLog) throw new Error('Initialize workspace before enabling email delivery.');
+    validateRoleConfiguration(configuration);
+    if (JSON.stringify(configuration).length > 60000) throw new Error('Configuration is too large. Shorten email templates.');
+    await this.write(`${this.root}/items(${this.itemId})`,{Rules:JSON.stringify(configuration)},{'IF-MATCH':current.etag,'X-HTTP-Method':'MERGE'});
+    const saved = await this.configurationItem(this.itemId);
+    this.notificationEtag = saved.etag; this.etag = saved.etag;
+  }
+  public async secureNotificationLog(id:string):Promise<void> {
+    if (!this.owner || !/^[a-f0-9-]{36}$/i.test(id)) throw new Error('Site owner access and a valid notification log ID are required.');
+    await this.secure(`${this.web}/lists(guid'${id}')`);
+  }
   private identity?: { user: number; owners: number; read: number; full: number };
   public constructor(private context: WebPartContext, private owner: boolean) {
     this.web = `${context.pageContext.web.absoluteUrl}/_api/web`;

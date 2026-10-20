@@ -23,8 +23,8 @@ export class WorkspaceMaintenanceService {
     await this.authorize();
     const config = await this.roles.load();
     const workspace = config.workspace;
-    const names = [workspace?.listName || 'Tickets', ...Object.entries(workspaceLists).filter(([key]) => key !== 'access').map(([,name]) => name)];
-    const ids = [workspace?.listId, ...Object.entries(workspace?.resourceIds || {}).filter(([key]) => key !== 'access').map(([,id]) => id)].filter(Boolean);
+    const names = [workspace?.listName || 'Tickets', ...Object.entries(workspaceLists).filter(([key]) => !['access','notificationLog'].includes(key)).map(([,name]) => name)];
+    const ids = [workspace?.listId, ...Object.entries(workspace?.resourceIds || {}).filter(([key]) => !['access','notificationLog'].includes(key)).map(([,id]) => id)].filter(Boolean);
     const values: MaintenanceList[] = [];
     let path: string | undefined = '/lists?$select=Id,Title,Description,ItemCount,BaseTemplate,Hidden&$top=100';
     while (path) {
@@ -34,7 +34,7 @@ export class WorkspaceMaintenanceService {
       if (next && !next.startsWith(this.web + '/')) throw new Error('Unexpected SharePoint pagination address.');
       path = next?.slice(this.web.length);
     }
-    return values.filter(list => list.BaseTemplate === 100 && !list.Hidden && list.Id.toLowerCase() !== workspace?.resourceIds?.access?.toLowerCase() && !/^DeskPilot (Access|User Access|Configuration)$/i.test(list.Title) && (names.includes(list.Title) || ids.some(id => id?.toLowerCase() === list.Id.toLowerCase())));
+    return values.filter(list => list.BaseTemplate === 100 && !list.Hidden && list.Id.toLowerCase() !== workspace?.resourceIds?.access?.toLowerCase() && !/^DeskPilot (Access|User Access|Configuration|Notification Log)$/i.test(list.Title) && (names.includes(list.Title) || ids.some(id => id?.toLowerCase() === list.Id.toLowerCase())));
   }
   public async inspect(action: MaintenanceAction, ids: string[]): Promise<MaintenanceList[]> {
     if (!['clear','drop','reset'].includes(action)) throw new Error('Invalid maintenance action.');

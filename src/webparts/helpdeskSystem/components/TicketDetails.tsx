@@ -44,6 +44,8 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const [commentsError, setCommentsError] = React.useState('');
   const [comment, setComment] = React.useState('');
   const [commentFiles,setCommentFiles] = React.useState<File[]>([]);
+  const [sendToRequester,setSendToRequester] = React.useState(false);
+  const [emailRequesterUpdates,setEmailRequesterUpdates] = React.useState(ticket.EmailRequesterUpdates !== false);
   const [uploadProgress,setUploadProgress] = React.useState('');
   const [pendingCommentUpload,setPendingCommentUpload] = React.useState<{id:string;faq?:IFaqInput}>();
   const commentPostId = React.useRef('');
@@ -119,12 +121,12 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   }, [service, ticket.Id]);
   React.useEffect(() => { heading.current?.focus(); void loadComments(); return () => { commentRequest.current++; }; }, [loadComments]);
   const date = (value?: string | null): string => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString() : 'Not provided';
-  const beginEdit = (): void => { setEditFiles([]); setClassificationEdit({}); setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
+  const beginEdit = (): void => { setEmailRequesterUpdates(ticket.EmailRequesterUpdates !== false); setEditFiles([]); setClassificationEdit({}); setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
   const save = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault(); if (!service?.updateTicket || lock.current) return;
     lock.current = true; setSaving(true); setError('');
     try {
-      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null, ...classificationEdit});
+      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null, ...classificationEdit,...(ticket.HasRequesterNotificationSettings ? {emailRequesterUpdates} : {})});
       if (editFiles.length) {
         try {
           if (!service.uploadAttachments) throw new Error('Attachment uploads are not available.');
@@ -164,9 +166,9 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         await service.uploadCommentAttachments(ticket.Id,pendingCommentUpload.id,commentFiles,setUploadProgress);
       } else {
         if (!commentPostId.current) commentPostId.current = crypto.randomUUID();
-        await service.addComment(ticket.Id,comment,{files:commentFiles,requestId:commentPostId.current,onProgress:setUploadProgress});
+        await service.addComment(ticket.Id,comment,{files:commentFiles,requestId:commentPostId.current,sendToRequester,onProgress:setUploadProgress});
       }
-      commentSaved = true; setComment(''); setCommentFiles([]); setPendingCommentUpload(undefined); setSaveToFaq(false); commentPostId.current = '';
+      commentSaved = true; setComment(''); setCommentFiles([]); setPendingCommentUpload(undefined); setSaveToFaq(false); setSendToRequester(false); commentPostId.current = '';
       if (faq) {
         setPendingFaq(faq);
         await service.saveFaq!(faq);
@@ -230,6 +232,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
           <Dropdown label="Ticket Type" selectedKey={classificationEdit.ticketType || ticket.TicketType || ''} disabled={saving || !canUse(service, 'edit')} options={[{key: '', text: 'Not specified', disabled: true}, ...['Problem', 'Incident', 'Question', 'Request'].map(value => ({key: value, text: value}))]} onChange={(_,option) => { if (option) setClassificationEdit(current => ({...current, ticketType: String(option.key)})); }} />
           <TicketClassificationFields service={service} ticket={ticket} disabled={saving || !canUse(service, 'edit')} onChange={value => setClassificationEdit(current => ({ ...current, ...value }))} />
           {service?.uploadAttachments && <div><Label>Attachments</Label><AttachmentPicker files={editFiles} onChange={setEditFiles} disabled={saving || !canUse(service, 'edit')} /></div>}
+          {ticket.HasRequesterNotificationSettings && <label className={styles.detailInternalNote}><input type="checkbox" checked={emailRequesterUpdates} disabled={saving} onChange={event => setEmailRequesterUpdates(event.target.checked)} />Email requester updates</label>}
           {editUploadProgress && <Spinner label={editUploadProgress} />}
           <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form> : <>
@@ -239,7 +242,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
       {faqMessage && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setFaqMessage('')}>{faqMessage}</MessageBar>}
       {pendingFaq && <MessageBar messageBarType={MessageBarType.warning}>Your comment is saved; its FAQ draft still needs to be saved. <DefaultButton text="Retry Save to FAQ" disabled={posting} onClick={() => { void retryFaq(); }} /><DefaultButton text="Dismiss" disabled={posting} styles={cancelButtonStyles} onClick={() => setPendingFaq(null)} /></MessageBar>}
       <section ref={commentsSection} className={styles.ticketComments} aria-label="Ticket comments">
-        <form onSubmit={event => { void post(event); }} className={styles.commentComposer}><div className={styles.detailSectionHeading}><Icon iconName="CommentAdd" /><h3>Add a comment</h3></div><div className={styles.commentEditor}><div className={styles.commentFormatBar} aria-label="Comment formatting"><select disabled aria-label="Text style" title="Rich text formatting is not available yet"><option>Normal</option></select>{[{ icon: 'Bold', label: 'Bold' }, { icon: 'Italic', label: 'Italic' }, { icon: 'Underline', label: 'Underline' }, { icon: 'BulletedList', label: 'Bulleted list' }, { icon: 'NumberedList', label: 'Numbered list' }, { icon: 'AlignLeft', label: 'Align left' }, { icon: 'Link', label: 'Insert link' }, { icon: 'Photo2', label: 'Insert image' }].map(item => <IconButton key={item.icon} iconProps={{ iconName: item.icon }} ariaLabel={item.label} title={`${item.label} is not available yet`} disabled />)}</div><TextField ariaLabel="Comment" placeholder="Type your comment here…" multiline rows={4} maxLength={10000} value={comment} disabled={posting || Boolean(pendingCommentUpload) || !service?.addComment} onChange={(_, value) => setComment(value || '')} /></div><AttachmentPicker files={commentFiles} onChange={setCommentFiles} disabled={posting || !service?.uploadCommentAttachments} />{pendingCommentUpload && <MessageBar messageBarType={MessageBarType.warning}>Your comment is already saved. Retry attachments to finish uploading the selected files without posting another comment.</MessageBar>}{posting && uploadProgress && <Spinner label={uploadProgress} />}<div className={styles.commentComposerFooter}><label className={styles.detailInternalNote}><input type="checkbox" checked={saveToFaq} disabled={posting || Boolean(pendingFaq) || Boolean(pendingCommentUpload) || !service?.saveFaq} onChange={event => setSaveToFaq(event.target.checked)} />Create FAQ draft</label><PrimaryButton type="submit" text={posting ? 'Posting…' : pendingCommentUpload ? 'Retry attachments' : 'Post Comment'} iconProps={{iconName: 'Send'}} disabled={posting || Boolean(pendingFaq) || commentsLoading || !comment.trim() || !service?.addComment} /></div></form>
+        <form onSubmit={event => { void post(event); }} className={styles.commentComposer}><div className={styles.detailSectionHeading}><Icon iconName="CommentAdd" /><h3>Add a comment</h3></div><div className={styles.commentEditor}><div className={styles.commentFormatBar} aria-label="Comment formatting"><select disabled aria-label="Text style" title="Rich text formatting is not available yet"><option>Normal</option></select>{[{ icon: 'Bold', label: 'Bold' }, { icon: 'Italic', label: 'Italic' }, { icon: 'Underline', label: 'Underline' }, { icon: 'BulletedList', label: 'Bulleted list' }, { icon: 'NumberedList', label: 'Numbered list' }, { icon: 'AlignLeft', label: 'Align left' }, { icon: 'Link', label: 'Insert link' }, { icon: 'Photo2', label: 'Insert image' }].map(item => <IconButton key={item.icon} iconProps={{ iconName: item.icon }} ariaLabel={item.label} title={`${item.label} is not available yet`} disabled />)}</div><TextField ariaLabel="Comment" placeholder="Type your comment here…" multiline rows={4} maxLength={10000} value={comment} disabled={posting || Boolean(pendingCommentUpload) || !service?.addComment} onChange={(_, value) => setComment(value || '')} /></div><AttachmentPicker files={commentFiles} onChange={setCommentFiles} disabled={posting || !service?.uploadCommentAttachments} />{pendingCommentUpload && <MessageBar messageBarType={MessageBarType.warning}>Your comment is already saved. Retry attachments to finish uploading the selected files without posting another comment.</MessageBar>}{posting && uploadProgress && <Spinner label={uploadProgress} />}<div className={styles.commentComposerFooter}><label className={styles.detailInternalNote} title="Requests email delivery through the configured Power Automate flow; it does not change comment visibility."><input type="checkbox" checked={sendToRequester} disabled={posting || Boolean(pendingCommentUpload) || ticket.EmailRequesterUpdates === false} onChange={event => setSendToRequester(event.target.checked)} />Email a copy to requester</label><label className={styles.detailInternalNote}><input type="checkbox" checked={saveToFaq} disabled={posting || Boolean(pendingFaq) || Boolean(pendingCommentUpload) || !service?.saveFaq} onChange={event => setSaveToFaq(event.target.checked)} />Create FAQ draft</label><PrimaryButton type="submit" text={posting ? 'Posting…' : pendingCommentUpload ? 'Retry attachments' : 'Post Comment'} iconProps={{iconName: 'Send'}} disabled={posting || Boolean(pendingFaq) || commentsLoading || !comment.trim() || !service?.addComment} /></div></form>
         <div className={styles.commentDisplay}>
         <div className={styles.conversationHeading}><div><h3>Comments <span className={styles.commentCount}>{comments.length}</span></h3></div><div className={styles.detailTopActions}><select aria-label="Comment order" value={newestFirst ? 'newest' : 'oldest'} onChange={event => setNewestFirst(event.target.value === 'newest')}><option value="newest">Newest first</option><option value="oldest">Oldest first</option></select><IconButton styles={cancelButtonStyles} ariaLabel="Refresh comments" title="Refresh comments" iconProps={{iconName: 'Refresh'}} disabled={commentsLoading || posting} onClick={() => { void loadComments(); }} /></div></div>
         {commentsError && <MessageBar messageBarType={MessageBarType.error}>{commentsError}</MessageBar>}
@@ -257,7 +260,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <div><dt><Icon iconName="Tag" />Category</dt><dd>{ticket.Category || 'Not specified'}</dd></div>
             <div><dt><Icon iconName="Tag" />Sub Category</dt><dd>{ticket.Subcategory || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Ticket Type</dt><dd>{ticket.TicketType || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Issue Type</dt><dd>{ticket.IssueType || 'Not specified'}</dd></div><div><dt><Icon iconName="Work" />Department</dt><dd>—</dd></div><div><dt><Icon iconName="Calendar" />Created</dt><dd>{date(ticket.Created)}</dd></div>
             <div><dt><Icon iconName="Clock" />Last updated</dt><dd>{date(ticket.Modified)}</dd></div>
-            <div><dt><Icon iconName="Contact" />Created By</dt><dd>{ticket.Requester?.Title || 'Not available'}</dd></div><div><dt><Icon iconName="Contact" />Assigned to</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true">{ticket.AssignedTo?.Title ? initials(ticket.AssignedTo.Title) : '?'}</span>{ticket.AssignedTo?.Title || 'Unassigned'}</dd></div>
+            <div><dt><Icon iconName="Contact" />Created By</dt><dd>{(ticket.CreatedBy || ticket.Requester)?.Title || 'Not available'}</dd></div><div><dt><Icon iconName="Contact" />Assigned to</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true">{ticket.AssignedTo?.Title ? initials(ticket.AssignedTo.Title) : '?'}</span>{ticket.AssignedTo?.Title || 'Unassigned'}</dd></div>
             {ticket.DueDate && <div><dt><Icon iconName="Calendar" />Due date</dt><dd>{date(ticket.DueDate)}</dd></div>}
             <div><dt><Icon iconName="Warning" />Escalated</dt><dd>{ticket.Escalated || ticket.Status === 'Escalated' ? 'Yes' : 'No'}</dd></div>
           </dl>
@@ -268,7 +271,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         </details>
         <details className={styles.detailSidebarCard} open>
           <summary className={styles.detailSectionHeading}><Icon iconName="Contact" /><h3>Created By</h3><Icon iconName="ChevronDown" /></summary>
-          <PersonContact person={ticket.Requester} siteUrl={service?.access?.siteUrl} />
+          <PersonContact person={ticket.CreatedBy || ticket.Requester} siteUrl={service?.access?.siteUrl} />
         </details>      </aside>
     </div>
   </section>;

@@ -4,6 +4,8 @@ export interface IAppConfig {
   siteUrl: string;
   resourceIds?: Record<string, string>;
   siteId?: string;
+  currentUserId?: number;
+  currentUserEmail?: string;
   listName: string;
   listId?: string;
   faqListName?: string;

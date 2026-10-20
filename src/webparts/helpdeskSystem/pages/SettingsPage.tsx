@@ -1,3 +1,4 @@
+import { NotificationSettings } from '../components/NotificationSettings';
 import { WorkspaceSetupPanel } from '../components/WorkspaceSetupPanel';
 import { WorkspaceMaintenancePanel } from '../components/WorkspaceMaintenancePanel';
 import * as React from 'react';
@@ -11,7 +12,7 @@ import styles from './SettingsPage.module.scss';
 interface List { Id: string; Title: string; Hidden: boolean; BaseTemplate: number; DefaultViewUrl: string; RootFolder?: {ServerRelativeUrl: string}; }
 interface Entry { Name: string; ServerRelativeUrl: string; folder: boolean; }
 const textButtonStyles: import('@fluentui/react').IButtonStyles = { root: { background: 'transparent', border: 0, minWidth: 0, padding: '0 4px', height: 30, fontSize: 13 }, rootHovered: { background: 'transparent', border: 0, selectors: { '.ms-Button-label': { textDecoration: 'underline' } } }, rootPressed: { background: 'transparent', border: 0 }, rootDisabled: { background: 'transparent', border: 0 }, label: { fontWeight: 400 } };
-const sections = ['General', 'SharePoint Settings', 'Site Lists', 'Site Documents', 'Hidden Lists'] as const;
+const sections = ['General', 'Notifications & Email', 'SharePoint Settings', 'Site Lists', 'Site Documents', 'Hidden Lists'] as const;
 export function SettingsPage(props: {context: WebPartContext; service: ITicketDataSource; portalTitle?: string; onBack: () => void}): React.ReactElement {
   const [section, setSection] = React.useState<typeof sections[number]>('General');
   const initial = props.service.workspaceSettings!;
@@ -58,7 +59,7 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
     } catch (reason) { if (request === version.current) setError(reason instanceof Error ? reason.message : 'Unable to load settings.'); }
     finally { if (request === version.current) setBusy(false); }
   };
-  React.useEffect(() => { if (section !== 'General' && section !== 'SharePoint Settings') load().catch(() => undefined); return () => { version.current++; }; }, [section, folder]);
+  React.useEffect(() => { if (section !== 'General' && section !== 'SharePoint Settings' && section !== 'Notifications & Email') load().catch(() => undefined); return () => { version.current++; }; }, [section, folder]);
   if (!props.service.access?.superAdmin) return <MessageBar messageBarType={MessageBarType.error}>Super Admin access is required.</MessageBar>;
   const url = (value: string): string => { const address = new URL(value, site + '/'); return address.origin === new URL(site).origin ? address.href : site + '/'; };
   const save = async (): Promise<void> => {
@@ -68,7 +69,7 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save settings.'); }
     finally { saveLock.current = false; setSaving(false); }
   };
-  const appNames = ['Ticket Categories', 'Ticket Subcategories', 'Ticket Issue Types', 'FAQs', 'Ticket Priorities', 'TicketComments', 'DeskPilot Access'];
+  const appNames = ['Ticket Categories', 'Ticket Subcategories', 'Ticket Issue Types', 'FAQs', 'Ticket Priorities', 'TicketComments', 'DeskPilot Notification Log', 'DeskPilot Access'];
   const relevant = (item: List): boolean => item.Title === initial.listName || item.Id.toLowerCase() === initial.listId.toLowerCase() || appNames.includes(item.Title) || Object.values(initial.resourceIds || {}).some(id => id.toLowerCase() === item.Id.toLowerCase());
   const listTable = (items: List[]): React.ReactElement => <table><thead><tr><th>List name</th><th>Visibility</th><th /></tr></thead><tbody>{items.map(item => <tr key={item.Id}><td><a href={url(item.DefaultViewUrl || `${site}/_layouts/15/listedit.aspx?List=${encodeURIComponent(item.Id)}`)}>{item.Title}</a></td><td>{item.Hidden ? 'Hidden' : 'Visible'}</td><td><a href={url(item.DefaultViewUrl || `${site}/_layouts/15/listedit.aspx?List=${encodeURIComponent(item.Id)}`)}>Open list</a></td></tr>)}</tbody></table>;
   const links = [
@@ -78,10 +79,11 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
   ];
   return <section className={styles.settings}><header><div><h2>Settings</h2><p>Manage this DeskPilot workspace.</p></div><DefaultButton styles={textButtonStyles} text="Back to DeskPilot" iconProps={{iconName: 'Back'}} onClick={props.onBack} /></header><div className={styles.layout}>
     <nav aria-label="Settings sections">{sections.map(item => <button key={item} aria-current={item === section ? 'page' : undefined} onClick={() => {setSection(item); setError('');}}>{item}</button>)}</nav>
-    <div className={styles.content}><div className={styles.heading}><h3>{section}</h3>{section !== 'General' && section !== 'SharePoint Settings' && <IconButton iconProps={{iconName: 'Refresh'}} ariaLabel="Refresh" disabled={busy} onClick={() => {load().catch(() => undefined);}} />}</div>
+    <div className={styles.content}><div className={styles.heading}><h3>{section}</h3>{section !== 'General' && section !== 'SharePoint Settings' && section !== 'Notifications & Email' && <IconButton iconProps={{iconName: 'Refresh'}} ariaLabel="Refresh" disabled={busy} onClick={() => {load().catch(() => undefined);}} />}</div>
     {(section === 'General' || section === 'Site Lists') && <WorkspaceSetupPanel service={props.service} />}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {section === 'General' && <div className={styles.form}><TextField label="Workspace display name" value={draft.title} onChange={(_,value) => setDraft({...draft,title: value || ''})} description="Shown beside DeskPilot. This does not rename the SharePoint site." /><TextField label="Support description" multiline rows={2} value={draft.description} onChange={(_,value) => setDraft({...draft,description: value || ''})} /><TextField label="Connected SharePoint site" readOnly value={site} /><TextField label="DeskPilot page URL" readOnly value={app.href} /><TextField label="Tickets list name" required value={draft.listName} onChange={(_,value) => setDraft({...draft,listName: value || ''})} /><TextField label="Tickets list ID" value={draft.listId} description="Optional. Takes precedence over the name. The selected list must be on this site." onChange={(_,value) => setDraft({...draft,listId: (value || '').trim()})} /><div className={styles.actions}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setDraft({...initial,title: initial.title || props.portalTitle || 'IT Helpdesk'})} /><PrimaryButton text={saving ? 'Saving...' : 'Save'} disabled={saving || !draft.listName.trim()} onClick={() => setConfirm(true)} /></div></div>}
+    {section === 'Notifications & Email' && <NotificationSettings service={props.service} appUrl={app.href} />}
     {section === 'SharePoint Settings' && <div className={styles.links}>{links.map(([name,href,icon]) => <a key={name} href={href}><Icon iconName={icon} aria-hidden="true" /><span>{name}</span></a>)}</div>}
     {busy && <Spinner label="Loading SharePoint resources..." />}
     {!busy && section === 'Site Lists' && <><p>Lists used by this workspace.</p>{listTable(lists.filter(relevant))}{lists.some(item => item.Title === 'DeskPilot User Access') && <><h4>Previously used list</h4><p>This is the old user-access list. DeskPilot now uses DeskPilot Access instead; this copy is kept for recovery.</p>{listTable(lists.filter(item => item.Title === 'DeskPilot User Access'))}</>}</>}

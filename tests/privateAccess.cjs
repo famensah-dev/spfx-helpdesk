@@ -1,4 +1,4 @@
-﻿const assert = require('node:assert/strict');
+const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
 function load(path, imports) {
@@ -9,7 +9,7 @@ function load(path, imports) {
 }
 const roles = load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts', {});
 const { SharePointRoleManagement } = load('src/webparts/helpdeskSystem/services/SharePointRoleManagement.ts', {
-  '@microsoft/sp-http': {SPHttpClient: {configurations: {v1: {}}}}, '../interfaces/IRoleManagement': roles
+  '@microsoft/sp-http': {SPHttpClient: {configurations: {v1: {}}}}, '../interfaces/INotifications': load('src/webparts/helpdeskSystem/interfaces/INotifications.ts', {}), '../interfaces/IRoleManagement': roles
 });
 (async () => {
   const config = roles.defaultRoleConfiguration();
