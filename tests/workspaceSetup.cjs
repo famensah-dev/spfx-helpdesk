@@ -47,6 +47,10 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   assert.equal(items.get(sub.id)[0].fields.CategoryLookupId,'existing-category','Existing subcategories must be preserved');
   assert.equal(items.get(priorityList.id)[0].fields.ResponseMinutes,777);
   const ticket=lists.find(value=>value.displayName==='Tickets');
+  const summary=columns.get(ticket.id).find(value=>value.name==='ResolutionSummary');
+  assert(summary.text.allowMultipleLines && summary.text.textType==='plain');
+  assert(columns.get(ticket.id).some(value=>value.name==='SolutionCommentId'));
+  assert(columnConflict({name:'ResolutionSummary',text:{}},{name:'ResolutionSummary',text:{allowMultipleLines:true}},{}));
   const status=columns.get(ticket.id).find(value=>value.name==='Status');
   assert(status.choice.choices.includes('Waiting on Third Party'));
   status.choice.choices.push('Legacy');

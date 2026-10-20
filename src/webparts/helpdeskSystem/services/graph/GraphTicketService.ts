@@ -17,11 +17,28 @@ const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', '
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
-  public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.creationFields = []; }
+  public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.solutionSchema = undefined; this.creationFields = []; }
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; listId: string; key: string; content: string };
+  private solutionSchema?: {path:string;summary:string;comment:string};
+  public async markCommentAsSolution(id:number,commentId:string,replaceExisting = false): Promise<void> {
+    if (!/^[1-9]\d*$/.test(commentId)) throw new Error('Invalid comment ID.');
+    if (!this.solutionSchema) await this.getTickets();
+    if (!this.solutionSchema) throw new Error('Run Initialize workspace to add Resolution Summary and Solution Comment ID.');
+    const schema = await this.commentsContext(id);
+    const comment = await this.graph.get<IGraphItem>(`${schema.path}/items/${commentId}?$expand=fields`);
+    if (comment.fields[schema.key] !== schema.ticketKey) throw new Error('This comment belongs to a different ticket.');
+    const answer = text(comment.fields[schema.content]).trim();
+    if (!answer) throw new Error('An empty comment cannot be a solution.');
+    const target = this.solutionSchema;
+    const current = await this.graph.get<IGraphItem & {'@odata.etag'?:string;eTag?:string}>(`${target.path}/items/${id}?$expand=fields`);
+    if (text(current.fields[target.summary]) && text(current.fields[target.comment]) !== commentId && !replaceExisting) throw new Error('Confirm replacement of the existing resolution summary.');
+    const etag = current.eTag || current['@odata.etag'];
+    if (!etag) throw new Error('Unable to verify the ticket version. Refresh and try again.');
+    await this.graph.patch(`${target.path}/items/${id}/fields`,{[target.summary]:answer,[target.comment]:commentId},etag);
+  }
   private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
@@ -348,6 +365,8 @@ export class GraphTicketService implements ITicketDataSource {
     const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
     const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
     const resolutionSummary = optionalDisplay(['Resolution Summary'], ['text']);
+    const solutionComment = optionalDisplay(['Solution Comment ID','SolutionCommentId'], ['text']);
+    this.solutionSchema = resolutionSummary && !resolutionSummary.readOnly && solutionComment && !solutionComment.readOnly ? {path:listPath,summary:resolutionSummary.name,comment:solutionComment.name} : undefined;
     this.creationFields = [
       { key: 'category' as const, label: 'Issue category', column: category },
       { key: 'subcategory' as const, label: 'Issue subcategory', column: subcategory },
@@ -356,12 +375,12 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = [title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = ["AuthorLookupId", title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
     let assignmentIdentityAvailable = true;
-    if (items.some(item => item.fields[`${assigned.name}LookupId`])) {
+    if (items.some(item => item.fields[`${assigned.name}LookupId`] || item.fields.AuthorLookupId)) {
       try {
         const userListId = this.config.userInformationListId || lists.find(value => value.webUrl && /\/_catalogs\/users(?:\/|$)/i.test(value.webUrl))?.id;
         if (!userListId) throw new Error('User Information List not found.');
@@ -392,10 +411,11 @@ export class GraphTicketService implements ITicketDataSource {
         TicketType: ticketType ? text(values[ticketType.name]) : undefined,
         IssueType: issueType ? text(values[issueType.name]) : undefined,
         Department: department ? text(values[department.name]) : undefined,
-        Requester: item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined,
+        Requester: users.has(Number(values.AuthorLookupId)) ? {...users.get(Number(values.AuthorLookupId)), AadId:item.createdBy?.user?.id} : (item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined),
         StartedAt: started ? text(values[started.name]) || undefined : undefined,
         ClosedAt: closed ? text(values[closed.name]) || undefined : undefined,
         ResolutionSummary: resolutionSummary ? text(values[resolutionSummary.name]) : undefined,
+        SolutionCommentId: solutionComment ? text(values[solutionComment.name]) : undefined,
         DueDate: due ? text(values[due.name]) || undefined : undefined,
         Escalated: escalated ? values[escalated.name] === true : undefined,
         FirstRespondedAt: response ? text(values[response.name]) || null : null, HasResponseTracking: Boolean(response), HasResolutionTracking: Boolean(resolved),

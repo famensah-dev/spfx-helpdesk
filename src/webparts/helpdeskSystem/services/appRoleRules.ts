@@ -49,6 +49,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   } : undefined;
   if (source.getComments) result.getComments = async id => { await requireTicket(id); return source.getComments!(id); };
   if (source.getHistory) result.getHistory = async id => { await requireTicket(id); return source.getHistory!(id); };
+  if (source.markCommentAsSolution) result.markCommentAsSolution = source.access?.admin || source.access?.superAdmin ? async (id, commentId, replace) => { requireAction('edit'); await requireTicket(id); await source.markCommentAsSolution!(id,commentId,replace); } : undefined;
   if (source.addComment) result.addComment = role.actions.includes('comment') ? async (id, text, options) => { requireAction('comment'); await requireTicket(id); await source.addComment!(id, text, options); } : undefined;
   if (source.uploadCommentAttachments) result.uploadCommentAttachments = role.actions.includes('comment') ? async (id, commentId, files, progress) => {requireAction('comment'); await requireTicket(id); await source.uploadCommentAttachments!(id,commentId,files,progress);} : undefined;
   if (source.getAttachments) result.getAttachments = async id => {await requireTicket(id); return source.getAttachments!(id);};

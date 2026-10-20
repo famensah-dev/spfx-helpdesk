@@ -46,6 +46,7 @@ export interface ITicketDataSource {
   updateTickets?(ids: number[], action: TicketBulkAction): Promise<ITicketBulkResult>;
   updateTicket?(id: number, input: ITicketEdit): Promise<void>;
   getComments?(id: number): Promise<ITicketComment[]>;
+  markCommentAsSolution?(id: number, commentId: string, replaceExisting?: boolean): Promise<void>;
   addComment?(id: number, text: string, options?: ICommentPostOptions): Promise<void>;
   getHistory?(id: number): Promise<ITicketVersion[]>;
 }

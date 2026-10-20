@@ -28,6 +28,7 @@ export interface ITicket {
   StartedAt?: string;
   ClosedAt?: string;
   ResolutionSummary?: string;
+  SolutionCommentId?: string;
   Escalated?: boolean;
   DueDate?: string;
   FirstRespondedAt?: string | null;

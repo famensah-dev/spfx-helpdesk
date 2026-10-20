@@ -339,8 +339,8 @@
 .detailWorkspace .conversationHeading { padding: 14px 18px; border-bottom: 0; h3 { font-size: 13px; } }
 .detailWorkspace .commentThread { min-height: 0; max-height: 540px; padding-left: 30px; }
 .detailWorkspace .commentEntry { position: relative; padding: 14px 0; border-bottom-color: #eff2f7;
-  &::before { content: ''; position: absolute; left: -17px; top: 24px; width: 6px; height: 6px; border-radius: 50%; background: #9eb4d6; }
-  &::after { content: ''; position: absolute; left: -15px; top: 32px; bottom: -19px; border-left: 1px solid #e1e8f2; }
+  &::before { content: none; }
+  &::after { content: none; }
   &:last-child::after { display: none; }
 }
 .detailWorkspace .conversationEmpty { min-height: 140px; }
@@ -1016,3 +1016,7 @@
 }
 .faqCategoryTabs :global(.ms-Pivot-link)::before { left: 8px; right: 8px; }
 .dashboardTicketTypes .dashboardBars { width: 100%; li { grid-template-columns: minmax(80px, 100px) minmax(0, 1fr) auto; } }
+
+.detailWorkspace .conversationHeading .detailTopActions select { border: 0; background: transparent; }
+.savedCommentActions { display: flex; gap: 8px; margin-top: 8px; }
+.commentSolution { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: #13794e; font-size: 12px; font-weight: 600; }
