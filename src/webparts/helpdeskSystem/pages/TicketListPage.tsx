@@ -171,7 +171,6 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         { name: 'All Tickets', icon: 'BulletedList', disabled: title !== 'Tickets', hint: 'All accessible tickets' },
         { name: 'My Assigned Tickets', icon: 'Contact', disabled: !currentUserEmail || assignmentIdentityAvailable === false, hint: 'Tickets assigned to you' },
         { name: 'Created by Me', icon: 'Ticket', disabled: false, hint: 'Tickets you created' },
-        { name: 'Email Tickets', icon: 'Mail', disabled: true, hint: 'Email integration is not connected yet' },
         { name: 'Archive', icon: 'Lock', disabled: false, hint: 'Archived tickets' }
       ].map(item => <button key={item.name} type="button" disabled={item.disabled} title={item.hint} aria-pressed={tab === item.name} className={tab === item.name ? styles.activeNav : undefined} onClick={() => { setTab(item.name); setPage(0); }}><Icon iconName={item.icon} />{item.name}</button>)}
     </div>

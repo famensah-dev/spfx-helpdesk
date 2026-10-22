@@ -122,17 +122,11 @@ The review includes arranging the default SharePoint Tickets view: Title, Status
 
 Completed At is a legacy alias for Resolved At. DeskPilot prefers the canonical ResolvedAt column when present. Setup never deletes or migrates either column's data. Before manually deleting Completed At, reconcile timestamps and update any Forms/flows/views referring to it.
 
-### Notifications and Power Automate
+### Independent Power Automate flows
 
-Super Admins can configure **Settings > Notifications & Email**: the shared support mailbox, helpdesk recipients, production app URL, flow management link, event recipients and plain-text templates. Delivery starts disabled and the mailbox is blank. Configuration is private in `DeskPilot Access`, Configuration item's Rules JSON under `notifications`; flows must read that live property. Notification-only saves use an ETag, preserve role/workspace settings, and do not synchronize user assignments or permissions. A saved flow link is not proof of an authenticated connection. DeskPilot does not create flows or send email itself.
+Email settings and notification controls have been removed from DeskPilot. Create your own Power Automate flows directly against the Tickets and TicketComments lists. No app-level email preferences, templates, delivery queue or mailbox connection are required. RequestedBy (Person), RequesterEmail, TicketSource and ExternalRequestId remain available for Forms/mail intake; app-created tickets capture the signed-in requester. Created By remains the original SharePoint author, including the automation account for flow-created tickets.
 
-Run Initialize workspace again. It adds RequestedBy (Person), RequesterEmail, EmailRequesterUpdates, TicketSource, indexed ExternalRequestId, and TicketComments.SendToRequester. New app tickets record the signed-in requester/source; Forms and mailbox flows must supply the actual requester instead of the automation account. Created By remains the original SharePoint Author identity. Ticket edit and creation offer requester email preferences; the comment composer offers an opt-in email request. This checkbox does not change comment visibility or guarantee delivery. Existing tickets remain readable without the new columns; initialize before using email preferences.
-
-Setup also creates **DeskPilot Notification Log**, enables unique Title event keys, restricts log access to site owners, and enables version history on Tickets and TicketComments. The log is excluded from destructive workspace maintenance. Its statuses are written by Power Automate and can be viewed in notification settings; Sent means the mail action succeeded, not that the recipient read/received it. The flow connection account must have permission to read private configuration and write this log, plus sufficient shared-mailbox access. DeskPilot does not automatically grant that account site membership.
-
-The in-app **Download flow setup guide** and **Download setup reference** provide deployment instructions and site/list IDs. They are not importable Power Automate packages. See [the flow setup guide](automation/POWER-AUTOMATE-SETUP.md) for lifecycle/comment collectors, a delivery worker, duplicate guards, version snapshots, ambiguous-send handling, and Forms/mail intake mappings. These flows still need to be created and tested in the company tenant; no live mailbox or flow has been connected by this change. Incoming email reply matching and automatic retries of uncertain sends are outside this first release. Existing Forms acknowledgments should be disabled if lifecycle acknowledgments are enabled to avoid duplicate email.
-
-Local verification: `node tests/notificationSettings.cjs`, `node tests/workspaceSetup.cjs`, `node tests/privateAccess.cjs`, `node tests/commentAttachments.cjs`, `node tests/commentSolutions.cjs`, `node tests/sharepoint-roles.test.mjs`, and `npm run build`. Test real SharePoint/Outlook permissions and delivery with controlled recipients before go-live.
+The removed notification settings, log and email preference columns are not deleted from existing SharePoint sites. New initialization no longer creates or requires them. Retired notification logs remain protected from destructive workspace maintenance. Review any existing flows separately; deploying this change does not edit or disable them.
 
 ### Ticket and comment attachments
 
@@ -157,6 +151,8 @@ If the removed synchronization feature was already run on a live site, deploying
 Super Admins can open Settings > Site Lists > Advanced workspace maintenance. This section starts collapsed and shows its actions vertically when expanded. Select the operational lists explicitly, review the site, list names and item counts in the confirmation modal, then type the exact confirmation text:
 
 - `CLEAR LIST ITEMS`: recycle every item (including attachments) in the selected lists; keep their columns and saved bindings.
+
+Clearing reports confirmed item counts and checks for an empty first page before marking each list complete. The table shows counts at review, not live remaining totals. Keep the page open while clearing. A failed operation shows the confirmed count and explicitly leaves completion unverified; refresh the SharePoint list to inspect what remains before reviewing another attempt. Recycling requests use OData version 4.0, as required by SPHttpClient JSON requests.
 - `DELETE APPLICATION LISTS`: recycle the selected lists and clear their saved list IDs.
 - `RESET LIST BINDINGS`: clear all saved resource IDs without deleting any lists or records. Use this when a fresh site has unavailable saved IDs, then reload DeskPilot and run Initialize workspace.
 

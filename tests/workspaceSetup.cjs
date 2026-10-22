@@ -27,7 +27,7 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   const setup = new WorkspaceSetupService(graph,{siteUrl:'https://example.sharepoint.com/sites/test',listName:'Tickets'},async ids => {assert(ids.tickets && ids.categories); finished++;});
   assert.equal((await setup.inspect()).steps.some(step=>step.blocked),false);
   await setup.run(()=>{});
-  assert.equal(lists.length,8);
+  assert.equal(lists.length,7);
   const comments = lists.find(value=>value.displayName==='TicketComments');
   assert(columns.get(comments.id).find(value=>value.name==='TicketKey').indexed);
   const sub=lists.find(value=>value.displayName==='Ticket Subcategories');

@@ -17,14 +17,13 @@ const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', '
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
-  public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.solutionSchema = undefined; this.notificationFields = undefined; this.commentSchema = undefined; this.commentSendField = undefined; this.creationFields = []; }
+  public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.solutionSchema = undefined; this.requesterFields = undefined; this.commentSchema = undefined; this.creationFields = []; }
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; listId: string; key: string; content: string };
-  private commentSendField?: string;
   private solutionSchema?: {path:string;summary:string;comment:string};
-  private notificationFields?: {requestedBy?:string;email?:string;updates?:string;source?:string};
+  private requesterFields?: {requestedBy?:string;email?:string;source?:string};
   public async markCommentAsSolution(id:number,commentId:string,replaceExisting = false): Promise<void> {
     if (!/^[1-9]\d*$/.test(commentId)) throw new Error('Invalid comment ID.');
     if (!this.solutionSchema) await this.getTickets();
@@ -89,10 +88,6 @@ export class GraphTicketService implements ITicketDataSource {
     if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
-    if (input.emailRequesterUpdates !== undefined) {
-      if (!this.notificationFields?.updates) throw new Error('Initialize workspace to add Email Requester Updates.');
-      fields[this.notificationFields.updates] = input.emailRequesterUpdates;
-    }
     if (input.ticketType !== undefined) {
       const field = this.creationFields.find(item => item.key === 'ticketType');
       if (!field || !['Problem', 'Incident', 'Question', 'Request'].includes(input.ticketType) || !field.column.choice?.choices.includes(input.ticketType)) throw new Error('Select a configured Ticket Type: Problem, Incident, Question or Request.');
@@ -155,7 +150,6 @@ export class GraphTicketService implements ITicketDataSource {
       const content = columns.find(value => (value.name === 'Content' || value.displayName === 'Content') && value.text);
       if (!key || !content) throw new Error('TicketComments requires TicketKey and Content text columns. Index TicketKey in List settings.');
       this.commentSchema = { path, listId: list.id, key: key.name, content: content.name };
-      this.commentSendField = columns.find(value => value.name === 'SendToRequester' && value.boolean && !value.readOnly)?.name;
     }
     return { ...this.commentSchema, ticketKey: `${this.context!.listId}:${id}` };
   }
@@ -179,7 +173,6 @@ export class GraphTicketService implements ITicketDataSource {
   public async addComment(id: number, value: string, options: ICommentPostOptions = {}): Promise<void> {
     if (!value.trim() || value.trim().length > 10000) throw new Error('Enter a comment of 1–10,000 characters.');
     const schema = await this.commentsContext(id);
-    if (options.sendToRequester && !this.commentSendField) throw new Error('Initialize workspace to add the comment Email Requester field before sending a response.');
     const files = options.files || [];
     validateTicketAttachments(files);
     if (files.length) await this.attachments().ensureEnabled(schema.listId);
@@ -189,7 +182,7 @@ export class GraphTicketService implements ITicketDataSource {
     const previous = options.requestId ? (await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`)).filter(item => item.fields[schema.key] === schema.ticketKey && item.fields.Title === title) : [];
     if (previous.length > 1) throw new Error('Multiple matching comments were found. Refresh comments before continuing.');
     if (previous[0] && previous[0].fields[schema.content] !== value.trim()) throw new Error('This comment was already saved with different text. Refresh before posting a changed comment.');
-    const created = previous[0] || await this.graph.post<{id:string}>(`${schema.path}/items`, { fields: { Title: title, [schema.key]: schema.ticketKey, [schema.content]: value.trim(),...(this.commentSendField ? {[this.commentSendField]:options.sendToRequester === true} : {}) } });
+    const created = previous[0] || await this.graph.post<{id:string}>(`${schema.path}/items`, { fields: { Title: title, [schema.key]: schema.ticketKey, [schema.content]: value.trim() } });
     if (!created?.id || !/^[1-9]\d*$/.test(String(created.id))) throw new Error('The comment save returned no valid ID. Refresh comments before retrying.');
     if (files.length) {
       try {
@@ -259,7 +252,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
     const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
-    return { emailRequesterUpdates:Boolean(this.notificationFields?.updates), classification, priorities: this.creationSchema.choices, description: Boolean(this.creationSchema.description), assignment: Boolean(this.updateSchema?.choices.includes('Assigned')), fields: this.creationFields.map(field => ({ key: field.key, label: field.label, choices: field.column.choice?.choices, required: field.column.required })) };
+    return {classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('Assigned')), fields:this.creationFields.map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
   }
   public async uploadAttachments(id: number, files: File[], progress?: (message:string) => void): Promise<void> {
     if (!this.context) await this.getTickets();
@@ -278,12 +271,10 @@ export class GraphTicketService implements ITicketDataSource {
     if (!schema.choices.includes(input.priority)) throw new Error('This priority is not configured in the SharePoint list.');
     if (input.description.trim() && !schema.description) throw new Error('Add an Issue description text column to the list to save a description.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.status]: 'New', [schema.priority]: input.priority };
-    const notification = this.notificationFields;
-    if (input.emailRequesterUpdates !== undefined && !notification?.updates) throw new Error('Initialize workspace to configure requester email updates.');
-    if (notification?.requestedBy && this.config.currentUserId) fields[`${notification.requestedBy}LookupId`] = String(this.config.currentUserId);
-    if (notification?.email && this.config.currentUserEmail) fields[notification.email] = this.config.currentUserEmail;
-    if (notification?.updates) fields[notification.updates] = input.emailRequesterUpdates !== false;
-    if (notification?.source) fields[notification.source] = 'DeskPilot';
+    const requester = this.requesterFields;
+    if (requester?.requestedBy && this.config.currentUserId) fields[`${requester.requestedBy}LookupId`] = String(this.config.currentUserId);
+    if (requester?.email && this.config.currentUserEmail) fields[requester.email] = this.config.currentUserEmail;
+    if (requester?.source) fields[requester.source] = 'DeskPilot';
     if (schema.description) fields[schema.description] = input.description.trim();
     for (const key of ['category', 'subcategory', 'issueType'] as const) {
       if (input[key] && !this.creationFields.some(field => field.key === key)) throw new Error(`The ticket list has no writable ${key} column. The selected value cannot be saved.`);
@@ -381,9 +372,8 @@ export class GraphTicketService implements ITicketDataSource {
     const resolutionSummary = optionalDisplay(['Resolution Summary'], ['text']);
     const requestedBy = optionalDisplay(['Requested By','RequestedBy'],['personOrGroup']);
     const requesterEmail = optionalDisplay(['RequesterEmail','Requester Email'],['text']);
-    const emailUpdates = columns.find(column => ['EmailRequesterUpdates','Email Requester Updates'].includes(column.name) || column.displayName === 'Email Requester Updates');
     const ticketSource = optionalDisplay(['TicketSource','Ticket Source'],['choice','text']);
-    this.notificationFields = {requestedBy:requestedBy && !requestedBy.readOnly ? requestedBy.name : undefined,email:requesterEmail && !requesterEmail.readOnly ? requesterEmail.name : undefined,updates:emailUpdates?.boolean && !emailUpdates.readOnly ? emailUpdates.name : undefined,source:ticketSource && !ticketSource.readOnly ? ticketSource.name : undefined};
+    this.requesterFields = {requestedBy:requestedBy && !requestedBy.readOnly ? requestedBy.name : undefined,email:requesterEmail && !requesterEmail.readOnly ? requesterEmail.name : undefined,source:ticketSource && !ticketSource.readOnly ? ticketSource.name : undefined};
     const solutionComment = optionalDisplay(['Solution Comment ID','SolutionCommentId'], ['text']);
     this.solutionSchema = resolutionSummary && !resolutionSummary.readOnly && solutionComment && !solutionComment.readOnly ? {path:listPath,summary:resolutionSummary.name,comment:solutionComment.name} : undefined;
     this.creationFields = [
@@ -394,7 +384,7 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = ["AuthorLookupId", ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), ...(emailUpdates?.boolean ? [emailUpdates.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = ["AuthorLookupId", ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -433,8 +423,6 @@ export class GraphTicketService implements ITicketDataSource {
         CreatedBy: users.has(Number(values.AuthorLookupId)) ? {...users.get(Number(values.AuthorLookupId)), AadId:item.createdBy?.user?.id} : (item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined),
         Requester: (requestedBy && users.get(Number(values[`${requestedBy.name}LookupId`]))) || (requesterEmail && text(values[requesterEmail.name]) ? {Email:text(values[requesterEmail.name]),Title:text(values[requesterEmail.name])} : undefined) || users.get(Number(values.AuthorLookupId)) || (item.createdBy?.user ? {Title:item.createdBy.user.displayName,Email:item.createdBy.user.email,AadId:item.createdBy.user.id} : undefined),
         RequesterEmail: requesterEmail ? text(values[requesterEmail.name]) || undefined : undefined,
-        HasRequesterNotificationSettings:Boolean(emailUpdates?.boolean),
-        EmailRequesterUpdates: emailUpdates?.boolean ? values[emailUpdates.name] !== false : true,
         StartedAt: started ? text(values[started.name]) || undefined : undefined,
         ClosedAt: closed ? text(values[closed.name]) || undefined : undefined,
         ResolutionSummary: resolutionSummary ? text(values[resolutionSummary.name]) : undefined,

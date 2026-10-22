@@ -27,7 +27,7 @@ test('Created by Me matches requester identity without using names or assignees'
 const { applyAppRoleRules, ticketInScope, canUse } = load('../src/webparts/helpdeskSystem/services/appRoleRules.ts');
 const { SharePointRoleManagement } = load('../src/webparts/helpdeskSystem/services/SharePointRoleManagement.ts', {
   '@microsoft/sp-http': { SPHttpClient: { configurations: { v1: {} } } },
-  '../interfaces/INotifications': load('../src/webparts/helpdeskSystem/interfaces/INotifications.ts'), '../interfaces/IRoleManagement': roles
+  '../interfaces/IRoleManagement': roles
 });
 const tickets = [
   { Id: 1, Title: 'Assigned', Status: 'New', Priority: 'Low', AssignedTo: { Id: 7, Email: 'agent@example.com' } },
@@ -158,7 +158,7 @@ test('permission editor requires Apply and confirmation; cancel and restore pres
   };
   const fluent = Object.fromEntries(['Checkbox', 'DefaultButton', 'Dialog', 'DialogFooter', 'Dropdown', 'Link', 'MessageBar', 'PrimaryButton', 'SearchBox', 'Spinner', 'Toggle', 'Icon'].map(name => [name, name]));
   fluent.MessageBarType = {};
-  const { SharePointRolesPage } = load('../src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', { react, '@fluentui/react': fluent, '../components/cancelButtonStyles': {cancelButtonStyles: {}}, '../interfaces/INotifications': load('../src/webparts/helpdeskSystem/interfaces/INotifications.ts'), '../interfaces/IRoleManagement': roles, '../components/HelpdeskSystem.module.scss': { default: {} }, './SharePointUsersPage': { SharePointUsersPage: 'SharePointUsersPage' } });
+  const { SharePointRolesPage } = load('../src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', { react, '@fluentui/react': fluent, '../components/cancelButtonStyles': {cancelButtonStyles: {}}, '../interfaces/IRoleManagement': roles, '../components/HelpdeskSystem.module.scss': { default: {} }, './SharePointUsersPage': { SharePointUsersPage: 'SharePointUsersPage' } });
   const config = roles.defaultRoleConfiguration();
   config.assignments = [{ userId: 7, name: 'Agent', email: 'agent@example.com', roleId: 'agent' }];
   const writes = [];

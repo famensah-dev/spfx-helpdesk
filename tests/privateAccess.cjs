@@ -9,7 +9,7 @@ function load(path, imports) {
 }
 const roles = load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts', {});
 const { SharePointRoleManagement } = load('src/webparts/helpdeskSystem/services/SharePointRoleManagement.ts', {
-  '@microsoft/sp-http': {SPHttpClient: {configurations: {v1: {}}}}, '../interfaces/INotifications': load('src/webparts/helpdeskSystem/interfaces/INotifications.ts', {}), '../interfaces/IRoleManagement': roles
+  '@microsoft/sp-http': {SPHttpClient: {configurations: {v1: {}}}}, '../interfaces/IRoleManagement': roles
 });
 (async () => {
   const config = roles.defaultRoleConfiguration();

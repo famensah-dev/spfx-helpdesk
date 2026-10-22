@@ -55,16 +55,8 @@ export async function createSharePointService(context: WebPartContext, listName:
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
   if (superAdmin) {
-    source.notifications = {load:() => roles.loadNotifications(),save:value => roles.saveNotifications(value),log:() => roles.notificationLog(workspaceSettings.resourceIds?.notificationLog)};
     source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
-      await roles.secureNotificationLog(ids.notificationLog);
-      const keyResponse = await context.spHttpClient.post(`${siteUrl}/_api/web/lists(guid'${ids.notificationLog}')/fields/getbyinternalnameortitle('Title')`,SPHttpClient.configurations.v1,{headers:{'Content-Type':'application/json;odata=nometadata','odata-version':'','IF-MATCH':'*','X-HTTP-Method':'MERGE'},body:JSON.stringify({Indexed:true,EnforceUniqueValues:true})});
-      if (!keyResponse.ok) throw new Error('Notification log event keys must be unique. Review duplicate log titles before retrying setup.');
-      for (const id of [ids.tickets,ids.comments]) {
-        const response = await context.spHttpClient.post(`${siteUrl}/_api/web/lists(guid'${id}')`,SPHttpClient.configurations.v1,{headers:{'Content-Type':'application/json;odata=nometadata','odata-version':'','IF-MATCH':'*','X-HTTP-Method':'MERGE'},body:JSON.stringify({EnableVersioning:true})});
-        if (!response.ok) throw new Error('Unable to enable version history for notification change detection.');
-      }
       const current = await roles.load();
       await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});
       const fields = spfi().using(SPFx(context)).web.lists.getById(ids.tickets).defaultView.fields;

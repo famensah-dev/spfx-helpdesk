@@ -41,7 +41,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
       if (createdTicketId) {
         if (!props.service?.uploadAttachments) throw new Error('Attachment retry is unavailable.');
         await props.service.uploadAttachments(createdTicketId, files);
-      } else await props.onCreate({ ...input, title: input.title.trim(), assignedToId: person?.Id || null, attachments: files, ...(options.emailRequesterUpdates ? {emailRequesterUpdates:input.emailRequesterUpdates !== false} : {}) });
+      } else await props.onCreate({ ...input, title: input.title.trim(), assignedToId: person?.Id || null, attachments: files });
       props.onDismiss();
     }
     catch (reason) { const id = (reason as { createdTicketId?: number })?.createdTicketId; if (id) setCreatedTicketId(id); setError(reason instanceof Error ? reason.message : 'Unable to create the ticket.'); }
@@ -78,7 +78,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
         {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}</div>
         <div className={styles.newTicketClassification}>{options.fields.filter(item => ['category', 'subcategory', 'issueType'].includes(item.key)).map(field)}</div>
         {options.fields.some(item => ['department', 'dueDate'].includes(item.key)) && <details className={styles.newTicketAdvanced} open={options.fields.some(item => ['department', 'dueDate'].includes(item.key) && item.required) || undefined}><summary>Advanced fields</summary><div className={styles.newTicketFields}>{options.fields.filter(item => ['department', 'dueDate'].includes(item.key)).map(field)}</div></details>}
-      {options.emailRequesterUpdates && <label><input type="checkbox" checked={input.emailRequesterUpdates !== false} disabled={saving || Boolean(createdTicketId)} onChange={event => setInput(current => ({...current,emailRequesterUpdates:event.target.checked}))} /> Email me ticket updates</label>}<div className={styles.newTicketFooter}><p>{person ? 'This ticket will start with Assigned status.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry uploads' : 'Create ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
+      <div className={styles.newTicketFooter}><p>{person ? 'This ticket will start with Assigned status.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry uploads' : 'Create ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
       </div>
     </form>}
   </section>;

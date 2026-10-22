@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { Checkbox, DefaultButton, Dialog, DialogFooter, Icon, MessageBar, MessageBarType, PrimaryButton, SearchBox, Spinner, TextField } from '@fluentui/react';
+import { Checkbox, DefaultButton, Dialog, DialogFooter, Icon, MessageBar, MessageBarType, PrimaryButton, ProgressIndicator, SearchBox, Spinner, TextField } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import { maintenancePhrase } from '../services/WorkspaceMaintenanceService';
-import type { MaintenanceAction, MaintenanceList } from '../services/WorkspaceMaintenanceService';
+import type { MaintenanceAction, MaintenanceList, MaintenanceProgress } from '../services/WorkspaceMaintenanceService';
 import { cancelButtonStyles } from './cancelButtonStyles';
 import styles from './WorkspaceMaintenancePanel.module.scss';
 const titles = {clear:'Clear list items', drop:'Delete application lists', reset:'Reset saved list bindings'};
@@ -21,6 +21,7 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
   const [finished,setFinished] = React.useState(false);
   const [error,setError] = React.useState('');
   const [messages,setMessages] = React.useState<string[]>([]);
+  const [progress,setProgress] = React.useState<Record<string,MaintenanceProgress>>({});
   const lock = React.useRef(false);
   const service = props.service.workspaceMaintenance;
   if (!service || !props.service.access?.superAdmin) return null;
@@ -33,7 +34,7 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
   };
   const open = async (value:MaintenanceAction): Promise<void> => {
     if (lock.current) return;
-    lock.current = true; setBusy(true); setAction(value); setReviewed(false); setAttempted(false); setFinished(false); setPhrase(''); setQuery(''); setSelected([]); setTargets([]); setLists([]); setError(''); setMessages([]);
+    lock.current = true; setBusy(true); setAction(value); setReviewed(false); setAttempted(false); setFinished(false); setPhrase(''); setQuery(''); setSelected([]); setTargets([]); setLists([]); setError(''); setMessages([]); setProgress({});
     try {
       if (value === 'reset') {await service.inspect(value,[]); setReviewed(true);}
       else {const values = await service.lists(); setLists(values); setAvailable(values.length);}
@@ -50,7 +51,7 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
   const run = async (): Promise<void> => {
     if (lock.current || !action || !reviewed || phrase !== maintenancePhrase(action)) return;
     lock.current = true; setBusy(true); setError(''); setAttempted(true);
-    try {await service.run(action,targets.map(list => list.Id),phrase,message => setMessages(current => [...current,message])); setFinished(true);}
+    try {await service.run(action,targets.map(list => list.Id),phrase,(message,status) => {if(status) setProgress(current => ({...current,[status.listId]:status}));if(!status || status.complete) setMessages(current => [...current,message]);}); setFinished(true);}
     catch (reason) {setError(`${reason instanceof Error ? reason.message : 'Maintenance failed.'} Some changes may already be complete. Reload DeskPilot before reviewing another operation.`);}
     finally {lock.current = false; setBusy(false);}
   };
@@ -77,16 +78,17 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
     </div>
     <Dialog hidden={!action} minWidth={Math.min(820,window.innerWidth - 32)} maxWidth={820} onDismiss={busy ? undefined : () => setAction(undefined)} modalProps={{isBlocking:true,styles:{main:{width:'min(820px, calc(100vw - 32px))',maxWidth:820,borderRadius:10}}}} dialogContentProps={{title:action ? <span className={styles.title}><span className={styles.titleIcon} data-danger={action === 'drop'}><Icon iconName={icons[action]} /></span><span><span className={styles.titleText}>{titles[action]}</span><span className={styles.subtitle}>{action === 'reset' ? 'Remove saved list references without deleting lists or records.' : action === 'clear' ? 'Select the lists you want to clear. Items and attachments will be moved to the SharePoint recycle bin.' : 'Select the application lists you want to delete. Lists, columns and records will be moved to the SharePoint recycle bin.'}</span></span></span> : '',showCloseButton:!busy}}>
       <div className={styles.body}>
-        {finished ? <MessageBar messageBarType={MessageBarType.success}>Maintenance completed. Reload DeskPilot to use the updated configuration.</MessageBar> : <MessageBar>{information}</MessageBar>}
+        {finished ? <MessageBar messageBarType={MessageBarType.success}>{action === 'clear' ? 'Clearing completed. All selected lists were checked and contain no remaining items.' : 'Maintenance completed. Reload DeskPilot to use the updated configuration.'}</MessageBar> : <MessageBar>{information}</MessageBar>}
         {action === 'reset' ? <><h4>Saved Bindings to Be Reset</h4><div className={`${styles.tableScroll} ${styles.bindings}`}><table><thead><tr><th>List Name</th><th>List ID</th></tr></thead><tbody>{bindings.map((binding,index) => <tr key={index}><td>{binding.name}</td><td>{binding.id}</td></tr>)}</tbody></table></div>{!bindings.length && <p>No saved list IDs.</p>}</> : <>
           {!reviewed && <div className={styles.toolbar}><SearchBox placeholder="Search lists..." ariaLabel="Search application lists" value={query} disabled={busy} onChange={(_,value) => setQuery(value || '')} /><Checkbox label="Select all" ariaLabel="Select all matching lists" checked={allSelected} indeterminate={!allSelected && shown.some(list => selected.includes(list.Id))} disabled={busy || !shown.length} onChange={(_,checked) => selectShown(Boolean(checked))} /><span>{selected.length} of {lists.length} selected</span></div>}
           {reviewed && <h4>Lists that will be affected</h4>}
-          <div className={styles.tableScroll}><table><thead><tr>{!reviewed && <th aria-label="Selection" />}<th aria-label="List icon" /><th>List name</th><th>Description</th><th>Items</th><th>Type</th></tr></thead><tbody>{shown.map(list => <tr key={list.Id} data-selected={reviewed || selected.includes(list.Id)}>{!reviewed && <td><Checkbox ariaLabel={`Select ${list.Title}`} checked={selected.includes(list.Id)} disabled={busy} onChange={(_,checked) => setSelected(current => checked ? [...current,list.Id] : current.filter(id => id !== list.Id))} /></td>}<td><Icon iconName="BulletedList" aria-hidden="true" /></td><td>{list.Title}</td><td>{list.Description || 'No description'}</td><td>{list.ItemCount}</td><td><span className={styles.badge}>Custom</span></td></tr>)}</tbody></table></div>
+          <div className={styles.tableScroll}><table><thead><tr>{!reviewed && <th aria-label="Selection" />}<th aria-label="List icon" /><th>List name</th><th>Description</th><th>{reviewed ? 'Items at review' : 'Items'}</th><th>Type</th></tr></thead><tbody>{shown.map(list => <tr key={list.Id} data-selected={reviewed || selected.includes(list.Id)}>{!reviewed && <td><Checkbox ariaLabel={`Select ${list.Title}`} checked={selected.includes(list.Id)} disabled={busy} onChange={(_,checked) => setSelected(current => checked ? [...current,list.Id] : current.filter(id => id !== list.Id))} /></td>}<td><Icon iconName="BulletedList" aria-hidden="true" /></td><td>{list.Title}</td><td>{list.Description || 'No description'}</td><td>{list.ItemCount}</td><td><span className={styles.badge}>Custom</span></td></tr>)}</tbody></table></div>
           {!busy && !shown.length && <MessageBar>No matching operational lists found. Use Reset saved list bindings if this workspace has stale IDs.</MessageBar>}
           {reviewed && <MessageBar messageBarType={MessageBarType.severeWarning}>{action === 'drop' ? 'The lists above, including their columns and records, will be deleted and their saved bindings cleared.' : 'All items and attachments in the lists above will be cleared; columns and bindings will remain.'} Connected forms, lookups and flows may be affected. Recovery depends on SharePoint retention and permissions.</MessageBar>}
         </>}
         {action && reviewed && !attempted && <TextField label={`Type ${maintenancePhrase(action)} to confirm`} value={phrase} disabled={busy} autoComplete="off" onChange={(_,value) => setPhrase(value || '')} />}
         {busy && <Spinner label={attempted ? 'Working with SharePoint resources...' : 'Checking application lists...'} />}
+        {Object.values(progress).map(value => <div key={value.listId} role="status" aria-live="polite"><ProgressIndicator label={`${value.title}: ${value.cleared.toLocaleString()} items cleared`} description={value.complete ? 'Complete — verified no items remain.' : busy ? `Clearing in progress. ${value.initialCount.toLocaleString()} items were listed at review; keep this page open.` : 'Stopped — completion was not verified. Refresh the SharePoint list to check what remains.'} percentComplete={value.complete ? 1 : value.initialCount > 0 ? Math.min(value.cleared/value.initialCount,.99) : undefined} /><span>{value.complete && <Icon iconName="CompletedSolid" styles={{root:{color:'#13794e'}}} />}</span></div>)}
         {messages.length > 0 && <div role="log" aria-live="polite" className={styles.log}>{messages.map((message,index) => <p key={index}>{message}</p>)}</div>}
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       </div>

@@ -1,4 +1,4 @@
-export const workspaceLists = {categories: 'Ticket Categories', subcategories: 'Ticket Subcategories', issueTypes: 'Ticket Issue Types', priorities: 'Ticket Priorities', faqs: 'FAQs', comments: 'TicketComments', notificationLog: 'DeskPilot Notification Log', access: 'DeskPilot Access'} as const;
+export const workspaceLists = {categories: 'Ticket Categories', subcategories: 'Ticket Subcategories', issueTypes: 'Ticket Issue Types', priorities: 'Ticket Priorities', faqs: 'FAQs', comments: 'TicketComments', access: 'DeskPilot Access'} as const;
 export type WorkspaceListKey = keyof typeof workspaceLists | 'tickets';
 export interface ISetupStep { resource: string; action: string; blocked?: boolean; }
 export interface ISetupPlan { steps: ISetupStep[]; }

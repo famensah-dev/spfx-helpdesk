@@ -22,12 +22,10 @@ const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/Grap
     const comments=await service.getComments(5);assert.equal(comments[0].attachments[0].name,'report.pdf');
     lostResponse=true;const next={requestId:'44444444-4444-4444-4444-444444444444'};
     await assert.rejects(()=>service.addComment(5,'Next',next),/unknown/);await service.addComment(5,'Next',next);assert.equal(posts,2,'Uncertain save response should be reconciled by request ID');
-    await assert.rejects(()=>service.addComment(5,'Email response',{sendToRequester:true}),/Initialize workspace/);
-    service.commentSendField='SendToRequester';await service.addComment(5,'Email response',{sendToRequester:true});assert.equal(items[2].fields.SendToRequester,true);
     const createdFields=[];const creator=new GraphTicketService({post:async(_path,{fields})=>{createdFields.push(fields);return{id:'99'};}},{currentUserId:7,currentUserEmail:'requester@example.com'});
-    creator.creationSchema={path:'/tickets',title:'Title',status:'Status',priority:'Priority',choices:['Medium']};creator.notificationFields={requestedBy:'RequestedBy',email:'RequesterEmail',updates:'EmailRequesterUpdates',source:'TicketSource'};
-    await creator.createTicket({title:'New request',description:'',priority:'Medium',emailRequesterUpdates:false});
-    assert.equal(createdFields[0].RequestedByLookupId,'7');assert.equal(createdFields[0].RequesterEmail,'requester@example.com');assert.equal(createdFields[0].EmailRequesterUpdates,false);assert.equal(createdFields[0].TicketSource,'DeskPilot');
+    creator.creationSchema={path:'/tickets',title:'Title',status:'Status',priority:'Priority',choices:['Medium']};creator.requesterFields={requestedBy:'RequestedBy',email:'RequesterEmail',source:'TicketSource'};
+    await creator.createTicket({title:'New request',description:'',priority:'Medium'});
+    assert.equal(createdFields[0].RequestedByLookupId,'7');assert.equal(createdFields[0].RequesterEmail,'requester@example.com');assert.equal(createdFields[0].TicketSource,'DeskPilot');
   } finally {global.fetch=realFetch;}
   console.log('Comment attachment checks passed: disabled preflight, saved IDs, upload retries, ownership, ticket binding, file listing and uncertain-save reconciliation.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

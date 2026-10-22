@@ -4,13 +4,14 @@ import type { IRoleManagement, IWorkspaceSettings } from '../interfaces/IRoleMan
 import { workspaceLists } from '../interfaces/IWorkspaceSetup';
 export type MaintenanceAction = 'clear' | 'drop' | 'reset';
 export interface MaintenanceList { Id: string; Title: string; Description?: string; ItemCount: number; BaseTemplate: number; Hidden: boolean; }
+export interface MaintenanceProgress {listId:string;title:string;cleared:number;initialCount:number;complete:boolean;}
 export const maintenancePhrase = (action: MaintenanceAction): string => ({clear:'CLEAR LIST ITEMS', drop:'DELETE APPLICATION LISTS', reset:'RESET LIST BINDINGS'})[action];
 export class WorkspaceMaintenanceService {
   private review?: string;
   private readonly web: string;
   public constructor(private context: WebPartContext, private roles: IRoleManagement) { this.web = context.pageContext.web.absoluteUrl.replace(/\/$/, '') + '/_api/web'; }
   private async read<T>(path: string): Promise<T> {
-    const response = await this.context.spHttpClient.get(this.web + path, SPHttpClient.configurations.v1, {headers:{Accept:'application/json;odata=nometadata','odata-version':''}});
+    const response = await this.context.spHttpClient.get(this.web + path, SPHttpClient.configurations.v1, {headers:{Accept:'application/json;odata=nometadata','odata-version':'4.0'}});
     if (!response.ok) throw new Error(`SharePoint request failed (${response.status}). Check your permissions.`);
     return response.json();
   }
@@ -45,7 +46,7 @@ export class WorkspaceMaintenanceService {
     return targets;
   }
   private async recycle(path: string): Promise<void> {
-    const response = await this.context.spHttpClient.post(this.web + path + '/recycle()', SPHttpClient.configurations.v1, {headers:{Accept:'application/json;odata=nometadata','odata-version':''}});
+    const response = await this.context.spHttpClient.post(this.web + path + '/recycle()', SPHttpClient.configurations.v1, {headers:{Accept:'application/json;odata=nometadata','odata-version':'4.0'}});
     if (!response.ok) throw new Error(`SharePoint could not recycle the resource (${response.status}). It may be protected or referenced by another list.`);
   }
   private async unbind(ids?: string[]): Promise<void> {
@@ -57,7 +58,7 @@ export class WorkspaceMaintenanceService {
     for (const [key,id] of Object.entries(workspace.resourceIds!)) if (matches(id)) delete workspace.resourceIds![key];
     await this.roles.save({...current,workspace});
   }
-  public async run(action: MaintenanceAction, ids: string[], phrase: string, progress: (message:string) => void): Promise<void> {
+  public async run(action: MaintenanceAction, ids: string[], phrase: string, progress: (message:string,status?:MaintenanceProgress) => void): Promise<void> {
     if (phrase !== maintenancePhrase(action)) throw new Error('The confirmation text does not match.');
     const reviewed = this.review;
     const targets = await this.inspect(action,ids);
@@ -71,12 +72,24 @@ export class WorkspaceMaintenanceService {
       progress(`${action === 'drop' ? 'Deleting' : 'Clearing'} ${list.Title}...`);
       if (action === 'drop') {await this.recycle(path); await this.unbind([list.Id]);}
       else {
+        let cleared = 0;
+        const report = (complete = false):void => progress(complete ? `${list.Title}: complete. Verified no items remain.` : `${list.Title}: ${cleared.toLocaleString()} items cleared.`,{listId:list.Id,title:list.Title,cleared,initialCount:list.ItemCount,complete});
+        report();
         // Keep reading the first page as recycled items disappear; never skip a page.
-        let items = await this.read<{value:{Id:number}[]}>(path + '/items?$select=Id&$top=100');
-        while (items.value.length) {
-          for (const item of items.value) await this.recycle(path + `/items(${item.Id})`);
-          items = await this.read(path + '/items?$select=Id&$top=100');
+        try {
+          const remaining = ():Promise<{value:{Id:number}[]}> => this.read(path + '/items?$select=Id&$orderby=Id asc&$top=100');
+          let items = await remaining();
+          while (items.value.length) {
+            for (const item of items.value) {await this.recycle(path + `/items(${item.Id})`);cleared++;if (cleared % 10 === 0) report();}
+            report();
+            items = await remaining();
+          }
+          report(true);
+        } catch (reason) {
+          report();
+          throw new Error(`${list.Title}: stopped after ${cleared.toLocaleString()} confirmed items cleared. Completion was not verified. ${reason instanceof Error ? reason.message : 'SharePoint request failed.'}`);
         }
+        continue;
       }
       progress(`${list.Title}: complete.`);
     }
