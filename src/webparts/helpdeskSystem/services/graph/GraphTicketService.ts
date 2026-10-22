@@ -43,7 +43,7 @@ export class GraphTicketService implements ITicketDataSource {
   private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
-    private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>) {}
+    private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>, private readonly routeNewTicket?: (id:number) => Promise<string>) {}
   public async getPriorities(): Promise<string[]> { if (!this.editSchema) await this.getTickets(); return [...this.editSchema!.priorities]; }
   public async searchUsers(query: string, department?: string): Promise<IOrganizationUser[]> {
     if (!this.directory) throw new Error('Organization user search is not configured.');
@@ -324,6 +324,15 @@ export class GraphTicketService implements ITicketDataSource {
         throw error;
       }
     }
+    if (this.routeNewTicket && (input.assignedToId === null || input.assignedToId === undefined)) {
+      const id = Number(created?.id);
+      if (!Number.isSafeInteger(id) || id<=0) throw new Error('Ticket creation returned no valid ID. Refresh before trying again.');
+      try { await this.routeNewTicket(id); }
+      catch (reason) {
+        const error = new Error(`Ticket #${id} was created, but automatic routing could not be confirmed. Ask a Helpdesk Admin to check its assignment. ${reason instanceof Error ? reason.message : ''}`) as Error & {createdTicketId:number};
+        error.createdTicketId=id; throw error;
+      }
+    }
   }
   public async getTickets(): Promise<ITicketQueryResult> {
     const url = new URL(this.config.siteUrl);
@@ -366,6 +375,7 @@ export class GraphTicketService implements ITicketDataSource {
     const subcategory = optionalDisplay(['Issue Subcategory', 'IssueSubcategory', 'Subcategory'], ['text', 'choice', 'lookup']);
     const issueType = optionalDisplay(['Issue Type', 'Issue / Request', 'IssueType'], ['text', 'choice', 'lookup']);
     const ticketType = optionalDisplay(['Ticket Type', 'TicketType'], ['choice']);
+    const assignedUnit = optionalDisplay(['Assigned Unit','AssignedUnit'], ['lookup']);
     const department = optionalDisplay(['Department', 'Department / Unit', 'Unit'], ['text', 'choice']);
     const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
     const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
@@ -384,7 +394,7 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = ["AuthorLookupId", ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = ["AuthorLookupId", ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -415,6 +425,7 @@ export class GraphTicketService implements ITicketDataSource {
         Archived: archived ? values[archived.name] === true : false,
         Created: item.createdDateTime, Modified: item.lastModifiedDateTime,
         AssignedTo: userId ? users.get(userId) || { Id: userId, Title: text(values[assigned.name]) || `User #${userId}` } : undefined,
+        AssignedUnit: assignedUnit ? text(values[assignedUnit.name]) || undefined : undefined,
         Category: category ? text(values[category.name]) : undefined,
         Subcategory: subcategory ? text(values[subcategory.name]) : undefined,
         TicketType: ticketType ? text(values[ticketType.name]) : undefined,

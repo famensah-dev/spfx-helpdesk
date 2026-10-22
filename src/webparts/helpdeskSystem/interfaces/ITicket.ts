@@ -19,6 +19,7 @@ export interface ITicket {
   Created: string;
   Modified: string;
   AssignedTo?: IUserLookup;
+  AssignedUnit?: string;
   Category?: string;
   Subcategory?: string;
   IssueType?: string;

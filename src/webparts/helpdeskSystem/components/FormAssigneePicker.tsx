@@ -6,7 +6,7 @@ import type { IUserLookup } from '../interfaces/ITicket';
 import styles from './HelpdeskSystem.module.scss';
 
 type Person = IPersonaProps & { directoryUser?: IOrganizationUser };
-export function FormAssigneePicker(props: { service?: ITicketDataSource; value: IUserLookup | null; disabled?: boolean; onChange: (person: IUserLookup | null) => void; onBusy: (busy: boolean) => void }): React.ReactElement {
+export function FormAssigneePicker(props: { label?: string; service?: ITicketDataSource; value: IUserLookup | null; disabled?: boolean; onChange: (person: IUserLookup | null) => void; onBusy: (busy: boolean) => void }): React.ReactElement {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState('');
   const lock = React.useRef(false);
@@ -40,10 +40,10 @@ export function FormAssigneePicker(props: { service?: ITicketDataSource; value: 
     } catch (reason) { if (mounted.current) setError(reason instanceof Error ? reason.message : 'Unable to select this user.'); }
     finally { lock.current = false; if (mounted.current) { setBusy(false); props.onBusy(false); } }
   };
-  return <div className={styles.formAssigneePicker}><Label htmlFor={id}>Assigned to</Label>
+  return <div className={styles.formAssigneePicker}><Label htmlFor={id}>{props.label || 'Assigned to'}</Label>
     <NormalPeoplePicker selectedItems={props.value ? [{ key: String(props.value.Id), text: props.value.Title || props.value.Email, secondaryText: props.value.Email }] : []}
       itemLimit={1} disabled={props.disabled || busy} resolveDelay={350} onResolveSuggestions={search} onChange={items => { void select(items); }}
-      inputProps={{ id, 'aria-label': 'Assigned to', placeholder: props.value ? '' : 'Search by name or email' }}
+      inputProps={{ id, 'aria-label': props.label || 'Assigned to', placeholder: props.value ? '' : 'Search by name or email' }}
       pickerSuggestionsProps={{ suggestionsHeaderText: 'Organization users', noResultsFoundText: 'No matching users', loadingText: 'Searching users…' }}
       onValidateInput={() => 0} />
     {busy && <Spinner ariaLabel="Selecting assignee" />}

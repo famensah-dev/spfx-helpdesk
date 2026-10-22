@@ -15,6 +15,7 @@ export function ticketInScope(ticket: ITicket, role: IDeskPilotRole, userId: num
 export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRole, userId: number, email: string, aadId?: string): ITicketDataSource {
   const result = Object.create(source) as ITicketDataSource;
   result.roleRules = role;
+  if (!source.access?.admin && !source.access?.superAdmin) result.supportUnits = undefined;
   const requireAction = (action: RoleAction): void => { if (!role.actions.includes(action)) throw new Error(`Your DeskPilot role does not allow ${action}.`); };
   const visible = (ticket: ITicket): boolean => ticketInScope(ticket, role, userId, email, aadId);
   const requireTicket = async (id: number): Promise<ITicket> => {

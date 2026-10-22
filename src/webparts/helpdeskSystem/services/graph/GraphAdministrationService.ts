@@ -64,7 +64,7 @@ export class GraphAdministrationService implements IAdministrationService {
       const requiredIn = requirements.filter(type => type.columns.some(item => (item.id.toLowerCase() === column.id.toLowerCase() || item.name === column.name) && item.required === true)).map(type => type.name);
       const protectedField = !field || field.Sealed || field.ReadOnlyField || Boolean(column.readOnly) || column.name.startsWith('_');
       const kind = ['text', 'number', 'choice', 'dateTime', 'boolean', 'personOrGroup', 'lookup'].find(type => column[type]) || 'System / other';
-      const core = ['title', 'status', 'priority', 'assignedto', 'assigned to', 'issue', 'description', 'issuedescription'].map(norm).includes(norm(column.name)) || ['issue', 'status', 'priority', 'assignedto', 'issuedescription'].includes(norm(column.displayName));
+      const core = ['title', 'status', 'priority', 'assignedto', 'assignedunit', 'assigned unit', 'assigned to', 'issue', 'description', 'issuedescription'].map(norm).includes(norm(column.name)) || ['issue', 'status', 'priority', 'assignedto', 'assignedunit', 'issuedescription'].includes(norm(column.displayName));
       return {id: column.id, name: column.name, displayName: column.displayName, description: column.description, required: field?.Required ?? column.required, requiredIn, readOnly: column.readOnly, hidden: column.hidden, protected: protectedField, canEdit: !protectedField && kind !== 'System / other', canDelete: !protectedField && field?.CanBeDeleted === true && !field.FromBaseType && !core, type: kind === 'text' ? column.text?.allowMultipleLines ? 'Multiple lines of text' : 'Single line of text' : kind, properties: {...column}};
     });
   }

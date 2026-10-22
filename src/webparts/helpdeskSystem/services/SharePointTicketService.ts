@@ -16,6 +16,7 @@ import { assignedRole, roleActions } from '../interfaces/IRoleManagement';
 import { applyAppRoleRules } from './appRoleRules';
 import { WorkspaceSetupService } from './WorkspaceSetupService';
 import { WorkspaceMaintenanceService } from './WorkspaceMaintenanceService';
+import { GraphSupportUnitsService } from './graph/GraphSupportUnitsService';
 
 /** SharePoint enforces access for every delegated request; UI roles are not a security boundary. */
 export async function createSharePointService(context: WebPartContext, listName: string, listId?: string): Promise<ITicketDataSource> {
@@ -43,12 +44,14 @@ export async function createSharePointService(context: WebPartContext, listName:
   const sharePointToken = (): Promise<string> => provider.getToken(new URL(siteUrl).origin);
   const workspaceSettings: import('../interfaces/IRoleManagement').IWorkspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Tickets', listId: listId || ''};
   const config = {currentUserId,currentUserEmail:context.pageContext.user.email,tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
-  const tickets = new GraphTicketService(graph, config, graph, sharePointToken);
+  const supportUnits = new GraphSupportUnitsService(graph, config);
+  const tickets = new GraphTicketService(graph, config, graph, sharePointToken, id => supportUnits.routeTicket(id));
   const faqs = new GraphFaqService(graph, config, sharePointToken);
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
   const source: ITicketDataSource = Object.assign(tickets, {
     workspaceSettings,
     access,
+    supportUnits: admin || superAdmin ? supportUnits : undefined,
     administration: role.actions.includes('classifications') ? new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()) : undefined,
     sla: new GraphSlaService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()),
     getFaqs: faqs.getFaqs.bind(faqs), getFaqAccess: faqs.getAccess.bind(faqs),

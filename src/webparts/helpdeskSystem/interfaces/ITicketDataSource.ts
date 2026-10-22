@@ -17,6 +17,7 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  supportUnits?: import('./ISupportUnits').ISupportUnitsService;
   workspaceSetup?: import('./IWorkspaceSetup').IWorkspaceSetup;
   openWorkspaceSetup?: () => void;
   workspaceSettings?: import('./IRoleManagement').IWorkspaceSettings;
