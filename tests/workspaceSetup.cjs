@@ -27,7 +27,7 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   const setup = new WorkspaceSetupService(graph,{siteUrl:'https://example.sharepoint.com/sites/test',listName:'Tickets'},async ids => {assert(ids.tickets && ids.categories); finished++;});
   assert.equal((await setup.inspect()).steps.some(step=>step.blocked),false);
   await setup.run(()=>{});
-  assert.equal(lists.length,10);
+  assert.equal(lists.length,9);
   const comments = lists.find(value=>value.displayName==='TicketComments');
   assert(columns.get(comments.id).find(value=>value.name==='TicketKey').indexed);
   const sub=lists.find(value=>value.displayName==='Ticket Subcategories');
@@ -49,11 +49,14 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   const ticket=lists.find(value=>value.displayName==='Tickets');
   const units=lists.find(value=>value.displayName==='Support Units');
   const unitMembers=lists.find(value=>value.displayName==='Unit Members');
-  const rules=lists.find(value=>value.displayName==='Routing Rules');
+  assert(!lists.some(value=>value.displayName==='Routing Rules'),'Unit setup must create only two dedicated lists');
   assert.equal(columns.get(ticket.id).find(value=>value.name==='AssignedUnit').lookup.listId,units.id);
   assert.equal(columns.get(unitMembers.id).find(value=>value.name==='Unit').lookup.listId,units.id);
   assert(columns.get(unitMembers.id).find(value=>value.name==='Member').personOrGroup);
-  assert(!columns.get(rules.id).some(value=>value.name==='Subcategory'),'Routing rules must depend only on categories');
+  assert(columns.get(units.id).some(value=>value.name==='CategoryIds'));
+  assert(columns.get(units.id).some(value=>value.name==='DefaultMemberId'));
+  assert(columns.get(units.id).some(value=>value.name==='AutoAssignEnabled' && value.defaultValue.value==='0'));
+  assert(columns.get(units.id).some(value=>value.name==='RecordType'));
   const summary=columns.get(ticket.id).find(value=>value.name==='ResolutionSummary');
   assert(summary.text.allowMultipleLines && summary.text.textType==='plain');
   assert(columns.get(ticket.id).some(value=>value.name==='SolutionCommentId'));

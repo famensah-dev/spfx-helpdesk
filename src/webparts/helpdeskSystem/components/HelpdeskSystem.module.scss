@@ -1022,3 +1022,22 @@
 .commentSolution { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; color: #13794e; font-size: 12px; font-weight: 600; }
 
 .supportUnitRouting { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px; padding-top: 20px; margin-top: 20px; border-top: 1px solid #dce5f1; }
+
+.supportUnitsPage { color: var(--hd-ink); font-size: 14px; h3 { margin: 0; font-size: 19px; font-weight: 600; } h4 { margin: 0 0 12px; font-size: 15px; font-weight: 600; } p { color: #61728b; line-height: 1.5; margin: 8px 0 16px; } }
+.supportUnitsHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; p { margin-bottom: 0; } }
+.supportUnitsLayout { display: grid; grid-template-columns: 250px minmax(0, 1fr); border: 1px solid var(--hd-line); background: var(--hd-surface); border-radius: 6px; overflow: hidden; margin: 18px 0; }
+.supportUnitsSidebar { padding: 16px 12px; background: #f7f9fc; border-right: 1px solid var(--hd-line); min-width: 0; }
+.supportUnitList { display: grid; gap: 6px; margin-top: 14px; button { display: flex; align-items: center; gap: 12px; width: 100%; border: 1px solid transparent; background: transparent; color: var(--hd-ink); padding: 12px; border-radius: 4px; cursor: pointer; text-align: left; overflow-wrap: anywhere; font: inherit; span { min-width: 0; } strong { display: block; font-size: 14px; font-weight: 600; } small { display: block; margin-top: 5px; color: #61728b; font-size: 12px; } &[aria-current='true'] { background: #e6edf8; border-color: #d3dff0; color: #173557; } &:hover:not(:disabled) { background: #edf2f8; } &:focus-visible { outline: 2px solid #597eaf; outline-offset: -2px; } &:disabled { opacity: .6; cursor: default; } } }
+.supportUnitContent { padding: 24px; min-width: 0; }
+.supportUnitTitle { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; span { display: block; color: #61728b; margin-top: 7px; font-size: 13px; } p { margin: 4px 0 0; } }
+.supportUnitSection { padding: 22px 0; border-bottom: 1px solid var(--hd-line); :global(.ms-ChoiceField) { margin: 12px 0; } :global(.ms-Dropdown-container) { max-width: 440px; margin-top: 18px; } :global(.ms-TextField) { max-width: 440px; } .tableContainer { margin-top: 16px; } summary { cursor: pointer; color: #39577d; font-size: 14px; } }
+.supportUnitCategories { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px 20px; padding-top: 6px; :global(.ms-Checkbox-label) { align-items: flex-start; } }
+.supportUnitSave { display: flex; justify-content: flex-end; gap: 12px; padding: 18px 0; border-bottom: 1px solid var(--hd-line); }
+.supportUnitEmpty { padding: 60px 24px; text-align: center; color: #61728b; > i { font-size: 32px; display: block; margin-bottom: 16px; } }
+.supportUnitAssigneeBadge { display: inline-block; margin-left: 8px; font-size: 11px; padding: 3px 7px; border-radius: 4px; background: #e8effa; color: #39577d; }
+@media (max-width: 850px) { .supportUnitsLayout { grid-template-columns: 1fr; } .supportUnitsSidebar { border-right: 0; border-bottom: 1px solid var(--hd-line); } .supportUnitList { grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); } .supportUnitContent { padding: 16px; } .supportUnitCategories { grid-template-columns: 1fr; } }
+
+.supportAutoAssignment { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; padding: 18px 20px; margin: 16px 0 24px; background: #f5f8fc; border: 1px solid #dce5f1; border-radius: 6px; h4 { margin: 0 0 6px; font-size: 15px; color: #213a5b; } p { margin: 0; color: #61728b; line-height: 1.5; max-width: 720px; font-size: 14px; } :global(.ms-Toggle) { margin: 0; flex-shrink: 0; } }
+.supportUnitCards { display: grid; grid-template-columns: repeat(auto-fill,minmax(260px,1fr)); gap: 16px; margin: 16px 0 24px; }
+.supportUnitCard { display: grid; gap: 10px; padding: 20px; border: 1px solid #dce5f1; border-radius: 6px; background: var(--hd-surface); color: var(--hd-ink); font: inherit; text-align: left; cursor: pointer; span { display: block; color: #61728b; font-size: 13px; } small { color: #39577d; margin-top: 4px; } &:hover:not(:disabled) { border-color: #aabed7; background: #f8fafd; } &:focus-visible { outline: 2px solid #597eaf; outline-offset: 2px; } &:disabled { opacity: .6; cursor: default; } }
+.supportUnitCardHeading { display: flex; align-items: center; gap: 12px; strong { flex: 1; font-size: 16px; overflow-wrap: anywhere; } i { color: #496a94; } }
