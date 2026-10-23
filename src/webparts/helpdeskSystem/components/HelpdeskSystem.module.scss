@@ -388,7 +388,7 @@
   .commentEntry { padding: 14px 0; gap: 10px; strong { font-size: 10px; } time { font-size: 9px; } p { font-size: 11px; } header { justify-content: flex-start; gap: 14px; } }
   .detailSidebar { padding-top: 18px; gap: 18px; }
   .detailSidebarCard { background: #fff; > .detailSectionHeading { padding: 12px 16px; background: linear-gradient(90deg, #f4f8ff, #eef4fd); } }
-  .detailSidebarMetadata { padding: 0 16px 6px; > div { padding: 8px 0; gap: 8px; } dt, dd { font-size: 10px; } .statusPill { padding: 0; background: transparent; } }
+  .detailSidebarMetadata { padding: 0 16px 6px; > div { padding: 8px 0; gap: 8px; } dt, dd { font-size: 10px; } }
   .personInitials { background: #e7edf5; color: #526783; }
 }
 .detailCategoryChip { display: inline-flex; align-items: center; gap: 6px; background: #edf4ff; color: #006bff !important; padding: 5px 8px; border-radius: 4px; }
@@ -445,8 +445,10 @@
   .detailQuickFacts > div > span:first-child, .detailSidebarMetadata dt { color: #172536; }
   .detailSidebarCard .detailSectionHeading h3 { color: #172536; }
   .detailSidebarCard > .detailSectionHeading { background: #fff; }
-  .detailQuickFacts .statusPill, .detailQuickFacts .priorityLabel, .detailCategoryChip, .detailNeutralChip { border-radius: 999px; padding: 5px 10px; }
-  .detailQuickFacts .statusPill, .detailQuickFacts .priorityLabel, .detailQuickFacts .detailCategoryChip, .detailQuickFacts .detailNeutralChip { font-size: 11px; }
+  .detailSidebarMetadata .priorityLabel { background: #ffebeb; }
+  .detailQuickFacts .statusPill, .detailQuickFacts .priorityLabel, .detailSidebarMetadata .statusPill, .detailSidebarMetadata .priorityLabel, .detailCategoryChip, .detailNeutralChip { border-radius: 999px; padding: 5px 10px; }
+  .detailSidebarMetadata .priorityLabel { font-weight: 600; }
+  .detailQuickFacts .statusPill, .detailQuickFacts .priorityLabel, .detailSidebarMetadata .statusPill, .detailSidebarMetadata .priorityLabel, .detailQuickFacts .detailCategoryChip, .detailQuickFacts .detailNeutralChip { font-size: 11px; }
 }
 .commentDisplay { background: #fff; border: 1px solid #e6eef8; border-radius: 8px; margin-top: 12px; overflow: hidden; }
 .historyToolbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: #657b98; font-size: 11px; }
