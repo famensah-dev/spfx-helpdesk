@@ -89,6 +89,12 @@ export class GraphTicketService implements ITicketDataSource {
     if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
+    if (input.resolutionSummary !== undefined) {
+      if (!this.solutionSchema) throw new Error('Run Initialize workspace to add Resolution Summary and Solution Comment ID.');
+      if (input.resolutionSummary.length > 10000) throw new Error('Resolution Summary must be 10,000 characters or fewer.');
+      fields[this.solutionSchema.summary] = input.resolutionSummary.trim();
+      fields[this.solutionSchema.comment] = '';
+    }
     if (input.ticketType !== undefined) {
       const field = this.creationFields.find(item => item.key === 'ticketType');
       if (!field || !['Problem', 'Incident', 'Question', 'Request'].includes(input.ticketType) || !field.column.choice?.choices.includes(input.ticketType)) throw new Error('Select a configured Ticket Type: Problem, Incident, Question or Request.');

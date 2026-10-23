@@ -74,7 +74,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
           { key: 'personal', text: 'My Dashboard', canCheck: true, checked: page === 'My Dashboard', onClick: () => navigate('My Dashboard') },
           ...(!props.service.access?.agent ? [{ key: 'global', text: 'Admin Dashboard', canCheck: true, checked: page === 'Dashboard', onClick: () => navigate('Dashboard') }] : [])
         ] }} styles={{ root: { height: 'auto', minWidth: 0 }, label: { fontWeight: dashboardActive ? 600 : 400 }, splitButtonContainer: { height: '100%', border: 0, borderRadius: 2 }, splitButtonMenuButton: { width: 26, minWidth: 26, padding: 0, border: 0 }, splitButtonDivider: { display: 'none' } }} /></div>)}
-        {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item==='Administration' ? 'Helpdesk settings' : item}</button>)}
+        {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item==='Administration' ? 'Helpdesk settings' : item==='FAQs' ? 'Knowledge Base' : item}</button>)}
       </nav>}
       <main className={`${styles.mainContent}${props.settingsContent ? ` ${styles.settingsMain}` : ''}`}>
         {props.settingsContent || <><MissingWorkspaceNotice service={props.service} error={dashboard.error} />

@@ -37,6 +37,11 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   };
   if (source.updateTicket) result.updateTicket = role.actions.some(action => action === 'edit' || action === 'status') ? async (id, input) => {
     const ticket = await requireTicket(id);
+    if (input.resolutionSummary !== undefined) {
+      requireAction('edit');
+      if (!input.resolutionSummary.trim() && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can clear the resolution summary.');
+    }
+    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
     if (input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined) requireAction('edit');
     if (input.status !== ticket.Status) requireAction('status');
     if (input.priority !== ticket.Priority) requireAction('priority');

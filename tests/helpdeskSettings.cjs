@@ -20,7 +20,7 @@ let html=render(admin);
 assert(html.includes('Helpdesk settings') && html.includes('Support Teams') && html.includes('Auto Assignment'));
 assert(!html.includes('Ticket list schema') && !html.includes('Users &amp; Roles') && !html.includes('SLA &amp; Priorities'),'Super Admin and disabled features must not leak into the hub');
 html=render({...admin,roleRules:{actions:['classifications','sla','manageFaqs']}});
-assert(html.includes('Categories') && html.includes('Subcategories') && html.includes('Issue Types') && html.includes('SLA &amp; Priorities') && html.includes('FAQs'));
+assert(html.includes('Categories') && html.includes('Subcategories') && html.includes('Issue Types') && html.includes('SLA &amp; Priorities') && html.includes('Knowledge Base'));
 html=render({...admin,access:{admin:true,superAdmin:true},roleManagement:{}});
 assert(html.includes('Users &amp; Roles') && html.includes('Ticket list schema'),'Existing Super Admin tools remain available to owners');
 console.log('Helpdesk settings checks passed: grouped hub opens first, team/assignment settings remain available to admins, and restricted settings are filtered.');

@@ -1050,3 +1050,98 @@
 @media (max-width: 1050px) { .helpdeskSettingsGroups { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 650px) { .helpdeskSettingsGroups { grid-template-columns: 1fr; } }
 
+
+.detailWorkspace {
+  .ticketDescriptionBox { border-top: 1px solid var(--hd-line); margin-top: 16px; padding-top: 14px; }
+  .ticketDescriptionBox .ticketDescription { margin-top: 0; }
+  .detailSummary > .detailSection { margin-top: 12px; }
+  .commentEntry { gap: 20px; }
+  .commentEntry > .personInitials { width: 36px; height: 36px; flex: 0 0 36px; font-size: 13px; }
+  .commentComposer { margin-top: 12px; }
+}
+
+.detailWorkspace {
+  .ticketDescriptionBox .ticketDescription, .ticketDescriptionBox .markdownContent, .ticketDescriptionBox p, .ticketDescriptionBox li, .ticketResolutionBody > p, .ticketResolutionBody .markdownContent, .ticketResolutionBody .markdownContent p, .ticketResolutionBody .markdownContent li, .commentEntry p { font-size: 15px; line-height: 1.7; }
+  .commentTabControls { display: flex; align-items: center; gap: 8px; margin-left: auto; padding: 0 8px; }
+  .commentTabControls select { border: 0; background: transparent; font: inherit; font-size: 12px; color: #526783; }
+  .commentTabControls :global(.ms-Button) { border: 0; background: transparent; width: 28px; height: 28px; padding: 0; }
+  .savedCommentActions { flex-wrap: wrap; }
+}
+
+.detailWorkspace {
+  .detailHero { align-items: flex-start; justify-content: space-between; flex-wrap: wrap; }
+  .detailHero > div:first-child { flex: 1; min-width: 200px; }
+  .ticketTitleActions { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+  .ticketTitleActions > div { display: flex; gap: 8px; flex-wrap: wrap; }
+  .ticketTitleActions :global(.ms-Button--primary), .ticketTitleActions :global(.ms-Button--primary + .ms-Button) { background: #00899b; border-color: #00899b; color: #fff; }
+  .detailEyebrow .statusPill { margin-left: 8px; vertical-align: middle; border-radius: 999px; }
+  .ticketDescriptionBox { padding-left: 12px; padding-right: 12px; }
+  .ticketResolutionBody { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hd-line); }
+  .ticketResolutionBody > :global(.ms-Button) { font-weight: 500; padding-left: 0; }
+  .ticketResolutionBody :global(.ms-Button-label) { font-weight: 500; }
+  .detailSectionNav { margin-bottom: 0; }
+  .commentDisplay { margin-top: 0; }
+  .commentThread { padding-top: 0; }
+  .commentEntry, .commentEntry:first-child { padding-top: 20px; }
+  .commentSolution { margin-top: 0; }
+  .savedCommentActions :global(.ms-Button) { padding-top: 0; padding-bottom: 0; }
+  .commentTabControls > :global(.ms-Button) { width: auto; white-space: nowrap; background: transparent; border: 0; }
+  .commentTabControls > :global(.ms-Button--icon) { width: 28px; }
+}
+.attachmentToolbarPicker { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; margin: 0; font-size: 12px; width: 100%;
+  .attachmentDropArea { min-height: 26px; padding: 0 6px; display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  > ul { display: flex; flex-wrap: wrap; list-style: none; gap: 8px; padding: 0; margin: 0; }
+  li { display: flex; align-items: center; gap: 4px; }
+}
+
+.detailWorkspace .ticketComments { margin-top: -6px; }
+
+.detailWorkspace .ticketResolutionBody p { font-size: 15px; line-height: 1.7; }
+
+.detailWorkspace .ticketTitleActions :global(.ms-Button-label) { font-size: 12px; font-weight: 500; }
+.detailWorkspace .savedCommentActions :global(.ms-Button) { height: 24px; min-height: 24px; padding-block: 2px; }
+
+.detailWorkspace .ticketTitleActions > div { align-items: center; gap: 6px; }
+.detailWorkspace .ticketTitleActions > div > :global(.ms-Button--icon) { width: 24px; height: 24px; padding: 0; min-width: 24px; }
+
+.detailWorkspace .commentSolution { background: #e0f5e9; color: #13794e; padding: 2px 8px; border-radius: 999px; }
+
+.detailWorkspace {
+  .resolveTicketControl { display: inline-flex; align-items: stretch; gap: 0; overflow: hidden; border-radius: 4px; background: #00899b; vertical-align: middle; }
+  .resolveTicketControl > :global(.ms-Button) { margin: 0; border: 0; border-radius: 0; height: 26px; box-shadow: none; }
+  .detailSidebarCard > .detailSectionHeading > :global(.ms-Button--icon) { width: 24px; height: 24px; min-width: 24px; padding: 0; background: transparent; border: 0; }
+}
+
+.detailWorkspace .commentTabControls select { border-left: 1px solid var(--hd-line); padding-left: 12px; margin-left: 4px; }
+
+.detailWorkspace .ticketMetadataHeading { display: flex; align-items: center; justify-content: space-between; }
+.detailWorkspace .ticketMetadataHeading > :global(.ms-Button) :global(.ms-Icon) { color: #172536; }
+
+.issueHistory {
+  li { padding: 7px 0; gap: 12px; }
+  li > div { padding-bottom: 7px; gap: 4px; }
+  li::before { top: 35px; bottom: -7px; }
+  strong { font-weight: 500; }
+  .historyItemHeading { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; }
+  .historyItemHeading time { font-size: 10px; }
+}
+.historyToolbar > div { display: flex; align-items: center; gap: 4px; }
+
+.detailWorkspace .resolutionSummaryContent { background: #f5f8fc; border-radius: 4px; padding: 12px 14px; margin-top: 8px; }
+.detailWorkspace .resolutionSummaryContent > p { margin: 0; }
+
+.detailWorkspace .resolutionSummaryActions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.detailWorkspace .resolutionSummaryActions :global(.ms-Button-label) { font-weight: 500; }
+
+.pageContent.detailWorkspace {
+  width: calc(100% + 2 * var(--page-inset, 20px));
+  margin-inline: calc(-1 * var(--page-inset, 20px));
+  padding: 0 0 12px;
+  box-sizing: border-box;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  > .ticketDetailLayout { padding-inline: var(--page-inset, 20px); min-width: 0; }
+  > :global(.ms-MessageBar) { width: 100%; margin: 0; box-sizing: border-box; padding-inline: calc(var(--page-inset, 20px) - 12px); }
+}
+
+.detailWorkspace .detailSidebar { padding-top: 0; }

@@ -14,5 +14,16 @@ const {applyAppRoleRules}=load('src/webparts/helpdeskSystem/services/appRoleRule
  const role={scope:'all',actions:['edit']};assert.equal(applyAppRoleRules(source,role,1,'').markCommentAsSolution,undefined);
  source.access.admin=true;await applyAppRoleRules(source,role,1,'').markCommentAsSolution(5,'7',true);assert.equal(called,1);
  await assert.rejects(applyAppRoleRules(source,role,1,'').markCommentAsSolution(9,'7'),/outside/);
+ // Manual resolution and clearing must patch summary and solution reference together.
+ service.editSchema={path:'/tickets',title:'Title',priority:'Priority',priorities:['Medium']};
+ service.updateSchema={path:'/tickets',status:'Status',choices:['New','Resolved','Closed'],assigned:'AssignedTo'};
+ const edit={title:'Ticket',priority:'Medium',status:'Resolved',assignedToId:null};
+ patches=[];await service.updateTicket(5,{...edit,resolutionSummary:'  Replaced cable.  '});
+ assert.equal(patches[0][1].ResolutionSummary,'Replaced cable.');assert.equal(patches[0][1].SolutionCommentId,'');assert.equal(patches[0][1].Status,'Resolved');
+ patches=[];await service.updateTicket(5,{...edit,resolutionSummary:''});assert.equal(patches[0][1].ResolutionSummary,'');assert.equal(patches[0][1].SolutionCommentId,'');
+ const guardedSource={access:{admin:false,superAdmin:false},getTickets:async()=>({tickets:[{Id:5,Title:'Ticket',Priority:'Medium',Status:'New'}]}),updateTicket:async()=>{called++;}};
+ const guarded=applyAppRoleRules(guardedSource,{scope:'all',actions:['edit','status']},1,'');
+ await assert.rejects(guarded.updateTicket(5,{...edit,resolutionSummary:''}),/Only Helpdesk Admins/);
+ await assert.rejects(guarded.updateTicket(5,{...edit,status:'Closed'}),/Only Helpdesk Admins/);
  console.log('Comment solution checks passed: summary/ID saved together, status unchanged, ticket binding, replacement confirmation, version guard and admin scope.');
 })().catch(error=>{console.error(error);process.exitCode=1;});
