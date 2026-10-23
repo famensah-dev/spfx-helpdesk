@@ -52,7 +52,7 @@ function unchanged(){assert.equal(window.location.search,'?env=WebView&source=po
  await click('Open list ticket');assert.equal(window.location.hash,'#/tickets/123');await click('Return from ticket');assert(window.location.hash.includes('view=Archive'),'Return preserves list view');
  await click('Dashboard');await click('Open dashboard ticket');await click('Return from ticket');assert.equal(window.location.hash,'#/dashboard');
  await click('Knowledge Base');assert.equal(window.location.hash,'#/knowledge-base');
- await click('Helpdesk settings');await click('Open teams');assert.equal(window.location.hash,'#/settings/teams');
+ await click('Helpdesk Settings');await click('Open teams');assert.equal(window.location.hash,'#/settings/teams');
  await act(async()=>ReactDOM.unmountComponentAtNode(container));await render();assert(container.textContent.includes('Settings units'));
  await click('Open workspace settings');await click('SharePoint section');assert.equal(window.location.hash,'#/workspace-settings/sharepoint');await click('Leave workspace');assert.equal(window.location.hash,'#/settings/teams');
  await hash('/tickets/new');assert(container.textContent.includes('New ticket form'));

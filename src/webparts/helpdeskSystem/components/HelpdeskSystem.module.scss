@@ -1045,8 +1045,24 @@
 .supportUnitCardHeading { display: flex; align-items: center; gap: 12px; strong { flex: 1; font-size: 16px; overflow-wrap: anywhere; } i { color: #496a94; } }
 
 .helpdeskSettingsHub { color: var(--hd-ink); }
-.helpdeskSettingsHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; h2 { font-size: 22px; font-weight: 600; margin: 0 0 8px; } p { color: #61728b; margin: 0; font-size: 14px; line-height: 1.5; } :global(.ms-SearchBox) { width: 320px; max-width: 100%; } }
-.helpdeskSettingsGroups { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 20px; align-items: start; section { background: var(--hd-surface); border: 1px solid #dce5f1; border-radius: 6px; overflow: hidden; } h3 { margin: 0; padding: 16px 18px; border-bottom: 1px solid #e4ebf4; font-size: 15px; font-weight: 600; color: #213a5b; background: #f7f9fc; } button { display: flex; width: 100%; align-items: center; gap: 12px; padding: 16px 18px; border: 0; border-bottom: 1px solid #edf0f5; color: #293d58; background: transparent; text-align: left; font: inherit; cursor: pointer; &:last-child { border-bottom: 0; } &:hover { background: #f5f8fc; } &:focus-visible { outline: 2px solid #597eaf; outline-offset: -2px; } > i { color: #54739a; font-size: 17px; flex-shrink: 0; } > i:last-child { font-size: 10px; } span { flex: 1; min-width: 0; } strong { display: block; font-size: 14px; font-weight: 500; } small { display: block; color: #6b7c92; font-size: 12px; line-height: 1.5; margin-top: 5px; } } }
+.helpdeskSettingsHeading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px; margin-bottom: 24px; h2 { font-size: 20px; font-weight: 500; margin: 0; } p { color: #61728b; margin: 0; font-size: 14px; line-height: 1.5; } :global(.ms-SearchBox) { width: 320px; max-width: 100%; } }
+.helpdeskSettingsGroups { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 18px; align-items: start;
+  [data-tone='blue'] { --setting-ink: #0877da; --setting-bg: #edf4ff; }
+  [data-tone='green'] { --setting-ink: #039963; --setting-bg: #eaf7f0; }
+  [data-tone='amber'] { --setting-ink: #d97a00; --setting-bg: #fff4e5; }
+  [data-tone='purple'] { --setting-ink: #7442cc; --setting-bg: #f3edff; }
+  [data-tone='cyan'] { --setting-ink: #009bd8; --setting-bg: #eaf8ff; }
+  [data-tone='slate'] { --setting-ink: #61728b; --setting-bg: #edf0f5; }
+  section { background: var(--hd-surface); border: 1px solid #e4ebf4; border-radius: 7px; overflow: hidden; }
+  h3 { display: flex; align-items: center; gap: 14px; margin: 0; padding: 8px 16px; border-bottom: 1px solid #edf1f7; font-size: 14px; font-weight: 500; color: #213a5b; }
+  button { display: flex; width: 100%; align-items: center; gap: 14px; padding: 7px 16px; border: 0; border-bottom: 1px solid #edf1f7; color: #293d58; background: transparent; text-align: left; font: inherit; cursor: pointer;
+    &:last-child { border-bottom: 0; } &:hover { background: #f8fafd; } &:focus-visible { outline: 2px solid #597eaf; outline-offset: -2px; }
+    > span { flex: 1; min-width: 0; font-size: 14px; font-weight: 400; }
+    > i:last-child { color: #8799b0; font-size: 14px; }
+  }
+  .settingsGroupIcon, .settingsLinkIcon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 24px; width: 24px; height: 24px; border-radius: 5px; font-size: 15px; background: var(--setting-bg); color: var(--setting-ink); }
+}
+@media (max-width: 1200px) { .helpdeskSettingsGroups { grid-template-columns: repeat(3,minmax(0,1fr)); } }
 @media (max-width: 1050px) { .helpdeskSettingsGroups { grid-template-columns: repeat(2,minmax(0,1fr)); } }
 @media (max-width: 650px) { .helpdeskSettingsGroups { grid-template-columns: 1fr; } }
 
@@ -1148,3 +1164,8 @@
 
 .ticketPage .ticketControls > :global(.ms-SearchBox) { width: 180px; min-width: 140px; flex: 0 1 180px; }
 .ticketPage .ticketToolbar > .ticketActions { flex-wrap: nowrap; flex-shrink: 0; }
+
+.helpdeskSettingsGroups h3 { font-weight: 500; min-height: 44px; box-sizing: border-box; }
+
+.helpdeskSettingsHub { padding-top: 10px; }
+.helpdeskSettingsHeading { background: #fff; padding: 16px 18px; border-radius: 6px; margin-bottom: 18px; }

@@ -5,7 +5,7 @@ export const pagePaths = {
   'My Assigned Tickets': '/my-tickets',
   FAQs: '/knowledge-base',
   Administration: '/settings',
-  'Users & roles': '/users-and-roles'
+  'Users & Roles': '/users-and-roles'
 } as const;
 export type AppPage = keyof typeof pagePaths;
 export const adminPaths = {home:'', units:'teams', assignment:'auto-assignment', categories:'categories', subcategories:'subcategories', issueTypes:'issue-types', sla:'sla', faqs:'knowledge-base', members:'users', schema:'ticket-schema'} as const;
