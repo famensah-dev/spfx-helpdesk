@@ -1,9 +1,11 @@
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { pagePaths, adminPaths, resolveAppRoute } from '../utils/appRoutes';
 import { MissingWorkspaceNotice } from './WorkspaceSetupPanel';
 import { AdministrationPage } from '../pages/AdministrationPage';
 import { FaqPage } from '../pages/FaqPage';
 import { SharePointRolesPage } from '../pages/SharePointRolesPage';
 import * as React from 'react';
-import { DefaultButton, Icon, ThemeProvider, createTheme, MessageBar, MessageBarType } from '@fluentui/react';
+import { DefaultButton, Icon, ThemeProvider, createTheme, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
 import { DashboardPage } from '../pages/DashboardPage';
 import { TicketListPage } from '../pages/TicketListPage';
 import { TicketDetails } from './TicketDetails';
@@ -49,22 +51,27 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   const administrationAllowed = rules ? props.service.supportUnits || props.service.access?.superAdmin || ['classifications', 'manageFaqs', 'sla'].some(action => rules.actions.includes(action as 'classifications' | 'manageFaqs' | 'sla')) : !props.service.access?.agent;
   const permittedPage = (value: Page): boolean => value === 'Users & roles' ? Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
   const initialPage: Page = rules ? canUse(props.service, 'dashboard') ? 'Dashboard' : canUse(props.service, 'tickets') ? 'Tickets' : canUse(props.service, 'faqs') ? 'FAQs' : 'Administration' : props.service.access?.agent ? 'My Dashboard' : 'Dashboard';
-  const [page, setPage] = React.useState<Page>(initialPage);
+  const location = useLocation();
+  const routerNavigate = useNavigate();
+  const route = resolveAppRoute(location.pathname);
+  const page:Page = route.page;
+  const allowed = route.workspace ? Boolean(props.service.access?.superAdmin) : route.ticketId ? canUse(props.service,'tickets') || canUse(props.service,'dashboard') : permittedPage(page);
   const personal = page === 'My Dashboard' || page === 'My Assigned Tickets';
   const dashboard = useHelpdeskDashboard(props.service, personal ? props.currentUserEmail : undefined);
   const dashboardActive = page === 'Dashboard' || page === 'My Dashboard' || page === 'My Assigned Tickets';
-  const [dashboardTicketId, setDashboardTicketId] = React.useState<number | null>(null);
-  const dashboardTicket = dashboard.tickets.find(ticket => ticket.Id === dashboardTicketId);
+  const detailTicket = dashboard.tickets.find(ticket=>ticket.Id===route.ticketId);
   const heading = React.useRef<HTMLHeadingElement>(null);
   const navigate = (next: Page): void => {
-    if (!permittedPage(next)) return;
-    setDashboardTicketId(null);
-    setPage(next);
-    // Move focus to the new page after React commits its content.
-    window.requestAnimationFrame(() => heading.current?.focus());
+    if (permittedPage(next)) routerNavigate(pagePaths[next]);
   };
+  const openTicket = (id:number):void => routerNavigate('/tickets/'+id,{state:{from:location.pathname+location.search}});
+  const backPath = typeof location.state?.from === 'string' && location.state.from.startsWith('/') && !location.state.from.startsWith('//') && !resolveAppRoute(location.state.from.split('?')[0]).notFound ? location.state.from : '/tickets';
+  const requestedView = new URLSearchParams(location.search).get('view') || (page==='My Assigned Tickets' ? 'My Assigned Tickets' : 'All Tickets');
+  const ticketView = ['All Tickets','My Assigned Tickets','Created by Me','Archive'].includes(requestedView) ? requestedView : 'All Tickets';
+  React.useEffect(()=>{window.requestAnimationFrame(()=>heading.current?.focus());},[location.pathname]);
+  if(location.pathname==='/' || location.pathname==='')return <Navigate to={pagePaths[initialPage]} replace />;
   return (
-    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard') && !dashboardTicket ? ` ${styles.dashboardCanvas}` : ''}`}>
+    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
       <header className={styles.appHeader}>
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
         <div className={styles.headerActions}>{props.accountActions}</div>
@@ -80,15 +87,14 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         {props.settingsContent || <><MissingWorkspaceNotice service={props.service} error={dashboard.error} />
         {dashboard.warnings.map(warning => <MessageBar key={warning} messageBarType={MessageBarType.warning}>{warning}</MessageBar>)}
         <h1 ref={heading} tabIndex={-1} className={styles.srOnly}>{page === 'Dashboard' ? 'Admin Dashboard' : page}</h1>
-        {(page === 'Dashboard' || (page === 'My Dashboard' && dashboard.assignmentIdentityAvailable)) && (dashboardTicket
-          ? <TicketDetails key={dashboardTicket.Id} ticket={dashboardTicket} tickets={dashboard.tickets} service={props.service} refresh={dashboard.refresh} backLabel="Back to Dashboard" onBack={() => setDashboardTicketId(null)} />
-          : <DashboardPage {...dashboard} sla={props.service.sla} title={rules ? 'Dashboard' : page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={setDashboardTicketId} onViewTickets={canUse(props.service, 'tickets') ? () => navigate('Tickets') : undefined} />)}
-        {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} />}
+        {route.notFound ? <MessageBar messageBarType={MessageBarType.error}>This DeskPilot page was not found. <DefaultButton text="Go to home" onClick={()=>routerNavigate(pagePaths[initialPage])} /></MessageBar> : !allowed ? <MessageBar messageBarType={MessageBarType.error}>You do not have permission to view this page.</MessageBar> : route.ticketId ? (dashboard.loading ? <Spinner label="Loading ticket..." /> : dashboard.error ? <MessageBar messageBarType={MessageBarType.error}>{dashboard.error}</MessageBar> : detailTicket ? <TicketDetails key={detailTicket.Id} ticket={detailTicket} tickets={dashboard.tickets} service={props.service} refresh={dashboard.refresh} backLabel={backPath.startsWith('/dashboard') || backPath.startsWith('/my-dashboard') ? 'Back to Dashboard' : 'Back to Tickets'} onBack={()=>routerNavigate(backPath)} /> : <MessageBar messageBarType={MessageBarType.error}>This ticket was not found or you do not have access to it. <DefaultButton text="Back to Tickets" onClick={()=>navigate('Tickets')} /></MessageBar>) : <>
+        {(page === 'Dashboard' || (page === 'My Dashboard' && dashboard.assignmentIdentityAvailable)) && <DashboardPage {...dashboard} sla={props.service.sla} title={rules ? 'Dashboard' : page === 'My Dashboard' ? 'My Dashboard' : 'Admin Dashboard'} filteredTicketCount={dashboard.filteredTickets.length} onOpenTicket={openTicket} onViewTickets={canUse(props.service, 'tickets') ? () => navigate('Tickets') : undefined} />}
+        {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && (route.creating && !props.service.createTicket ? <MessageBar messageBarType={MessageBarType.error}>You do not have permission to create tickets.</MessageBar> : <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} onOpenTicket={openTicket} creating={route.creating===true} onCreatingChange={value=>routerNavigate(value ? '/tickets/new' : '/tickets')} view={ticketView} onViewChange={view=>routerNavigate({pathname:location.pathname,search:view==='All Tickets' ? '' : '?view='+encodeURIComponent(view)})} />)}
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
         {page === 'FAQs' && <FaqPage service={props.service} />}
-        {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} onUsersAndRoles={()=>navigate('Users & roles')} />}
+        {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} section={route.adminSection || 'home'} onSectionChange={section=>routerNavigate('/settings'+(adminPaths[section] ? '/'+adminPaths[section] : ''))} onSettingsChanged={dashboard.refresh} onUsersAndRoles={()=>navigate('Users & roles')} />}
         {page === 'Users & roles' && props.service.roleManagement && <SharePointRolesPage service={props.service} />}
-        {!permittedPage(page) && <MessageBar>Your role has no enabled pages. Ask a Super Admin to update your role rules.</MessageBar>}
+        </>}
         </>}
       </main>
     </ThemeProvider>

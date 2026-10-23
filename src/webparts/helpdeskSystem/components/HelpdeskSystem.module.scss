@@ -1145,3 +1145,6 @@
 }
 
 .detailWorkspace .detailSidebar { padding-top: 0; }
+
+.ticketPage .ticketControls > :global(.ms-SearchBox) { width: 180px; min-width: 140px; flex: 0 1 180px; }
+.ticketPage .ticketToolbar > .ticketActions { flex-wrap: nowrap; flex-shrink: 0; }

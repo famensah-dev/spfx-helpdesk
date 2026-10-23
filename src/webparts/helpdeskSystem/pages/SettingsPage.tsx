@@ -1,3 +1,4 @@
+import type { WorkspaceSection } from '../utils/appRoutes';
 import { WorkspaceSetupPanel } from '../components/WorkspaceSetupPanel';
 import { WorkspaceMaintenancePanel } from '../components/WorkspaceMaintenancePanel';
 import * as React from 'react';
@@ -12,8 +13,10 @@ interface List { Id: string; Title: string; Hidden: boolean; BaseTemplate: numbe
 interface Entry { Name: string; ServerRelativeUrl: string; folder: boolean; }
 const textButtonStyles: import('@fluentui/react').IButtonStyles = { root: { background: 'transparent', border: 0, minWidth: 0, padding: '0 4px', height: 30, fontSize: 13 }, rootHovered: { background: 'transparent', border: 0, selectors: { '.ms-Button-label': { textDecoration: 'underline' } } }, rootPressed: { background: 'transparent', border: 0 }, rootDisabled: { background: 'transparent', border: 0 }, label: { fontWeight: 400 } };
 const sections = ['General', 'SharePoint Settings', 'Site Lists', 'Site Documents', 'Hidden Lists'] as const;
-export function SettingsPage(props: {context: WebPartContext; service: ITicketDataSource; portalTitle?: string; onBack: () => void}): React.ReactElement {
-  const [section, setSection] = React.useState<typeof sections[number]>('General');
+export function SettingsPage(props: {context: WebPartContext; service: ITicketDataSource; portalTitle?: string; onBack: () => void; section?: WorkspaceSection; onSectionChange?:(section:WorkspaceSection)=>void}): React.ReactElement {
+  const [localSection, setLocalSection] = React.useState<typeof sections[number]>('General');
+  const section=props.section || localSection;
+  const setSection=(value:WorkspaceSection):void=>{if(props.onSectionChange)props.onSectionChange(value);else setLocalSection(value);};
   const initial = props.service.workspaceSettings!;
   const [draft, setDraft] = React.useState<IWorkspaceSettings>({...initial, title: initial.title || props.portalTitle || 'IT Helpdesk'});
   const [lists, setLists] = React.useState<List[]>([]);

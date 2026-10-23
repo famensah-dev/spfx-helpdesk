@@ -1,3 +1,4 @@
+import type { AdminSection } from '../utils/appRoutes';
 import { HelpdeskSettingsHub, type IHelpdeskSettingLink } from '../components/HelpdeskSettingsHub';
 import { AutoAssignmentSetting } from '../components/AutoAssignmentSetting';
 import { SupportUnitsPage } from './SupportUnitsPage';
@@ -17,9 +18,11 @@ import { FaqPage } from './FaqPage';
 import styles from '../components/HelpdeskSystem.module.scss';
 
 const tabs: Array<{key: AdminPage | 'faqs' | 'sla' | 'members' | 'units'; text: string}> = [{key: 'schema', text: 'Ticket list schema'}, {key: 'categories', text: 'Categories'}, {key: 'subcategories', text: 'Subcategories'}, {key: 'issueTypes', text: 'Issue Types'}, {key: 'sla', text: 'SLA & Priorities'}, {key: 'faqs', text: 'Knowledge Base'}, {key: 'members', text: 'Users'}, {key: 'units', text: 'Support Teams'}];
-export function AdministrationPage(props: { service: ITicketDataSource; onSettingsChanged?: () => Promise<void>; onUsersAndRoles?:()=>void }): React.ReactElement {
+export function AdministrationPage(props: { service: ITicketDataSource; onSettingsChanged?: () => Promise<void>; onUsersAndRoles?:()=>void; section?:AdminSection; onSectionChange?:(section:AdminSection)=>void }): React.ReactElement {
   const availableTabs = tabs.filter(tab => (tab.key !== 'schema' || !props.service.access || props.service.access.superAdmin) && (tab.key !== 'members' || props.service.members) && (tab.key !== 'units' || props.service.supportUnits) && (tab.key === 'units' || tab.key === 'members' || tab.key === 'schema' || canUse(props.service, tab.key === 'sla' ? 'sla' : tab.key === 'faqs' ? 'manageFaqs' : 'classifications')));
-  const [page, setPage] = React.useState<AdminPage | 'faqs' | 'sla' | 'members' | 'units' | 'home' | 'assignment'>('home');
+  const [localPage, setLocalPage] = React.useState<AdminSection>('home');
+  const page = props.section || localPage;
+  const setPage=(value:AdminSection):void=>{if(props.onSectionChange)props.onSectionChange(value);else setLocalPage(value);};
   const [data, setData] = React.useState<IAdminData | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
@@ -42,6 +45,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const service = props.service.administration;
   const load = React.useCallback(async (): Promise<void> => {
     if (page === 'faqs' || page === 'sla' || page === 'members' || page === 'units' || page === 'home' || page === 'assignment') return;
+    if(!availableTabs.some(tab=>tab.key===page))return;
     const current = ++version.current; setLoading(true); setError('');
     try { if (!service) throw new Error('Administration is not configured for this connection.'); const result = await service.getData(page); if (current === version.current) setData(result); }
     catch (reason) { if (current === version.current) { setData(null); setError(reason instanceof Error ? reason.message : 'Unable to load administration data.'); } }
@@ -72,6 +76,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const hubLinks:IHelpdeskSettingLink[]=availableTabs.map(tab=>({key:tab.key,title:tab.text,...settingDescriptions[tab.key]}));
   if(props.service.supportUnits)hubLinks.push({key:'assignment',title:'Auto Assignment',description:'Enable category-based assignment through support teams.',icon:'Flow',group:'Automation'});
   if(props.service.roleManagement && props.onUsersAndRoles)hubLinks.push({key:'usersRoles',title:'Users & Roles',description:'Manage app access and role permissions. Super Admin only.',icon:'Permissions',group:'People & Teams'});
+  if(page!=='home' && !hubLinks.some(link=>link.key===page))return <MessageBar messageBarType={MessageBarType.error}>You do not have access to this settings page.</MessageBar>;
   if(page==='home')return <section className={styles.secondaryPage}><HelpdeskSettingsHub links={hubLinks} onOpen={key=>{if(key==='usersRoles')props.onUsersAndRoles?.();else setPage(key as typeof page);}} /></section>;
   const modal = {isBlocking: true, styles: {main: {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760, borderRadius: 6, selectors: {'@media (min-width: 480px)': {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760}}}}};
   return <section className={styles.secondaryPage}>
