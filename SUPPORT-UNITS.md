@@ -4,7 +4,7 @@
 
 1. Deploy the updated package. A Super Admin runs **Initialize workspace**, reviews the additions and reloads DeskPilot. New installations need only **Support Units** and **Unit Members** for this feature. Tickets retain the **Assigned Unit** lookup.
 2. A Helpdesk Admin or Super Admin opens **Helpdesk Settings > Teams**.
-3. Select **Create teams** and enter one unit name per line to create several units at once. Existing names are skipped. Then open a team and add its members. A person can belong to several units. Mark availability and set rotation order.
+3. Select **Create teams** and enter one unit name per line to create several units at once. Existing names are skipped. Then open a team and add its members. A person can belong to several teams. Select **Add members**, choose several people, and add them together. They inherit the team categories and start available, with rotation order assigned automatically. Existing memberships are skipped, and retrying a partial failure keeps only the remaining people selected. Edit individual members afterward when availability or order needs changing.
 4. Select the unit's ticket categories and assignment method, then **Save settings**. Each category can belong to one active unit. Subcategories are not used.
 5. Choose **Round robin** to take turns among available members, or **Assign to team lead** to assign tickets to the team lead. Member edits preserve unsaved unit settings; save those settings separately.
 

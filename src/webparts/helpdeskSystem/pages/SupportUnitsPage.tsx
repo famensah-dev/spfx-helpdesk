@@ -1,3 +1,5 @@
+import { TeamMemberPicker } from '../components/TeamMemberPicker';
+import type { IOrganizationUser } from '../interfaces/ITicketDataSource';
 import * as React from 'react';
 import { Checkbox, PersonaCoin, DefaultButton, Dialog, Dropdown, Icon, IconButton, MessageBar, MessageBarType, PrimaryButton, SearchBox, Spinner, TextField } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
@@ -10,6 +12,7 @@ export function SupportUnitsPage({service}:{service:ITicketDataSource}):React.Re
   const [data,setData] = React.useState<ISupportUnitData>();
   const [selected,setSelected] = React.useState(0);
   const [draft,setDraft] = React.useState<ISupportUnit>();
+  const [pendingUsers,setPendingUsers] = React.useState<IOrganizationUser[]>([]);
   const [member,setMember] = React.useState<IUnitMember>();
   const [busy,setBusy] = React.useState(false);
   const [personBusy,setPersonBusy] = React.useState(false);
@@ -48,7 +51,31 @@ export function SupportUnitsPage({service}:{service:ITicketDataSource}):React.Re
   const choose=(id:number):void=>{if(leaveDraft()){setSelected(id);setTab('members');setError('');setMessage('');}};
   const memberName=(unit:ISupportUnit):string=>data?.members.find(entry=>entry.id===unit.teamLeadMemberId && entry.unitId===unit.id)?.name || 'Choose a member';
   const filteredTeams=(data?.units || []).filter(unit=>(unit.title+' '+(unit.email || '')).toLowerCase().includes(search.toLowerCase()));
-  const addMember=():void=>{setError('');setMember({id:0,unitId:selected,userId:0,name:'',available:true,order:unitMembers.reduce((max,entry)=>Math.max(max,entry.order),0)+1});};
+  const addMember=():void=>{setPendingUsers([]);setError('');setMember({id:0,unitId:selected,userId:0,name:'',available:true,order:unitMembers.reduce((max,entry)=>Math.max(max,entry.order),0)+1});};
+  const addMembers=async():Promise<void>=>{
+    if(lock.current || !api || !pendingUsers.length || !service.resolveUser)return;
+    lock.current=true;setBusy(true);setError('');setMessage('');
+    let saved=0,skipped=0;
+    const remaining=[...pendingUsers];
+    let order=unitMembers.reduce((max,entry)=>Math.max(max,entry.order),0)+1;
+    try {
+      const current=await api.load();
+      const existing=new Set(current.members.filter(entry=>entry.unitId===selected).map(entry=>entry.userId));
+      order=current.members.filter(entry=>entry.unitId===selected).reduce((max,entry)=>Math.max(max,entry.order),order-1)+1;
+      for(const user of pendingUsers){
+        const person=await service.resolveUser(user);
+        if(!person.Id)throw new Error('Unable to identify '+user.displayName+'.');
+        if(existing.has(person.Id)){skipped++;remaining.shift();continue;}
+        await api.saveMember({unitId:selected,userId:person.Id,name:person.Title || user.displayName,available:true,order:order++});
+        existing.add(person.Id);saved++;remaining.shift();
+      }
+      setPendingUsers([]);setMember(undefined);setMessage(saved+' members added.'+(skipped ? ' '+skipped+' existing members skipped.' : ''));
+    } catch(reason){setPendingUsers(remaining);setError(saved+' members added. '+(reason instanceof Error ? reason.message : 'Unable to add remaining members.')+' Retry to add the remaining people.');}
+    finally {
+      try{const updated=await api.load();preserveDraft.current=true;setData(updated);}catch{setError('Refresh teams to verify which members were saved before retrying.');}
+      lock.current=false;setBusy(false);
+    }
+  };
   return <div className={[styles.supportUnitsPage,styles.teamsWorkspace].join(' ')}>
     <div className={styles.teamsToolbar}><div>{selected ? <DefaultButton text="All teams" iconProps={{iconName:'Back'}} styles={cancelButtonStyles} disabled={busy} onClick={()=>choose(0)} /> : <h3>Teams</h3>}</div><PrimaryButton text="Create teams" iconProps={{iconName:'Add'}} disabled={busy || !data} onClick={()=>{if(leaveDraft()){setNewName('');setError('');setCreating(true);}}} /></div>
     <MissingWorkspaceNotice service={service} error={error} />
@@ -73,17 +100,17 @@ export function SupportUnitsPage({service}:{service:ITicketDataSource}):React.Re
               {!data.categories.length && <p>Add categories in Helpdesk Settings to configure assignment.</p>}
             </div>}
           </form>
-          {tab==='members' && <section className={styles.teamMembers} aria-label="Team members"><div className={styles.teamsToolbar}><h4>Members</h4><DefaultButton text="Add member" iconProps={{iconName:'AddFriend'}} disabled={busy} onClick={addMember} /></div>
-            {unitMembers.length ? <div className={styles.tableContainer}><table className={styles.ticketTable}><thead><tr><th>Member</th><th>Role</th><th>Rotation</th><th>Available</th><th /></tr></thead><tbody>{unitMembers.map(entry=><tr key={entry.id}><td><span className={styles.teamMemberName}><PersonaCoin text={entry.name} coinSize={28} /><span>{entry.name}</span></span></td><td>{entry.id===persisted?.teamLeadMemberId ? <span className={styles.teamStatus} data-active="true">Team lead</span> : 'Member'}</td><td>{entry.order}</td><td><Checkbox ariaLabel={'Available for assignment: '+entry.name} checked={entry.available} disabled={busy} onChange={(_,checked)=>{void run(()=>api!.saveMember({...entry,available:Boolean(checked)},entry.id),true);}} /></td><td><div className={styles.teamsButtons}>{entry.id!==persisted?.teamLeadMemberId && <DefaultButton text="Make lead" styles={cancelButtonStyles} disabled={busy} onClick={()=>{void run(async()=>{await api!.setTeamLead(selected,entry.id);setDraft(current=>current ? {...current,teamLeadMemberId:entry.id} : current);},true);}} />}<IconButton iconProps={{iconName:'Edit'}} ariaLabel={'Edit '+entry.name} styles={cancelButtonStyles} disabled={busy} onClick={()=>{setError('');setMember({...entry});}} /></div></td></tr>)}</tbody></table></div> : <div className={styles.teamMembersEmpty}><p>No members yet.</p><DefaultButton text="Add your first member" iconProps={{iconName:'AddFriend'}} disabled={busy} onClick={addMember} /></div>}
+          {tab==='members' && <section className={styles.teamMembers} aria-label="Team members"><div className={styles.teamCategorySummary}><span>{persisted?.categoryIds.length ? 'All members handle: '+data.categories.filter(category=>persisted.categoryIds.includes(category.id)).map(category=>category.title).join(', ') : 'Select the categories this team handles once for all its members.'}</span><DefaultButton text="Team categories" styles={cancelButtonStyles} onClick={()=>setTab('assignment')} /></div><div className={styles.teamsToolbar}><h4>Members</h4><DefaultButton text="Add members" iconProps={{iconName:'AddFriend'}} disabled={busy} onClick={addMember} /></div>
+            {unitMembers.length ? <div className={styles.tableContainer}><table className={styles.ticketTable}><thead><tr><th>Member</th><th>Role</th><th>Rotation</th><th>Available</th><th /></tr></thead><tbody>{unitMembers.map(entry=><tr key={entry.id}><td><span className={styles.teamMemberName}><PersonaCoin text={entry.name} coinSize={28} /><span>{entry.name}</span></span></td><td>{entry.id===persisted?.teamLeadMemberId ? <span className={styles.teamStatus} data-active="true">Team lead</span> : 'Member'}</td><td>{entry.order}</td><td><Checkbox ariaLabel={'Available for assignment: '+entry.name} checked={entry.available} disabled={busy} onChange={(_,checked)=>{void run(()=>api!.saveMember({...entry,available:Boolean(checked)},entry.id),true);}} /></td><td><div className={styles.teamsButtons}>{entry.id!==persisted?.teamLeadMemberId && <DefaultButton text="Make lead" styles={cancelButtonStyles} disabled={busy} onClick={()=>{void run(async()=>{await api!.setTeamLead(selected,entry.id);setDraft(current=>current ? {...current,teamLeadMemberId:entry.id} : current);},true);}} />}<IconButton iconProps={{iconName:'Edit'}} ariaLabel={'Edit '+entry.name} styles={cancelButtonStyles} disabled={busy} onClick={()=>{setError('');setMember({...entry});}} /></div></td></tr>)}</tbody></table></div> : <div className={styles.teamMembersEmpty}><p>No members yet.</p><DefaultButton text="Add members" iconProps={{iconName:'AddFriend'}} disabled={busy} onClick={addMember} /></div>}
           </section>}
         </div>
       </div> : <MessageBar>This team is no longer available.</MessageBar>}
     </>}
-    <Dialog hidden={!creating && !member} onDismiss={busy || personBusy ? undefined : ()=>{setCreating(false);setMember(undefined);setError('');}} dialogContentProps={{title:creating ? 'Create teams' : member?.id ? 'Edit member' : 'Add team member',showCloseButton:!busy && !personBusy}} modalProps={{isBlocking:true}} minWidth={440}>
+    <Dialog hidden={!creating && !member} onDismiss={busy || personBusy ? undefined : ()=>{setCreating(false);setMember(undefined);setError('');}} dialogContentProps={{title:creating ? 'Create teams' : member?.id ? 'Edit member' : 'Add team members',showCloseButton:!busy && !personBusy}} modalProps={{isBlocking:true}} minWidth={440}>
       {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-      <form className={styles.adminFormFields} onSubmit={event=>{event.preventDefault();if(personBusy)return;if(creating)void createUnits();else if(member)void run(()=>api!.saveMember(member,member.id || undefined));}}>
-        {creating ? <><TextField label="Team names" required multiline rows={6} description="Enter one team name per line. Existing teams will be skipped." placeholder={'Infrastructure\nApplications\nService Desk'} value={newName} disabled={busy} onChange={(_,value)=>setNewName(value || '')} /><p>Open each team after creation to add members, select categories and choose its assignment method.</p></> : member && <><FormAssigneePicker label="Member" service={service} value={member.userId ? {Id:member.userId,Title:member.name} : null} disabled={busy} onBusy={setPersonBusy} onChange={person=>setMember({...member,userId:person?.Id || 0,name:person?.Title || person?.Email || ''})} /><TextField label="Rotation order" type="number" min={0} step={1} value={String(member.order)} disabled={busy} onChange={(_,value)=>setMember({...member,order:Number(value)})} /><Checkbox label="Available for assignment" checked={member.available} disabled={busy} onChange={(_,checked)=>setMember({...member,available:Boolean(checked)})} /><p>Choose an existing DeskPilot agent or Helpdesk Admin.</p></>}
-        <div className={styles.faqModalFooter}><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy || personBusy} onClick={()=>{setCreating(false);setMember(undefined);setError('');}} /><PrimaryButton type="submit" text={busy ? 'Saving...' : creating ? 'Create teams' : 'Save member'} disabled={busy || personBusy} /></div>
+      <form className={styles.adminFormFields} onSubmit={event=>{event.preventDefault();if(personBusy)return;if(creating)void createUnits();else if(member?.id)void run(()=>api!.saveMember(member,member.id));else void addMembers();}}>
+        {creating ? <><TextField label="Team names" required multiline rows={6} description="Enter one team name per line. Existing teams will be skipped." placeholder={'Infrastructure\nApplications\nService Desk'} value={newName} disabled={busy} onChange={(_,value)=>setNewName(value || '')} /><p>Open each team after creation to add members, select categories and choose its assignment method.</p></> : member && !member.id ? <><TeamMemberPicker service={service} users={pendingUsers} onChange={setPendingUsers} disabled={busy} /><p>Members use this team's categories. Availability and rotation order are set automatically.</p></> : member && <><FormAssigneePicker label="Member" service={service} value={member.userId ? {Id:member.userId,Title:member.name} : null} disabled={busy} onBusy={setPersonBusy} onChange={person=>setMember({...member,userId:person?.Id || 0,name:person?.Title || person?.Email || ''})} /><TextField label="Rotation order" type="number" min={0} step={1} value={String(member.order)} disabled={busy} onChange={(_,value)=>setMember({...member,order:Number(value)})} /><Checkbox label="Available for assignment" checked={member.available} disabled={busy} onChange={(_,checked)=>setMember({...member,available:Boolean(checked)})} /><p>Choose an existing DeskPilot agent or Helpdesk Admin.</p></>}
+        <div className={styles.faqModalFooter}><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy || personBusy} onClick={()=>{setCreating(false);setMember(undefined);setError('');}} /><PrimaryButton type="submit" disabled={busy || personBusy || (!creating && !member?.id && (!pendingUsers.length || !service.resolveUser))} text={busy ? 'Saving...' : creating ? 'Create teams' : member?.id ? 'Save member' : 'Add members'+(pendingUsers.length ? ' ('+pendingUsers.length+')' : '')} /></div>
       </form>
     </Dialog>
   </div>;

@@ -1205,3 +1205,18 @@
   .tableContainer { overflow-x: auto; }
 }
 @media (max-width: 850px) { .teamsWorkspace .teamsEditorLayout { grid-template-columns: 1fr; } .teamsWorkspace .teamsSidebar { border-right: 0; border-bottom: 1px solid var(--hd-line); } .teamsWorkspace .teamsSidebar nav { grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); } .teamsWorkspace .teamDetailsFields { grid-template-columns: 1fr; } }
+
+.teamsWorkspace .teamCategorySummary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 0 0; color: #61728b; font-size: 12px; }
+.teamsWorkspace .teamCategorySummary .ms-Button { flex-shrink: 0; }
+
+.settingsBreadcrumb { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.settingsBreadcrumb > span { color: #8799b0; }
+.helpdeskSettingsGroups .settingsInlineControl { display: flex; align-items: center; gap: 10px; padding: 7px 16px; min-height: 44px; font-size: 14px; color: #293d58; }
+.helpdeskSettingsGroups .settingsInlineControl > span { flex: 1; min-width: 0; font-weight: 400; }
+.settingsToggleControl { display: flex; align-items: center; gap: 4px; }
+.settingsToggleControl :global(.ms-Toggle) { margin: 0; }
+.settingsToggleControl :global(.ms-Toggle-stateText) { display: none; }
+
+.settingsBreadcrumb { column-gap: 10px; row-gap: 4px; }
+.settingsBreadcrumb > .toolbarTitle { margin: 0; font-size: 14px; font-weight: 500; line-height: 28px; }
+.settingsBreadcrumb > span { font-size: 14px; line-height: 28px; }
