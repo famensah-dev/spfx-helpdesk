@@ -17,7 +17,7 @@ const {AdministrationPage}=load('src/webparts/helpdeskSystem/pages/Administratio
 const render=service=>renderToStaticMarkup(React.createElement(AdministrationPage,{service,onUsersAndRoles:()=>{}}));
 const admin={access:{admin:true,superAdmin:false},roleRules:{actions:[]},supportUnits:{}};
 let html=render(admin);
-assert(html.includes('Helpdesk Settings') && html.includes('Teams') && html.includes('Auto Assignment'));
+assert(html.includes('Helpdesk Settings') && html.includes('Support teams') && html.includes('Auto Assignment'));
 assert(!html.includes('Ticket list schema') && !html.includes('Users &amp; Roles') && !html.includes('SLA &amp; Priorities'),'Super Admin and disabled features must not leak into the hub');
 html=render({...admin,roleRules:{actions:['classifications','sla','manageFaqs']}});
 assert(html.includes('Categories') && html.includes('Subcategories') && html.includes('Issue Types') && html.includes('SLA &amp; Priorities') && html.includes('Knowledge Base'));

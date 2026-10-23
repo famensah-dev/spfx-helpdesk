@@ -77,7 +77,7 @@ export function SupportUnitsPage({service}:{service:ITicketDataSource}):React.Re
     }
   };
   return <div className={[styles.supportUnitsPage,styles.teamsWorkspace].join(' ')}>
-    <div className={styles.teamsToolbar}><div>{selected ? <DefaultButton text="All teams" iconProps={{iconName:'Back'}} styles={cancelButtonStyles} disabled={busy} onClick={()=>choose(0)} /> : <h3>Teams</h3>}</div><PrimaryButton text="Create teams" iconProps={{iconName:'Add'}} disabled={busy || !data} onClick={()=>{if(leaveDraft()){setNewName('');setError('');setCreating(true);}}} /></div>
+    <div className={styles.teamsToolbar}><div>{selected ? <DefaultButton text="All support teams" iconProps={{iconName:'Back'}} styles={cancelButtonStyles} disabled={busy} onClick={()=>choose(0)} /> : <h3>Support teams</h3>}</div><PrimaryButton text="Create teams" iconProps={{iconName:'Add'}} disabled={busy || !data} onClick={()=>{if(leaveDraft()){setNewName('');setError('');setCreating(true);}}} /></div>
     <MissingWorkspaceNotice service={service} error={error} />
     {error && !member && !creating && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={()=>setMessage('')}>{message}</MessageBar>}
