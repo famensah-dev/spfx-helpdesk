@@ -74,7 +74,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
           { key: 'personal', text: 'My Dashboard', canCheck: true, checked: page === 'My Dashboard', onClick: () => navigate('My Dashboard') },
           ...(!props.service.access?.agent ? [{ key: 'global', text: 'Admin Dashboard', canCheck: true, checked: page === 'Dashboard', onClick: () => navigate('Dashboard') }] : [])
         ] }} styles={{ root: { height: 'auto', minWidth: 0 }, label: { fontWeight: dashboardActive ? 600 : 400 }, splitButtonContainer: { height: '100%', border: 0, borderRadius: 2 }, splitButtonMenuButton: { width: 26, minWidth: 26, padding: 0, border: 0 }, splitButtonDivider: { display: 'none' } }} /></div>)}
-        {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item}</button>)}
+        {pages.filter(item => item !== 'Dashboard' && permittedPage(item)).map(item => <button type="button" key={item} className={page === item ? styles.activeNav : undefined} aria-current={page === item ? 'page' : undefined} onClick={() => navigate(item)}>{item==='Administration' ? 'Helpdesk settings' : item}</button>)}
       </nav>}
       <main className={`${styles.mainContent}${props.settingsContent ? ` ${styles.settingsMain}` : ''}`}>
         {props.settingsContent || <><MissingWorkspaceNotice service={props.service} error={dashboard.error} />
@@ -86,7 +86,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} />}
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
         {page === 'FAQs' && <FaqPage service={props.service} />}
-        {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} />}
+        {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} onSettingsChanged={dashboard.refresh} onUsersAndRoles={()=>navigate('Users & roles')} />}
         {page === 'Users & roles' && props.service.roleManagement && <SharePointRolesPage service={props.service} />}
         {!permittedPage(page) && <MessageBar>Your role has no enabled pages. Ask a Super Admin to update your role rules.</MessageBar>}
         </>}

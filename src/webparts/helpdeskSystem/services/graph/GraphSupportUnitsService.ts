@@ -54,16 +54,17 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
       ? await this.graph.getAll<Item>(`${context.path}/lists/${context.ids.routingRules}/items?$expand=fields&$top=200`) : [];
     return {
       autoAssignEnabled:entries[0].filter(isSettings).length===1 && enabled(entries[0].find(isSettings)?.fields.AutoAssignEnabled),
-      units:entries[0].filter(item=>!isSettings(item)).map(item => ({id:number(item.id),title:String(item.fields.Title || ''),active:enabled(item.fields.Active),method:item.fields.AssignmentMethod==='Unit queue' ? 'Specific member' : item.fields.AssignmentMethod as ISupportUnit['method'],lastMemberId:number(item.fields.LastMemberId),defaultMemberId:number(item.fields.DefaultMemberId) || undefined,categoryIds:(item.fields.CategoryIds == null || item.fields.CategoryIds === '') ? [...new Set(legacy.filter(rule => number(rule.fields.UnitLookupId)===number(item.id) && enabled(rule.fields.Active)).map(rule => number(rule.fields.CategoryLookupId)).filter(positive))] : categoryIds(item.fields.CategoryIds)})),
+      units:entries[0].filter(item=>!isSettings(item)).map(item => ({id:number(item.id),title:String(item.fields.Title || ''),active:enabled(item.fields.Active),method:['Unit queue','Specific member'].includes(String(item.fields.AssignmentMethod)) ? 'Team lead' : item.fields.AssignmentMethod as ISupportUnit['method'],lastMemberId:number(item.fields.LastMemberId),teamLeadMemberId:number(item.fields.DefaultMemberId) || undefined,categoryIds:(item.fields.CategoryIds == null || item.fields.CategoryIds === '') ? [...new Set(legacy.filter(rule => number(rule.fields.UnitLookupId)===number(item.id) && enabled(rule.fields.Active)).map(rule => number(rule.fields.CategoryLookupId)).filter(positive))] : categoryIds(item.fields.CategoryIds)})),
       members:entries[1].map(item => ({id:number(item.id),unitId:number(item.fields.UnitLookupId),userId:number(item.fields.MemberLookupId),name:String(item.fields.Title || ''),available:enabled(item.fields.Available),order:number(item.fields.RotationOrder)})),
       categories:entries[2].map(item => ({id:number(item.id),title:String(item.fields.Title || '')}))
     };
   }
   public async load():Promise<ISupportUnitData> {return this.read((await this.context())!);}
-  private async requireSchema(context:{path:string;ids:Record<string,string>}):Promise<void> {
+  private async requireSchema(context:{path:string;ids:Record<string,string>}):Promise<Column[]> {
     const columns = await this.graph.getAll<Column>(`${context.path}/lists/${context.ids.units}/columns`);
     const missing=['CategoryIds','DefaultMemberId','RecordType','AutoAssignEnabled'].filter(name=>!columns.some(column=>column.name===name));
     if(missing.length)throw new Error(`Support Units needs workspace initialization (missing ${missing.join(', ')}). Ask a Super Admin to run Initialize workspace, then reload DeskPilot. No units were saved.`);
+    return columns;
   }
   public async createUnits(names:string[]):Promise<IUnitCreationResult> {
     const unique=[...new Set(names.map(name=>name.trim()).filter(Boolean))];
@@ -87,6 +88,13 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
     if(settings[0]){const current=await this.graph.get<Item>(`${path}/${settings[0].id}?$expand=fields`);await this.graph.patch(`${path}/${current.id}/fields`,{AutoAssignEnabled:value},this.etag(current));}
     else await this.graph.post(path,{fields:{Title:'__DeskPilotAssignmentSettings',RecordType:'Settings',AutoAssignEnabled:value,Active:false,CategoryIds:'[]'}});
   }
+  public async setTeamLead(unitId:number,memberId:number):Promise<void> {
+    const context=(await this.context())!;await this.requireSchema(context);
+    const data=await this.read(context);
+    const team=data.units.find(unit=>unit.id===unitId);
+    if(!team || !data.members.some(member=>member.id===memberId && member.unitId===unitId))throw new Error('Choose a member of this support team as its team lead.');
+    await this.save('units',{DefaultMemberId:memberId},unitId);
+  }
   private async save(key:string,fields:Record<string,unknown>,id?:number):Promise<void> {
     if (id !== undefined && !positive(id)) throw new Error('Invalid configuration item.');
     const context = (await this.context())!;
@@ -96,15 +104,17 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
   }
   private etag(item:Item):string {const value = item.eTag || item['@odata.etag']; if (!value) throw new Error('Unable to verify the current item version. Refresh and try again.'); return value;}
   public async saveUnit(value:Omit<ISupportUnit,'id'|'lastMemberId'>,id?:number):Promise<void> {
-    if (!value.title.trim() || value.title.trim().length>255 || value.title.trim().toLowerCase()==='__deskpilotassignmentsettings' || !['Round robin','Specific member'].includes(value.method)) throw new Error('Enter a unit name and supported assignment method.');
-    const context=(await this.context())!;await this.requireSchema(context);
+    if (!value.title.trim() || value.title.trim().length>255 || value.title.trim().toLowerCase()==='__deskpilotassignmentsettings' || !['Round robin','Team lead'].includes(value.method)) throw new Error('Enter a unit name and supported assignment method.');
+    const context=(await this.context())!;const columns=await this.requireSchema(context);
+    if(value.method==='Team lead' && !columns.find(column=>column.name==='AssignmentMethod')?.choice?.choices.includes('Team lead'))throw new Error('Support Teams needs workspace initialization to enable Team lead assignment. Ask a Super Admin to run Initialize workspace, then reload DeskPilot.');
     const data = await this.read(context);
     if (data.units.some(unit => unit.id!==id && unit.title.toLowerCase()===value.title.trim().toLowerCase())) throw new Error('A unit with this name already exists.');
     if (!Array.isArray(value.categoryIds) || value.categoryIds.some(category => !data.categories.some(entry => entry.id===category))) throw new Error('Select valid ticket categories.');
     if (value.active && data.units.some(unit => unit.id!==id && unit.active && unit.categoryIds.some(category => value.categoryIds.includes(category)))) throw new Error('A selected category already belongs to another active unit.');
-    const member = data.members.find(entry => entry.id===value.defaultMemberId && entry.unitId===id && entry.available);
-    if (value.active && value.method==='Specific member' && !member) throw new Error('Choose an available member of this unit as the designated assignee. Add members first, then configure assignment.');
-    await this.save('units',{Title:value.title.trim(),Active:value.active,AssignmentMethod:value.method,CategoryIds:JSON.stringify([...new Set(value.categoryIds)]),DefaultMemberId:value.method==='Specific member' ? value.defaultMemberId || 0 : 0},id);
+    const member = data.members.find(entry => entry.id===value.teamLeadMemberId && entry.unitId===id);
+    if(value.teamLeadMemberId && !member)throw new Error('The team lead must be a member of this support team.');
+    if (value.active && value.method==='Team lead' && !member) throw new Error('Choose a member of this support team as team lead. Add members first, then configure assignment.');
+    await this.save('units',{Title:value.title.trim(),Active:value.active,AssignmentMethod:value.method,CategoryIds:JSON.stringify([...new Set(value.categoryIds)]),DefaultMemberId:value.teamLeadMemberId || 0},id);
   }
   public async saveMember(value:Omit<IUnitMember,'id'>,id?:number):Promise<void> {
     const data = await this.load();
@@ -136,7 +146,7 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
     if (!unit) return 'No matching active unit; ticket remains unassigned.';
     const existingUnit = number(item.fields[`${unitColumn.name}LookupId`]);
     if (existingUnit && existingUnit!==unit.id) return 'Existing assigned unit preserved.';
-    if (!['Round robin','Specific member'].includes(unit.method)) throw new Error('Unsupported unit assignment method.');
+    if (!['Round robin','Team lead'].includes(unit.method)) throw new Error('Unsupported unit assignment method.');
     let selected:IUnitMember | undefined;
     if (unit.method==='Round robin') {
       const unitPath = `${context.path}/lists/${context.ids.units}/items/${unit.id}`;
@@ -149,7 +159,7 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
         catch (reason) {if (!(reason instanceof Error) || !reason.message.includes('412') || attempt===4) throw reason;}
       }
     }
-    if (unit.method==='Specific member' && unit.defaultMemberId) selected = data.members.find(member => member.id===unit.defaultMemberId && member.unitId===unit.id && member.available && positive(member.userId));
+    if (unit.method==='Team lead' && unit.teamLeadMemberId) selected = data.members.find(member => member.id===unit.teamLeadMemberId && member.unitId===unit.id && member.available && positive(member.userId));
     if (!selected && existingUnit===unit.id) return `Ticket remains in ${unit.title}'s queue; no individual assignment made.`;
     await this.graph.patch(`${path}/items/${id}/fields`,{[`${unitColumn.name}LookupId`]:String(unit.id),...(selected ? {[`${assigned.name}LookupId`]:String(selected.userId),[status.name]:'Assigned'} : {})},this.etag(item));
     return selected ? `Assigned to ${selected.name} in ${unit.title}.` : `Added to ${unit.title}'s queue; no configured assignee is available; administrator review required.`;

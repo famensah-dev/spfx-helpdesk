@@ -1,4 +1,3 @@
-import { AutoAssignmentSetting } from '../components/AutoAssignmentSetting';
 import { WorkspaceSetupPanel } from '../components/WorkspaceSetupPanel';
 import { WorkspaceMaintenancePanel } from '../components/WorkspaceMaintenancePanel';
 import * as React from 'react';
@@ -82,7 +81,6 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
     <div className={styles.content}><div className={styles.heading}><h3>{section}</h3>{section !== 'General' && section !== 'SharePoint Settings' && <IconButton iconProps={{iconName: 'Refresh'}} ariaLabel="Refresh" disabled={busy} onClick={() => {load().catch(() => undefined);}} />}</div>
     {(section === 'General' || section === 'Site Lists') && <WorkspaceSetupPanel service={props.service} />}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-    {section === 'General' && <AutoAssignmentSetting service={props.service} />}
     {section === 'General' && <div className={styles.form}><TextField label="Workspace display name" value={draft.title} onChange={(_,value) => setDraft({...draft,title: value || ''})} description="Shown beside DeskPilot. This does not rename the SharePoint site." /><TextField label="Support description" multiline rows={2} value={draft.description} onChange={(_,value) => setDraft({...draft,description: value || ''})} /><TextField label="Connected SharePoint site" readOnly value={site} /><TextField label="DeskPilot page URL" readOnly value={app.href} /><TextField label="Tickets list name" required value={draft.listName} onChange={(_,value) => setDraft({...draft,listName: value || ''})} /><TextField label="Tickets list ID" value={draft.listId} description="Optional. Takes precedence over the name. The selected list must be on this site." onChange={(_,value) => setDraft({...draft,listId: (value || '').trim()})} /><div className={styles.actions}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setDraft({...initial,title: initial.title || props.portalTitle || 'IT Helpdesk'})} /><PrimaryButton text={saving ? 'Saving...' : 'Save'} disabled={saving || !draft.listName.trim()} onClick={() => setConfirm(true)} /></div></div>}
     {section === 'SharePoint Settings' && <div className={styles.links}>{links.map(([name,href,icon]) => <a key={name} href={href}><Icon iconName={icon} aria-hidden="true" /><span>{name}</span></a>)}</div>}
     {busy && <Spinner label="Loading SharePoint resources..." />}

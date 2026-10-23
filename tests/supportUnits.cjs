@@ -8,14 +8,14 @@ const {applyAppRoleRules}=load('src/webparts/helpdeskSystem/services/appRoleRule
 const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
 (async()=>{
   const store={
-    units:[item(1,{Title:'Infrastructure',Active:true,AssignmentMethod:'Round robin',LastMemberId:0,CategoryIds:'[1]'}),item(2,{Title:'Applications',Active:true,AssignmentMethod:'Specific member',CategoryIds:'[2]',DefaultMemberId:4}),item(99,{Title:'__DeskPilotAssignmentSettings',RecordType:'Settings',AutoAssignEnabled:true,Active:false,CategoryIds:'[]'})],
+    units:[item(1,{Title:'Infrastructure',Active:true,AssignmentMethod:'Round robin',LastMemberId:0,CategoryIds:'[1]'}),item(2,{Title:'Applications',Active:true,AssignmentMethod:'Team lead',CategoryIds:'[2]',DefaultMemberId:4}),item(99,{Title:'__DeskPilotAssignmentSettings',RecordType:'Settings',AutoAssignEnabled:true,Active:false,CategoryIds:'[]'})],
     unitMembers:[item(1,{Title:'Alex',UnitLookupId:'1',MemberLookupId:'11',Available:true,RotationOrder:1}),item(2,{Title:'Bea',UnitLookupId:'1',MemberLookupId:'12',Available:true,RotationOrder:2}),item(3,{Title:'Chris',UnitLookupId:'1',MemberLookupId:'13',Available:false,RotationOrder:3}),item(4,{Title:'Dana',UnitLookupId:'2',MemberLookupId:'14',Available:true,RotationOrder:1})],
     categories:[item(1,{Title:'Network'}),item(2,{Title:'Applications'})],
     tickets:Array.from({length:15},(_,index)=>item(index+1,{Title:'Help',Status:'New',CategoryLookupId:'1'}))
   };
   const lists=Object.entries(store).map(([id])=>({id,displayName:id==='tickets' ? 'Tickets' : contracts.workspaceLists[id]}));
   const columns=[{name:'AssignedTo',personOrGroup:{}},{name:'Status',choice:{choices:['New','Assigned']}},{name:'AssignedUnit',lookup:{listId:'units'}},{name:'Category',lookup:{listId:'categories'}},{name:'Subcategory',lookup:{listId:'subcategories'}}];
-  const unitColumns=['CategoryIds','DefaultMemberId','RecordType','AutoAssignEnabled'].map(name=>({name}));
+  const unitColumns=['CategoryIds','DefaultMemberId','RecordType','AutoAssignEnabled'].map(name=>({name})).concat([{name:'AssignmentMethod',choice:{choices:['Round robin','Team lead']}}]);
   const copy=value=>JSON.parse(JSON.stringify(value));
   let cursorConflict=false,ticketConflict=false,writes=0;
   const target=path=>{const match=path.match(/\/lists\/([^/]+)\/items\/(\d+)/);return match && store[match[1]].find(value=>value.id===match[2]);};
@@ -56,7 +56,7 @@ const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
   await assert.rejects(service.saveMember({unitId:1,userId:11,name:'Alex',available:true,order:0}),/already/);
   await assert.rejects(service.saveUnit({title:'Duplicate routing',categoryIds:[1],active:true,method:'Round robin'}),/already belongs/);
   await assert.rejects(service.saveUnit({title:'Invalid category',categoryIds:[99],active:true,method:'Round robin'}),/valid ticket categories/);
-  await assert.rejects(service.saveUnit({title:'Wrong member',categoryIds:[],active:true,method:'Specific member',defaultMemberId:4},1),/available member/);
+  await assert.rejects(service.saveUnit({title:'Wrong member',categoryIds:[],active:true,method:'Team lead',teamLeadMemberId:4},1),/must be a member/);
   await assert.rejects(service.saveUnit({title:'Infrastructure',active:true,method:'Round robin',categoryIds:[1]}),/already/);
   const cursor=store.units[0].fields.LastMemberId;await service.saveUnit({title:'Infrastructure renamed',active:true,method:'Round robin',categoryIds:[1]},1);assert.equal(store.units[0].fields.LastMemberId,cursor,'Editing a unit must preserve rotation position');
   data=await service.load();data.units.push({...data.units[0],id:99});assert.throws(()=>matchingSupportUnit(data,1),/Multiple/);
@@ -64,7 +64,7 @@ const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
   assert.equal(applyAppRoleRules(source,{id:'agent',scope:'assigned',actions:[]},11,'alex@example.com').supportUnits,undefined);
   assert.equal(applyAppRoleRules({...source,access:{admin:true}},{id:'admin',scope:'all',actions:[]},11,'alex@example.com').supportUnits,service,'Helpdesk Admin can configure units independently of classification settings');
   store.unitMembers[3].fields.Available=true;
-  await service.saveUnit({title:'Applications',categoryIds:[2],active:true,method:'Specific member',defaultMemberId:4},2);
+  await service.saveUnit({title:'Applications',categoryIds:[2],active:true,method:'Team lead',teamLeadMemberId:4},2);
   const cursorBefore=store.units[1].fields.LastMemberId;store.tickets[11].fields.CategoryLookupId='2';await service.routeTicket(12);
   assert.equal(store.tickets[11].fields.AssignedToLookupId,'14');assert.equal(store.units[1].fields.LastMemberId,cursorBefore,'Specific assignment must not advance the rotation cursor');
   store.unitMembers[3].fields.Available=false;store.tickets[12].fields.CategoryLookupId='2';await service.routeTicket(13);
@@ -86,7 +86,13 @@ const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
   graph.post=async(path,body)=>{await existingPost(path,body);if(lost){lost=false;throw Error('Response lost');}};
   const partial=await service.createUnits(['Uncertain Unit','Not Yet Created']);assert.equal(partial.failed.length,2);assert.equal(partial.failed[1].message,'Not attempted.');
   const recovered=await service.createUnits(['Uncertain Unit','Not Yet Created']);assert.deepEqual(recovered.skipped,['Uncertain Unit']);assert.deepEqual(recovered.created,['Not Yet Created']);assert.equal(store.units.filter(entry=>entry.fields.Title==='Uncertain Unit').length,1,'A retry must not duplicate a unit saved before a lost response');graph.post=existingPost;
-  const removedColumn=unitColumns.pop();const schemaWrites=writes;await assert.rejects(service.createUnits(['Blocked']),/Initialize workspace/);assert.equal(writes,schemaWrites);unitColumns.push(removedColumn);
+  const removedColumn=unitColumns.splice(unitColumns.findIndex(column=>column.name==='AutoAssignEnabled'),1)[0];const schemaWrites=writes;await assert.rejects(service.createUnits(['Blocked']),/Initialize workspace/);assert.equal(writes,schemaWrites);unitColumns.push(removedColumn);
+  await assert.rejects(service.setTeamLead(1,4),/member of this support team/);
+  await service.setTeamLead(1,1);assert.equal(store.units[0].fields.DefaultMemberId,1);
+  await service.saveUnit({title:'Infrastructure renamed',categoryIds:[1],active:true,method:'Round robin',teamLeadMemberId:1},1);
+  assert.equal((await service.load()).units[0].teamLeadMemberId,1,'Team lead must persist when assignment is round robin');
+  await service.saveUnit({title:'Infrastructure renamed',categoryIds:[1],active:true,method:'Team lead',teamLeadMemberId:1},1);
+  const leadCursor=store.units[0].fields.LastMemberId;await service.routeTicket(15);assert.equal(store.tickets[14].fields.AssignedToLookupId,'11');assert.equal(store.units[0].fields.LastMemberId,leadCursor);
   store.units.push(item(998,{RecordType:'Settings',Title:'Duplicate Settings',AutoAssignEnabled:true}));assert.equal((await service.load()).autoAssignEnabled,false);await assert.rejects(service.setAutoAssignment(true),/Duplicate/);store.units.pop();
   lists.splice(lists.findIndex(list=>list.id==='unitMembers'),1);await assert.rejects(service.load(),/incomplete/);
   const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{

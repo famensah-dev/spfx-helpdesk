@@ -29,7 +29,7 @@ const AssigneeLabel: React.FC<{ person?: ITicket['AssignedTo'] }> = ({ person })
   const name = person.Title || person.Email || 'Assigned user';
   return <span className={styles.ticketAssigneeLabel}><span aria-hidden="true"><PersonaCoin text={name} size={PersonaSize.size24} /></span><span>{name}</span></span>;
 };
-const columns = ['ID', 'Title', 'Description', 'Status', 'Priority', 'Assigned to', 'Issue Category', 'Issue Subcategory', 'Issue Type', 'Ticket Type', 'Requested By', 'Department / Unit', 'Created Date', 'Last Updated', 'Expected Resolution Date', 'Started At', 'Resolved At', 'Closed At', 'Resolution Summary'];
+const columns = ['ID', 'Title', 'Description', 'Status', 'Priority', 'Assigned to', 'Assigned Team', 'Issue Category', 'Issue Subcategory', 'Issue Type', 'Ticket Type', 'Requested By', 'Requester Email', 'Created By', 'Ticket Source', 'Department / Unit', 'Created Date', 'Last Updated', 'Expected Resolution Date', 'Started At', 'First Response At', 'Resolved At', 'Closed At', 'Resolution Summary', 'Escalated'];
 const durationOptions = [{key: 'today', text: 'Today'}, {key: 'thisWeek', text: 'This Week'}, {key: 'month', text: 'This Month'}, {key: 'year', text: 'This Year'}, {key: 'all', text: 'All Time'}];
 const defaultColumns = ['ID', 'Title', 'Status', 'Priority', 'Assigned to', 'Created Date', 'Last Updated'];
 const ticketDescription = (ticket: ITicket): string => ticket.Description ? new DOMParser().parseFromString(ticket.Description, 'text/html').body.textContent || '' : '';
@@ -45,18 +45,23 @@ const sortValue = (ticket: ITicket, column: string): string | number | null => {
     case 'Issue Subcategory': return ticket.Subcategory || null;
     case 'Issue Type': return ticket.IssueType || null;
     case 'Ticket Type': return ticket.TicketType || null;
-    case 'Requested By': return ticket.Requester?.Title || null;
+    case 'Requested By': return ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || null;
+    case 'Requester Email': return ticket.RequesterEmail || ticket.Requester?.Email || null;
+    case 'Created By': return ticket.CreatedBy?.Title || ticket.CreatedBy?.Email || null;
+    case 'Assigned Team': return ticket.AssignedUnit || null;
+    case 'Ticket Source': return ticket.TicketSource || null;
+    case 'Escalated': return ticket.Escalated === undefined ? null : Number(ticket.Escalated);
     case 'Department / Unit': return ticket.Department || null;
     case 'Resolution Summary': return ticket.ResolutionSummary || null;
     default: {
-      const date = column === 'Created Date' ? ticket.Created : column === 'Last Updated' ? ticket.Modified : column === 'Started At' ? ticket.StartedAt : column === 'Resolved At' ? ticket.ResolvedAt : column === 'Closed At' ? ticket.ClosedAt : ticket.DueDate;
+      const date = column === 'Created Date' ? ticket.Created : column === 'Last Updated' ? ticket.Modified : column === 'Started At' ? ticket.StartedAt : column === 'First Response At' ? ticket.FirstRespondedAt : column === 'Resolved At' ? ticket.ResolvedAt : column === 'Closed At' ? ticket.ClosedAt : ticket.DueDate;
       const timestamp = date ? new Date(date).getTime() : NaN;
       return Number.isFinite(timestamp) ? timestamp : null;
     }
   }
 };
 const displayDate = (value?: string | null): string => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true }) : '—';
-const columnValues = (ticket: ITicket): Array<string | number> => [ticket.Id, ticket.Title, ticketDescription(ticket) || '—', normalizeStatus(ticket.Status), ticket.Priority, ticket.AssignedTo?.Title || '_', ticket.Category || '—', ticket.Subcategory || '—', ticket.IssueType || '—', ticket.TicketType || '—', ticket.Requester?.Title || '—', ticket.Department || '—', displayDate(ticket.Created), displayDate(ticket.Modified), displayDate(ticket.DueDate), displayDate(ticket.StartedAt), displayDate(ticket.ResolvedAt), displayDate(ticket.ClosedAt), ticket.ResolutionSummary || '—'];
+const columnValues = (ticket: ITicket): Array<string | number> => [ticket.Id, ticket.Title, ticketDescription(ticket) || '—', normalizeStatus(ticket.Status), ticket.Priority, ticket.AssignedTo?.Title || '_', ticket.AssignedUnit || '\u2014', ticket.Category || '—', ticket.Subcategory || '—', ticket.IssueType || '—', ticket.TicketType || '—', ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || '\u2014', ticket.RequesterEmail || ticket.Requester?.Email || '\u2014', ticket.CreatedBy?.Title || ticket.CreatedBy?.Email || '\u2014', ticket.TicketSource || '\u2014', ticket.Department || '—', displayDate(ticket.Created), displayDate(ticket.Modified), displayDate(ticket.DueDate), displayDate(ticket.StartedAt), displayDate(ticket.FirstRespondedAt), displayDate(ticket.ResolvedAt), displayDate(ticket.ClosedAt), ticket.ResolutionSummary || '\u2014', ticket.Escalated === undefined ? '\u2014' : ticket.Escalated ? 'Yes' : 'No'];
 export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulkAction, onCreate, title, tickets, currentUserEmail, assignmentIdentityAvailable, loading, error, refresh }) => {
   const agent = !service?.roleRules && service?.access?.agent === true;
   const canManageTicket = (ticket: ITicket): boolean => !agent || ticket.AssignedTo?.Email?.toLowerCase() === currentUserEmail?.toLowerCase();

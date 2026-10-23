@@ -213,7 +213,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <div><span>Status</span><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></div>
             <div><span>Priority</span><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} aria-hidden="true" />{ticket.Priority}</span></div>
             <div><span>Category</span><strong className={styles.detailCategoryChip}><Icon iconName="Tag" />{ticket.Category || 'Not specified'}</strong></div><div><span>Sub Category</span><strong className={styles.detailNeutralChip}>—</strong></div>
-            {ticket.AssignedUnit && <div><span>Assigned unit</span><strong>{ticket.AssignedUnit}</strong></div>}
+            {ticket.AssignedUnit && <div><span>Assigned team</span><strong>{ticket.AssignedUnit}</strong></div>}
             <div><span>Assigned to</span><strong className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true">{ticket.AssignedTo?.Title ? initials(ticket.AssignedTo.Title) : '?'}</span>{ticket.AssignedTo?.Title || 'Unassigned'}</strong></div>
             <div><span>Department</span><strong className={styles.detailAssignee}><Icon iconName="Work" />—</strong></div>
           </div>

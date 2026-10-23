@@ -394,7 +394,7 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = ["AuthorLookupId", ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = ["AuthorLookupId", ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -433,6 +433,7 @@ export class GraphTicketService implements ITicketDataSource {
         Department: department ? text(values[department.name]) : undefined,
         CreatedBy: users.has(Number(values.AuthorLookupId)) ? {...users.get(Number(values.AuthorLookupId)), AadId:item.createdBy?.user?.id} : (item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined),
         Requester: (requestedBy && users.get(Number(values[`${requestedBy.name}LookupId`]))) || (requesterEmail && text(values[requesterEmail.name]) ? {Email:text(values[requesterEmail.name]),Title:text(values[requesterEmail.name])} : undefined) || users.get(Number(values.AuthorLookupId)) || (item.createdBy?.user ? {Title:item.createdBy.user.displayName,Email:item.createdBy.user.email,AadId:item.createdBy.user.id} : undefined),
+        TicketSource: ticketSource ? text(values[ticketSource.name]) || undefined : undefined,
         RequesterEmail: requesterEmail ? text(values[requesterEmail.name]) || undefined : undefined,
         StartedAt: started ? text(values[started.name]) || undefined : undefined,
         ClosedAt: closed ? text(values[closed.name]) || undefined : undefined,

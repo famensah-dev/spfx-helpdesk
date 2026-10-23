@@ -27,6 +27,7 @@ export interface ITicket {
   Requester?: IUserLookup;
   CreatedBy?: IUserLookup;
   RequesterEmail?: string;
+  TicketSource?: string;
   Department?: string;
   StartedAt?: string;
   ClosedAt?: string;
