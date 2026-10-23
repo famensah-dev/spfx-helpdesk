@@ -3,7 +3,7 @@ function load(path,deps={}){const module={exports:{}};new Function('require','mo
 const validation=load('src/webparts/helpdeskSystem/utils/ticketAttachments.ts');
 let failedUpload=true,enabled=true,uploadCalls=0,author=7,lostResponse=false;
 class AttachmentStore{async ensureEnabled(){if(!enabled)throw Error('disabled');}async list(){return[{name:'report.pdf',url:'https://example.sharepoint.com/report.pdf'}];}async upload(){uploadCalls++;if(failedUpload)throw Error('interrupted');}}
-const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'./SharePointAttachments':{SharePointAttachments:AttachmentStore},'../../utils/ticketAttachments':validation,'./GraphClassificationService':{},'./GraphClient':{}});
+const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./SharePointAttachments':{SharePointAttachments:AttachmentStore},'../../utils/ticketAttachments':validation,'./GraphClassificationService':{},'./GraphClient':{}});
 (async()=>{
   const items=[];let posts=0;
   const graph={getAll:async()=>items,get:async()=>items[0],post:async(_path,{fields})=>{posts++;const item={id:String(posts),fields:{...fields,AuthorLookupId:'7',Attachments:true},createdDateTime:'2026-10-19T10:00:00Z',createdBy:{user:{displayName:'Agent'}}};items.push(item);if(lostResponse){lostResponse=false;throw Error('Save result unknown');}return item;}};
@@ -22,6 +22,10 @@ const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/Grap
     const comments=await service.getComments(5);assert.equal(comments[0].attachments[0].name,'report.pdf');
     lostResponse=true;const next={requestId:'44444444-4444-4444-4444-444444444444'};
     await assert.rejects(()=>service.addComment(5,'Next',next),/unknown/);await service.addComment(5,'Next',next);assert.equal(posts,2,'Uncertain save response should be reconciled by request ID');
+    const richOptions={requestId:'55555555-5555-5555-5555-555555555555',html:'<p><strong>Formatted update</strong></p>'};
+    await service.addComment(5,'Formatted update',richOptions);const richPosts=posts;
+    await service.addComment(5,'Formatted update',richOptions);assert.equal(posts,richPosts,'Rich comment retries reuse the same saved content');
+    const rich=(await service.getComments(5)).find(entry=>entry.id===String(richPosts));assert.equal(rich.text,'Formatted update');assert.equal(rich.html,richOptions.html);
     const createdFields=[];const creator=new GraphTicketService({post:async(_path,{fields})=>{createdFields.push(fields);return{id:'99'};}},{currentUserId:7,currentUserEmail:'requester@example.com'});
     creator.creationSchema={path:'/tickets',title:'Title',status:'Status',priority:'Priority',choices:['Medium']};creator.requesterFields={requestedBy:'RequestedBy',email:'RequesterEmail',source:'TicketSource'};
     await creator.createTicket({title:'New request',description:'',priority:'Medium'});

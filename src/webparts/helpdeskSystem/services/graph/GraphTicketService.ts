@@ -1,3 +1,4 @@
+import { encodeComment, decodeComment } from '../../utils/commentContent';
 import { loadClassification } from './GraphClassificationService';
 import { validateTicketAttachments } from '../../utils/ticketAttachments';
 import type { INewTicketInput, ITicketCreationOptions } from '../../interfaces/ITicketDataSource';
@@ -31,7 +32,7 @@ export class GraphTicketService implements ITicketDataSource {
     const schema = await this.commentsContext(id);
     const comment = await this.graph.get<IGraphItem>(`${schema.path}/items/${commentId}?$expand=fields`);
     if (comment.fields[schema.key] !== schema.ticketKey) throw new Error('This comment belongs to a different ticket.');
-    const answer = text(comment.fields[schema.content]).trim();
+    const answer = decodeComment(text(comment.fields[schema.content])).text.trim();
     if (!answer) throw new Error('An empty comment cannot be a solution.');
     const target = this.solutionSchema;
     const current = await this.graph.get<IGraphItem & {'@odata.etag'?:string;eTag?:string}>(`${target.path}/items/${id}?$expand=fields`);
@@ -160,7 +161,7 @@ export class GraphTicketService implements ITicketDataSource {
     const matching = items.filter(item => item.fields[schema.key] === schema.ticketKey);
     for (let offset = 0; offset < matching.length; offset += 4) {
       result.push(...await Promise.all(matching.slice(offset,offset + 4).map(async item => {
-        const comment:ITicketComment = {id:item.id,text:text(item.fields[schema.content]),author:item.createdBy?.user?.displayName || 'Organization user',created:item.createdDateTime};
+        const comment:ITicketComment = {id:item.id,...decodeComment(text(item.fields[schema.content])),author:item.createdBy?.user?.displayName || 'Organization user',created:item.createdDateTime};
         if (item.fields.Attachments !== false) {
           try {comment.attachments = await this.attachments().list(schema.listId,Number(item.id));}
           catch (reason) {comment.attachmentError = reason instanceof Error ? reason.message : 'Unable to load files. Refresh comments to retry.';}
@@ -171,6 +172,8 @@ export class GraphTicketService implements ITicketDataSource {
     return result.sort((a,b) => a.created.localeCompare(b.created));
   }
   public async addComment(id: number, value: string, options: ICommentPostOptions = {}): Promise<void> {
+    const stored=encodeComment(value.trim(),options.html);
+    if(stored.length>60000)throw new Error('Comment formatting is too large. Reduce the formatted content and try again.');
     if (!value.trim() || value.trim().length > 10000) throw new Error('Enter a comment of 1–10,000 characters.');
     const schema = await this.commentsContext(id);
     const files = options.files || [];
@@ -181,8 +184,8 @@ export class GraphTicketService implements ITicketDataSource {
     // Reuse a confirmed comment after an uncertain save response; don't create it again on an upload retry.
     const previous = options.requestId ? (await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`)).filter(item => item.fields[schema.key] === schema.ticketKey && item.fields.Title === title) : [];
     if (previous.length > 1) throw new Error('Multiple matching comments were found. Refresh comments before continuing.');
-    if (previous[0] && previous[0].fields[schema.content] !== value.trim()) throw new Error('This comment was already saved with different text. Refresh before posting a changed comment.');
-    const created = previous[0] || await this.graph.post<{id:string}>(`${schema.path}/items`, { fields: { Title: title, [schema.key]: schema.ticketKey, [schema.content]: value.trim() } });
+    if (previous[0] && previous[0].fields[schema.content] !== stored) throw new Error('This comment was already saved with different text. Refresh before posting a changed comment.');
+    const created = previous[0] || await this.graph.post<{id:string}>(`${schema.path}/items`, { fields: { Title: title, [schema.key]: schema.ticketKey, [schema.content]: stored } });
     if (!created?.id || !/^[1-9]\d*$/.test(String(created.id))) throw new Error('The comment save returned no valid ID. Refresh comments before retrying.');
     if (files.length) {
       try {

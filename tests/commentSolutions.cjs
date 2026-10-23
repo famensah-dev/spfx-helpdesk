@@ -1,6 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
 function load(path,deps={}){const module={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name]||require(name),module,module.exports);return module.exports;}
-const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'./SharePointAttachments':{},'../../utils/ticketAttachments':{},'./GraphClassificationService':{},'./GraphClient':{}});
+const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./SharePointAttachments':{},'../../utils/ticketAttachments':{},'./GraphClassificationService':{},'./GraphClient':{}});
 const {applyAppRoleRules}=load('src/webparts/helpdeskSystem/services/appRoleRules.ts');
 (async()=>{
  let current={fields:{ResolutionSummary:'',SolutionCommentId:''},'@odata.etag':'version-1'},key='tickets:5',patches=[];
