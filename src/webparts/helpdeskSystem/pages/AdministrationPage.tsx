@@ -17,7 +17,7 @@ import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import { FaqPage } from './FaqPage';
 import styles from '../components/HelpdeskSystem.module.scss';
 
-const tabs: Array<{key: AdminPage | 'faqs' | 'sla' | 'members' | 'units'; text: string}> = [{key: 'schema', text: 'Ticket list schema'}, {key: 'categories', text: 'Categories'}, {key: 'subcategories', text: 'Subcategories'}, {key: 'issueTypes', text: 'Issue Types'}, {key: 'sla', text: 'SLA & Priorities'}, {key: 'faqs', text: 'Knowledge Base'}, {key: 'members', text: 'Users'}, {key: 'units', text: 'Support Teams'}];
+const tabs: Array<{key: AdminPage | 'faqs' | 'sla' | 'members' | 'units'; text: string}> = [{key: 'schema', text: 'Ticket list schema'}, {key: 'categories', text: 'Categories'}, {key: 'subcategories', text: 'Subcategories'}, {key: 'issueTypes', text: 'Issue Types'}, {key: 'sla', text: 'SLA & Priorities'}, {key: 'faqs', text: 'Knowledge Base'}, {key: 'members', text: 'Users'}, {key: 'units', text: 'Teams'}];
 export function AdministrationPage(props: { service: ITicketDataSource; onSettingsChanged?: () => Promise<void>; onUsersAndRoles?:()=>void; section?:AdminSection; onSectionChange?:(section:AdminSection)=>void }): React.ReactElement {
   const availableTabs = tabs.filter(tab => (tab.key !== 'schema' || !props.service.access || props.service.access.superAdmin) && (tab.key !== 'members' || props.service.members) && (tab.key !== 'units' || props.service.supportUnits) && (tab.key === 'units' || tab.key === 'members' || tab.key === 'schema' || canUse(props.service, tab.key === 'sla' ? 'sla' : tab.key === 'faqs' ? 'manageFaqs' : 'classifications')));
   const [localPage, setLocalPage] = React.useState<AdminSection>('home');

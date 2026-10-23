@@ -3,16 +3,16 @@
 ## Enable and configure
 
 1. Deploy the updated package. A Super Admin runs **Initialize workspace**, reviews the additions and reloads DeskPilot. New installations need only **Support Units** and **Unit Members** for this feature. Tickets retain the **Assigned Unit** lookup.
-2. A Helpdesk Admin or Super Admin opens **Helpdesk settings > Support Teams**.
-3. Select **Create teams** and enter one unit name per line to create several units at once. Existing names are skipped. Then open a unit card and add its members. A person can belong to several units. Mark availability and set rotation order.
+2. A Helpdesk Admin or Super Admin opens **Helpdesk Settings > Teams**.
+3. Select **Create teams** and enter one unit name per line to create several units at once. Existing names are skipped. Then open a team and add its members. A person can belong to several units. Mark availability and set rotation order.
 4. Select the unit's ticket categories and assignment method, then **Save settings**. Each category can belong to one active unit. Subcategories are not used.
 5. Choose **Round robin** to take turns among available members, or **Assign to team lead** to assign tickets to the team lead. Member edits preserve unsaved unit settings; save those settings separately.
 
-The overview lists unit cards with a setup status. Open a card to configure it; **Back to teams** returns to the overview. Each unit groups its details, categories, assignment and members in one workspace. Unit membership does not grant app roles, site membership or SharePoint permissions. Choose existing DeskPilot agents/admins. Delegated SharePoint read/write permissions still apply. Agents retain their existing individually-assigned ticket view; membership does not expand access.
+The overview shows teams in a compact table with email address, member count, team lead, assignment method and active status. Open a team to edit its name and optional email address, manage people in the **Members** tab, or select categories and routing in **Assignment**. The team sidebar switches between teams, and **All teams** returns to the overview. Unsaved team edits are preserved when adding or updating members. Unit membership does not grant app roles, site membership or SharePoint permissions. Choose existing DeskPilot agents/admins. Delegated SharePoint read/write permissions still apply. Agents retain their existing individually-assigned ticket view; membership does not expand access.
 
 ## What runs now
 
-**Auto assign tickets** is a workspace switch, off by default. Enable it under **Helpdesk settings > Auto Assignment**. The header gear remains the separate Super Admin workspace settings. Turning it off stops category routing for new app-created tickets; explicit manual assignments still work. Existing assigned tickets remain untouched.
+**Auto assign tickets** is a workspace switch, off by default. Enable it under **Helpdesk Settings > Auto Assignment**. The header gear remains the separate Super Admin workspace settings. Turning it off stops category routing for new app-created tickets; explicit manual assignments still work. Existing assigned tickets remain untouched.
 
 DeskPilot routes newly created tickets that have no explicitly selected assignee. It finds the active unit that contains the category ID. Round robin advances `Support Units.LastMemberId` through available Unit Members, ordered by RotationOrder then membership item ID. Team lead uses `DefaultMemberId`, which is a **Unit Members item ID**, and assigns that member's Person lookup ID to the ticket. Specific assignment does not advance the round-robin cursor.
 
@@ -24,7 +24,9 @@ Cursor reservation and ticket writes use exact item ETags. Cursor conflicts re-r
 
 ## Storage and upgrades
 
-**Support Units** stores Title, Active, AssignmentMethod, LastMemberId, CategoryIds and DefaultMemberId. RecordType distinguishes Unit records from one workspace Settings record, which stores AutoAssignEnabled. That settings record is excluded from unit cards and membership choices. No third list is required. Missing settings or duplicate Settings records leave automatic assignment disabled. CategoryIds is plain multiline text containing a JSON array of category lookup IDs, for example `[1,4,7]`. The interface manages it; users select category names through checkboxes.
+**Support Units** stores Title, TeamEmail, Active, AssignmentMethod, LastMemberId, CategoryIds and DefaultMemberId. RecordType distinguishes Unit records from one workspace Settings record, which stores AutoAssignEnabled. That settings record is excluded from unit cards and membership choices. No third list is required. Missing settings or duplicate Settings records leave automatic assignment disabled. CategoryIds is plain multiline text containing a JSON array of category lookup IDs, for example `[1,4,7]`. The interface manages it; users select category names through a multi-select dropdown.
+
+TeamEmail is an optional single email address stored on the team. Existing workspaces must run **Initialize workspace** once to add the **Team Email** text column before saving an email address. Older team settings still save without the column when email is empty. Team email does not send notifications itself; Power Automate can read it from the team record. No additional list or Microsoft 365 group is created.
 
 **Unit Members** stores the Unit lookup, Member Person field, display name in Title, Available and RotationOrder. Per-unit availability and rotation order are why members have a separate list.
 

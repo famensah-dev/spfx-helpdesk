@@ -1,5 +1,5 @@
 export type AssignmentMethod = 'Round robin' | 'Team lead';
-export interface ISupportUnit { id: number; title: string; active: boolean; method: AssignmentMethod; lastMemberId: number; categoryIds: number[]; teamLeadMemberId?: number; }
+export interface ISupportUnit { id: number; title: string; email?: string; active: boolean; method: AssignmentMethod; lastMemberId: number; categoryIds: number[]; teamLeadMemberId?: number; }
 export interface IUnitMember { id: number; unitId: number; userId: number; name: string; available: boolean; order: number; }
 export interface ISupportUnitData { units: ISupportUnit[]; members: IUnitMember[]; categories: Array<{id: number; title: string}>; autoAssignEnabled: boolean; }
 export interface IUnitCreationResult { created: string[]; skipped: string[]; failed: Array<{name:string;message:string}>; }

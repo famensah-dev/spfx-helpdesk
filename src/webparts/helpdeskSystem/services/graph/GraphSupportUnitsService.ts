@@ -54,7 +54,7 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
       ? await this.graph.getAll<Item>(`${context.path}/lists/${context.ids.routingRules}/items?$expand=fields&$top=200`) : [];
     return {
       autoAssignEnabled:entries[0].filter(isSettings).length===1 && enabled(entries[0].find(isSettings)?.fields.AutoAssignEnabled),
-      units:entries[0].filter(item=>!isSettings(item)).map(item => ({id:number(item.id),title:String(item.fields.Title || ''),active:enabled(item.fields.Active),method:['Unit queue','Specific member'].includes(String(item.fields.AssignmentMethod)) ? 'Team lead' : item.fields.AssignmentMethod as ISupportUnit['method'],lastMemberId:number(item.fields.LastMemberId),teamLeadMemberId:number(item.fields.DefaultMemberId) || undefined,categoryIds:(item.fields.CategoryIds == null || item.fields.CategoryIds === '') ? [...new Set(legacy.filter(rule => number(rule.fields.UnitLookupId)===number(item.id) && enabled(rule.fields.Active)).map(rule => number(rule.fields.CategoryLookupId)).filter(positive))] : categoryIds(item.fields.CategoryIds)})),
+      units:entries[0].filter(item=>!isSettings(item)).map(item => ({id:number(item.id),title:String(item.fields.Title || ''),email:String(item.fields.TeamEmail || ''),active:enabled(item.fields.Active),method:['Unit queue','Specific member'].includes(String(item.fields.AssignmentMethod)) ? 'Team lead' : item.fields.AssignmentMethod as ISupportUnit['method'],lastMemberId:number(item.fields.LastMemberId),teamLeadMemberId:number(item.fields.DefaultMemberId) || undefined,categoryIds:(item.fields.CategoryIds == null || item.fields.CategoryIds === '') ? [...new Set(legacy.filter(rule => number(rule.fields.UnitLookupId)===number(item.id) && enabled(rule.fields.Active)).map(rule => number(rule.fields.CategoryLookupId)).filter(positive))] : categoryIds(item.fields.CategoryIds)})),
       members:entries[1].map(item => ({id:number(item.id),unitId:number(item.fields.UnitLookupId),userId:number(item.fields.MemberLookupId),name:String(item.fields.Title || ''),available:enabled(item.fields.Available),order:number(item.fields.RotationOrder)})),
       categories:entries[2].map(item => ({id:number(item.id),title:String(item.fields.Title || '')}))
     };
@@ -105,7 +105,11 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
   private etag(item:Item):string {const value = item.eTag || item['@odata.etag']; if (!value) throw new Error('Unable to verify the current item version. Refresh and try again.'); return value;}
   public async saveUnit(value:Omit<ISupportUnit,'id'|'lastMemberId'>,id?:number):Promise<void> {
     if (!value.title.trim() || value.title.trim().length>255 || value.title.trim().toLowerCase()==='__deskpilotassignmentsettings' || !['Round robin','Team lead'].includes(value.method)) throw new Error('Enter a unit name and supported assignment method.');
+    const email=value.email?.trim() || '';
+    if(email && (email.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))throw new Error('Enter a valid team email address.');
     const context=(await this.context())!;const columns=await this.requireSchema(context);
+    const emailColumn=columns.find(column=>column.name==='TeamEmail');
+    if(email && !emailColumn)throw new Error('Run Initialize workspace to add Team Email, then reload DeskPilot. Your team changes have not been saved.');
     if(value.method==='Team lead' && !columns.find(column=>column.name==='AssignmentMethod')?.choice?.choices.includes('Team lead'))throw new Error('Support Teams needs workspace initialization to enable Team lead assignment. Ask a Super Admin to run Initialize workspace, then reload DeskPilot.');
     const data = await this.read(context);
     if (data.units.some(unit => unit.id!==id && unit.title.toLowerCase()===value.title.trim().toLowerCase())) throw new Error('A unit with this name already exists.');
@@ -114,7 +118,7 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
     const member = data.members.find(entry => entry.id===value.teamLeadMemberId && entry.unitId===id);
     if(value.teamLeadMemberId && !member)throw new Error('The team lead must be a member of this support team.');
     if (value.active && value.method==='Team lead' && !member) throw new Error('Choose a member of this support team as team lead. Add members first, then configure assignment.');
-    await this.save('units',{Title:value.title.trim(),Active:value.active,AssignmentMethod:value.method,CategoryIds:JSON.stringify([...new Set(value.categoryIds)]),DefaultMemberId:value.teamLeadMemberId || 0},id);
+    await this.save('units',{Title:value.title.trim(),...(emailColumn ? {TeamEmail:email} : {}),Active:value.active,AssignmentMethod:value.method,CategoryIds:JSON.stringify([...new Set(value.categoryIds)]),DefaultMemberId:value.teamLeadMemberId || 0},id);
   }
   public async saveMember(value:Omit<IUnitMember,'id'>,id?:number):Promise<void> {
     const data = await this.load();

@@ -1169,3 +1169,39 @@
 
 .helpdeskSettingsHub { padding-top: 10px; }
 .helpdeskSettingsHeading { background: #fff; padding: 16px 18px; border-radius: 6px; margin-bottom: 18px; }
+
+.teamsWorkspace {
+  .teamsToolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 12px 0; }
+  .teamsToolbar h3 { font-size: 18px; font-weight: 500; margin: 0; }
+  .teamsToolbar h4 { font-size: 14px; font-weight: 500; margin: 0; }
+  .teamsToolbar > :global(.ms-SearchBox) { width: 260px; max-width: 100%; }
+  .teamsToolbar > span { font-size: 12px; color: #61728b; }
+  .teamsButtons { display: flex; align-items: center; gap: 6px; }
+  .teamsButtons :global(.ms-Button-label) { font-size: 12px; font-weight: 500; }
+  .teamsOverview { background: #fff; border: 1px solid var(--hd-line); border-radius: 6px; padding: 0 16px 12px; }
+  .teamsOverview .ticketTable th, .teamMembers .ticketTable th { font-size: 12px; font-weight: 500; }
+  .teamsOverview .ticketTable td, .teamMembers .ticketTable td { padding: 9px 10px; font-size: 13px; }
+  .teamsEditorLayout { display: grid; grid-template-columns: 210px minmax(0,1fr); background: #fff; border: 1px solid var(--hd-line); border-radius: 6px; overflow: hidden; margin-top: 4px; }
+  .teamsSidebar { padding: 14px 10px; background: #f8fafd; border-right: 1px solid var(--hd-line); min-width: 0; }
+  .teamsSidebar nav { display: grid; gap: 4px; margin-top: 12px; }
+  .teamsSidebar nav button { display: flex; align-items: center; gap: 10px; border: 0; background: transparent; color: #293d58; border-radius: 4px; padding: 10px; font: inherit; font-size: 13px; text-align: left; cursor: pointer; overflow-wrap: anywhere; }
+  .teamsSidebar nav button[aria-current='page'] { background: #e8effa; color: #1b385c; }
+  .teamsSidebar nav button:hover { background: #edf2f8; }
+  .teamsSidebar nav small { display: block; font-size: 11px; color: #61728b; margin-top: 4px; }
+  .teamsEditor { padding: 4px 20px 20px; min-width: 0; }
+  .teamDetailsFields { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr) auto; align-items: end; gap: 16px; margin: 4px 0 18px; }
+  .teamDetailsFields > :global(.ms-Checkbox) { margin-bottom: 9px; }
+  .teamEditorTabs { display: flex; gap: 16px; border-bottom: 1px solid var(--hd-line); }
+  .teamEditorTabs button { display: inline-flex; align-items: center; gap: 7px; padding: 10px 2px; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #526783; font: inherit; font-size: 13px; cursor: pointer; }
+  .teamEditorTabs button[aria-current='page'] { border-bottom-color: #2855b6; color: #1b385c; }
+  .teamAssignmentFields { display: grid; gap: 16px; padding-top: 16px; }
+  .teamAssignmentFields .teamDetailsFields { grid-template-columns: repeat(2,minmax(0,1fr)); margin: 0; }
+  .teamMemberName { display: inline-flex; align-items: center; gap: 9px; }
+  .teamStatus { display: inline-block; border-radius: 999px; padding: 3px 8px; background: #edf0f5; color: #61728b; font-size: 11px; white-space: nowrap; }
+  .teamStatus[data-active='true'] { background: #e5f5ed; color: #187747; }
+  header .teamStatus { margin-top: 6px; }
+  .teamMembersEmpty { padding: 20px 0; text-align: center; }
+  .teamMembersEmpty p { margin-top: 0; }
+  .tableContainer { overflow-x: auto; }
+}
+@media (max-width: 850px) { .teamsWorkspace .teamsEditorLayout { grid-template-columns: 1fr; } .teamsWorkspace .teamsSidebar { border-right: 0; border-bottom: 1px solid var(--hd-line); } .teamsWorkspace .teamsSidebar nav { grid-template-columns: repeat(auto-fit,minmax(140px,1fr)); } .teamsWorkspace .teamDetailsFields { grid-template-columns: 1fr; } }
