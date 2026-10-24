@@ -10,7 +10,7 @@ const rules=load('src/webparts/helpdeskSystem/services/appRoleRules.ts');
 const empty=new Proxy({},{get:()=>()=>null});
 const {AdministrationPage}=load('src/webparts/helpdeskSystem/pages/AdministrationPage.tsx',{
   '../components/HelpdeskSettingsHub':hub,'../components/HelpdeskSystem.module.scss':style,'../services/appRoleRules':rules,
-  './SupportUnitsPage':empty,'../components/AutoAssignmentSetting':empty,'../components/WorkspaceSetupPanel':empty,
+  './EmailSettingsPage':empty,'./SupportUnitsPage':empty,'../components/AutoAssignmentSetting':empty,'../components/WorkspaceSetupPanel':empty,
   './DepartmentMembersPage':empty,'./SlaPrioritiesPage':empty,'../components/TicketSchemaWorkspace':empty,
   '../components/AdminColumnForm':empty,'../components/SearchableSelect':empty,'../components/cancelButtonStyles':empty,'./FaqPage':empty
 });

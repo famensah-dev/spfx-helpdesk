@@ -1,3 +1,4 @@
+import { EmailSettingsPage } from './EmailSettingsPage';
 import type { AdminSection } from '../utils/appRoutes';
 import { HelpdeskSettingsHub, type IHelpdeskSettingLink } from '../components/HelpdeskSettingsHub';
 import { AutoAssignmentSetting } from '../components/AutoAssignmentSetting';
@@ -44,7 +45,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const version = React.useRef(0);
   const service = props.service.administration;
   const load = React.useCallback(async (): Promise<void> => {
-    if (page === 'faqs' || page === 'sla' || page === 'members' || page === 'units' || page === 'home' || page === 'assignment') return;
+    if (page === 'faqs' || page === 'sla' || page === 'members' || page === 'units' || page === 'home' || page === 'email' || page === 'assignment') return;
     if(!availableTabs.some(tab=>tab.key===page))return;
     const current = ++version.current; setLoading(true); setError('');
     try { if (!service) throw new Error('Administration is not configured for this connection.'); const result = await service.getData(page); if (current === version.current) setData(result); }
@@ -74,14 +75,15 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
     schema:{description:'Manage SharePoint ticket columns. Super Admin only.',icon:'Database',group:'Advanced'}
   };
   const hubLinks:IHelpdeskSettingLink[]=availableTabs.map(tab=>({key:tab.key,title:tab.text,...settingDescriptions[tab.key]}));
+  if(props.service.notifications?.canManage)hubLinks.push({key:'email',title:'Email & Notifications',description:'Configure email templates, recipients and ticket notifications.',icon:'Mail',group:'Automation'});
   if(props.service.supportUnits)hubLinks.push({key:'assignment',title:'Auto Assignment',description:'Enable category-based assignment through support teams.',icon:'Flow',group:'Automation'});
   if(props.service.roleManagement && props.onUsersAndRoles)hubLinks.push({key:'usersRoles',title:'Users & Roles',description:'Manage app access and role permissions. Super Admin only.',icon:'Permissions',group:'People & Teams'});
   if(page!=='home' && !hubLinks.some(link=>link.key===page))return <MessageBar messageBarType={MessageBarType.error}>You do not have access to this settings page.</MessageBar>;
-  if(page==='home')return <section className={styles.secondaryPage}><HelpdeskSettingsHub links={hubLinks} controls={props.service.supportUnits ? {assignment:<AutoAssignmentSetting service={props.service} compact />} : undefined} onOpen={key=>{if(key==='usersRoles')props.onUsersAndRoles?.();else setPage(key as typeof page);}} /></section>;
+  if(page==='home')return <section className={styles.secondaryPage}><HelpdeskSettingsHub links={hubLinks} onOpen={key=>{if(key==='usersRoles')props.onUsersAndRoles?.();else setPage(key as typeof page);}} /></section>;
   const modal = {isBlocking: true, styles: {main: {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760, borderRadius: 6, selectors: {'@media (min-width: 480px)': {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760}}}}};
   return <section className={styles.secondaryPage}>
     <nav aria-label="Breadcrumb" className={[styles.administrationHeader,styles.settingsBreadcrumb].join(' ')}><DefaultButton text="Helpdesk Settings" styles={{root:{minWidth:0,height:28,padding:0,margin:0,border:0,background:"transparent"},rootHovered:{background:"transparent"},label:{fontSize:14,fontWeight:400,margin:0}}} disabled={busy} onClick={()=>setPage('home')} /><span aria-hidden="true">/</span><h2 className={styles.toolbarTitle}>{hubLinks.find(link=>link.key===page)?.title || 'Helpdesk Settings'}</h2></nav>
-    {page === 'assignment' ? <AutoAssignmentSetting service={props.service} /> : page === 'units' ? <SupportUnitsPage service={props.service} /> : page === 'members' ? <DepartmentMembersPage service={props.service} /> : page === 'sla' ? <SlaPrioritiesPage canSetup={!props.service.access || props.service.access.superAdmin} service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage /> : <>
+    {page === 'email' ? <EmailSettingsPage service={props.service} /> : page === 'assignment' ? <AutoAssignmentSetting service={props.service} /> : page === 'units' ? <SupportUnitsPage service={props.service} /> : page === 'members' ? <DepartmentMembersPage service={props.service} /> : page === 'sla' ? <SlaPrioritiesPage canSetup={!props.service.access || props.service.access.superAdmin} service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage /> : <>
       <MissingWorkspaceNotice service={props.service} error={error} />
     {error && !columnInput && !entryInput && !deleting && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}
@@ -98,7 +100,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
       </div>
     </>}
     <Dialog hidden={!entryInput} onDismiss={busy ? undefined : () => {setColumnInput(null); setEntryInput(null); setError('');}} maxWidth={760} dialogContentProps={{type: DialogType.close, title: columnInput ? columnId ? 'Edit column properties' : 'New ticket column' : entryId ? 'Edit entry' : 'New entry', showCloseButton: !busy}} modalProps={modal}>
-      <form onSubmit={event => { event.preventDefault(); if (columnInput) void run(() => service!.saveColumn(columnInput, columnId), 'Column saved.'); else if (entryInput && page !== 'schema' && page !== 'faqs' && page !== 'sla' && page !== 'members' && page !== 'units' && page !== 'assignment' && (!entryId || data?.entries.find(item => item.id === entryId)?.active === entryInput.active || window.confirm('Change availability for this entry? This affects new ticket selections.'))) void run(() => service!.saveEntry(page, entryInput, entryId), 'Entry saved.'); }}>
+      <form onSubmit={event => { event.preventDefault(); if (columnInput) void run(() => service!.saveColumn(columnInput, columnId), 'Column saved.'); else if (entryInput && page !== 'schema' && page !== 'faqs' && page !== 'sla' && page !== 'members' && page !== 'units' && page !== 'assignment' && page !== 'email' && (!entryId || data?.entries.find(item => item.id === entryId)?.active === entryInput.active || window.confirm('Change availability for this entry? This affects new ticket selections.'))) void run(() => service!.saveEntry(page, entryInput, entryId), 'Entry saved.'); }}>
         <MissingWorkspaceNotice service={props.service} error={error} />
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
         {columnInput && data && service && <AdminColumnForm value={columnInput} editing={Boolean(columnId)} disabled={busy} lists={data.lists} service={service} onChange={setColumnInput} onError={setError} />}
@@ -110,7 +112,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
       <p>{availabilityChange?.active ? 'Make these entries available for new tickets?' : 'Hide these entries from new ticket selections? Existing ticket classifications will be preserved.'}</p>
       <p>{availabilityChange?.entries.length} selected: {availabilityChange?.entries.map(item => item.title).join(', ')}</p>
       <div className={styles.faqModalFooter}><PrimaryButton text="Confirm" disabled={busy} onClick={() => {
-        if (!availabilityChange || page === 'schema' || page === 'faqs' || page === 'sla' || page === 'members' || page === 'units' || page === 'assignment') return;
+        if (!availabilityChange || page === 'schema' || page === 'faqs' || page === 'sla' || page === 'members' || page === 'units' || page === 'assignment' || page === 'email') return;
         const change = availabilityChange; setAvailabilityChange(null);
         void run(async () => {
           const results = await Promise.allSettled(change.entries.map(entry => service!.saveEntry(page, {...entry, active: change.active}, entry.id)));

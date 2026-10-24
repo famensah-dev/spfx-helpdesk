@@ -1,3 +1,4 @@
+import { GraphNotificationService } from './graph/GraphNotificationService';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient } from '@microsoft/sp-http';
 import { spfi, SPFx } from '@pnp/sp';
@@ -57,6 +58,13 @@ export async function createSharePointService(context: WebPartContext, listName:
     getFaqs: faqs.getFaqs.bind(faqs), getFaqAccess: faqs.getAccess.bind(faqs),
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
+  let visibleSource:ITicketDataSource=source;
+  const mail=new GraphNotificationService(graph,config,{email:access.email,name:access.name || access.email},admin || superAdmin,window.location.href,workspaceSettings.title,async()=>(await visibleSource.getTickets()).tickets,async id=>{
+    const data=await supportUnits.load();return data.units.find(team=>team.id===id)?.email || '';
+  });
+  source.notifications={canManage:admin || superAdmin,getSettings:()=>mail.getSettings(),saveSettings:value=>mail.saveSettings(value),history:()=>mail.history(),inbox:()=>mail.inbox(),test:(value,event)=>mail.test(value,event)};
+  tickets.notificationEnabled=()=>mail.enabled();
+  tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
   if (superAdmin) {
     source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
@@ -85,5 +93,6 @@ export async function createSharePointService(context: WebPartContext, listName:
     };
     source.roleManagement = roles; source.roleRules = role; return source;
   }
-  return applyAppRoleRules(source, role, currentUserId, access.email, aadId);
+  visibleSource=applyAppRoleRules(source, role, currentUserId, access.email, aadId);
+  return visibleSource;
 }

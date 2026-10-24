@@ -1220,3 +1220,47 @@
 .settingsBreadcrumb { column-gap: 10px; row-gap: 4px; }
 .settingsBreadcrumb > .toolbarTitle { margin: 0; font-size: 14px; font-weight: 500; line-height: 28px; }
 .settingsBreadcrumb > span { font-size: 14px; line-height: 28px; }
+
+.helpdeskSystemShell :global(.deskpilot-email-settings) {
+  padding-top: 4px; font-size: 14px;
+  h3, h4 { font-weight: 500; margin-top: 0; }
+  :global(.email-settings-toolbar) { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  :global(.email-notification-controls) { display: flex; justify-content: flex-start; align-items: center; }
+  :global(.email-notification-controls .ms-Toggle) { display: flex; flex-direction: row; align-items: center; gap: 14px; }
+  :global(.email-notification-controls .ms-Toggle-label) { order: 0; margin: 0; font-size: 14px; font-weight: 500; }
+  :global(.email-notification-controls .ms-Toggle-innerContainer) { order: 1; }
+  :global(.email-settings-tabs) { background: #fff; padding: 4px 16px; border-bottom: 1px solid var(--hd-line); margin-top: 12px; margin-bottom: 6px; }
+  :global(.email-event-link) { padding: 0; border: 0; background: transparent; color: #244a78; font: inherit; text-align: left; cursor: pointer; }
+  :global(.email-event-link):hover { text-decoration: underline; }
+  :global(.email-event-link) { font-weight: 500; color: #172536; }
+  :global(.email-card-header) { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  :global(.email-card-header) h3 { margin: 0; }
+  :global(.email-event-heading) { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; min-width: 0; }
+  :global(.email-event-selector) { width: 280px; max-width: 100%; margin-bottom: 0; }
+  :global(.email-template-header) { padding: 8px 22px; gap: 6px; }
+  :global(.email-template-header) :global(.ms-Dropdown-container) { margin-bottom: 0; }
+  :global(.email-template-header) + :global(.email-template-grid) { margin-top: 12px; }
+  :global(.email-template-header) + :global(.email-template-grid) > section { margin-top: 0; }
+  :global(.email-settings-toolbar) nav { display: flex; flex-wrap: wrap; gap: 28px; }
+  :global(.email-settings-toolbar) nav button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 0; border: 0; border-bottom: 2px solid transparent; background: transparent; color: #526783; font: inherit; font-size: 13px; cursor: pointer; }
+  :global(.email-settings-toolbar) nav button[aria-current='page'] { border-bottom-color: #2855b6; color: #1b385c; }
+  :global(.email-template-grid) { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); align-items: start; gap: 16px; margin-top: 16px; }
+  :global(.email-template-grid) > section { min-width: 0; align-content: start; }
+  :global(.email-template-grid) > :global(.email-template-preview) { display: flex; flex-direction: column; align-self: start; gap: 12px; height: auto; min-height: 0; }
+  :global(.email-template-preview) > h3 { margin: 0; }
+  :global(.email-template-preview) > * { flex: 0 0 auto; }
+  :global(.email-template-preview) > :global(.email-settings-toolbar) { margin: 4px 0 0; }
+  :global(.email-template-preview) > p { margin: 0; }
+  :global(.email-preview-subject) { display: block; margin-bottom: 8px; }
+  :global(.email-preview-body) { padding: 2px 0 8px; }
+  :global(.email-template-preview) > :global(.email-preview-footer) { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--hd-line); justify-content: flex-start; }
+  :global(.email-send-test) { background: #1b385c; border-color: #1b385c; color: #fff; }
+  :global(.email-send-test):hover, :global(.email-send-test):active { background: #142b48; border-color: #142b48; color: #fff; }
+  :global(.email-send-test):disabled { background: #e5e9ee; border-color: #e5e9ee; color: #9297a5; }
+  :global(.email-recipient-grid) { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+  :global(.ms-TextField), :global(.ms-Dropdown-container) { margin-bottom: 14px; }
+  :global(.ms-Toggle) { margin: 0; }
+  :global(.email-history) .ticketTable th { font-size: 12px; }
+  :global(.email-history) .ticketTable td { font-size: 12px; line-height: 1.5; }
+}
+@media (max-width: 900px) { .helpdeskSystemShell :global(.deskpilot-email-settings .email-template-grid) { grid-template-columns: 1fr; } }

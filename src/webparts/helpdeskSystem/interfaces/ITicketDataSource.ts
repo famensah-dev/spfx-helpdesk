@@ -12,11 +12,12 @@ export interface ITicketAttachment { name: string; url: string; }
 export interface ICommentPostOptions { html?: string; files?: File[]; requestId?: string; onProgress?: (message: string) => void; }
 export interface ITicketComment { html?: string; id: string; text: string; author: string; created: string; attachments?: ITicketAttachment[]; attachmentError?: string; }
 export interface ITicketVersion { id: string; modified: string; author: string; }
-export type TicketBulkAction = { kind: 'status'; status: TicketStatus } | { kind: 'priority'; priority: TicketPriority } | { kind: 'assign'; userId: number | null } | { kind: 'archive' };
+export type TicketBulkAction = { kind: 'status'; status: TicketStatus } | { kind: 'priority'; priority: TicketPriority } | { kind: 'assign'; userId: number | null } | { kind: 'archive'; archived?: boolean };
 export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: number; message: string }>; }
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  notifications?: import('./INotifications').INotificationService;
   supportUnits?: import('./ISupportUnits').ISupportUnitsService;
   workspaceSetup?: import('./IWorkspaceSetup').IWorkspaceSetup;
   openWorkspaceSetup?: () => void;

@@ -5,6 +5,7 @@ import { isResolved, normalizeStatus } from './ticketStatuses';
 export interface IGlobalSummary { total: number; open: number; pending: number; closed: number; escalated: number; overdue: number; }
 export function getGlobalSummary(tickets: ITicket[], now: Date = new Date()): IGlobalSummary {
   return tickets.reduce<IGlobalSummary>((result, ticket) => {
+    if (ticket.Archived) return result;
     const unresolved = !isResolved(ticket.Status);
     result.total++;
     if (unresolved) result.open++;
@@ -18,6 +19,7 @@ export function getGlobalSummary(tickets: ITicket[], now: Date = new Date()): IG
 export function getCategoryChart(tickets: ITicket[]): IChartDataset {
   const counts = new Map<string, number>();
   tickets.forEach(ticket => {
+    if (ticket.Archived) return;
     const category = ticket.Category?.trim() || 'Uncategorized';
     counts.set(category, (counts.get(category) || 0) + 1);
   });

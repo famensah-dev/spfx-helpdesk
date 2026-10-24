@@ -1,0 +1,18 @@
+import * as React from 'react';
+import { DefaultButton, IconButton, MessageBar, MessageBarType, Panel, PanelType, Spinner } from '@fluentui/react';
+import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
+import type { INotificationRecord } from '../interfaces/INotifications';
+import { cancelButtonStyles } from './cancelButtonStyles';
+export function NotificationCenter({service,onOpenTicket}:{service:ITicketDataSource;onOpenTicket:(id:number)=>void}):React.ReactElement|null {
+  const [open,setOpen]=React.useState(false),[loading,setLoading]=React.useState(false);
+  const [items,setItems]=React.useState<INotificationRecord[]>([]),[error,setError]=React.useState('');
+  const key='deskpilot-notifications:'+service.access?.siteUrl+':'+service.access?.email;
+  const [seen,setSeen]=React.useState<string[]>(()=>{try{const value:unknown=JSON.parse(localStorage.getItem(key) || '[]');return Array.isArray(value)?value.filter(item=>typeof item==='string'):[];}catch{return [];}});
+  const generation=React.useRef(0);
+  const load=React.useCallback(async():Promise<void>=>{if(!service.notifications)return;const current=++generation.current;setLoading(true);try{const result=await service.notifications.inbox();if(generation.current===current){setItems(result);setError('');}}catch(reason){if(generation.current===current)setError(reason instanceof Error ? reason.message : 'Unable to load notifications.');}finally{if(generation.current===current)setLoading(false);}},[service]);
+  React.useEffect(()=>{void load();const timer=window.setInterval(()=>{if(!document.hidden)void load();},60000);return()=>{generation.current++;window.clearInterval(timer);};},[load]);
+  if(!service.notifications)return null;
+  const unread=items.filter(item=>!seen.includes(item.id)).length;
+  const markRead=():void=>{const next=[...new Set([...seen,...items.map(item=>item.id)])].slice(-500);setSeen(next);try{localStorage.setItem(key,JSON.stringify(next));}catch{/* Reading notifications still works if browser storage is disabled. */}};
+  return <><IconButton iconProps={{iconName:'Ringer'}} styles={{root:{background:'transparent',color:'#fff'},rootHovered:{background:'#ffffff12',color:'#fff'}}} ariaLabel={'Notifications'+(unread?' ('+unread+' unread)':'')} title={'Notifications'+(unread?' ('+unread+' unread)':'')} onRenderText={()=>unread?<span style={{fontSize:10}}>{unread>99?'99+':unread}</span>:null} onClick={()=>{setOpen(true);void load();}} /><Panel isOpen={open} type={PanelType.smallFixedFar} headerText="Notifications" closeButtonAriaLabel="Close notifications" isLightDismiss onDismiss={()=>setOpen(false)}><div style={{display:'flex',justifyContent:'space-between'}}><DefaultButton text="Mark all read" styles={cancelButtonStyles} onClick={markRead} disabled={!unread} /><IconButton ariaLabel="Refresh notifications" iconProps={{iconName:'Refresh'}} disabled={loading} onClick={()=>{void load();}} /></div>{error&&<MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}{loading&&<Spinner label="Loading notifications..." />}{items.map(item=><DefaultButton key={item.id} styles={{root:{height:'auto',minHeight:64,width:'100%',padding:12,textAlign:'left',border:0,borderBottom:'1px solid #e4ebf4',background:seen.includes(item.id)?'#fff':'#f2f7ff'},label:{whiteSpace:'normal',fontSize:13,fontWeight:400}}} onRenderText={()=><span><span>{item.subject}</span><small style={{display:'block',marginTop:6,color:'#61728b'}}>{new Date(item.created).toLocaleString()}</small></span>} onClick={()=>{setOpen(false);onOpenTicket(item.ticketId);}} />)}{!loading&&!error&&!items.length&&<p>No notifications yet.</p>}</Panel></>;
+}

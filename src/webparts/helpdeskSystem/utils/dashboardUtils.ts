@@ -12,6 +12,7 @@ export const chartColors = {
 
 export function filterTickets(tickets: ITicket[], filters: { startDate?: Date | null; endDate?: Date | null; status?: string; priority?: string; assignedTo?: string | number | null; }): ITicket[] {
   return tickets.filter((ticket) => {
+    if (ticket.Archived) return false;
     const createdDate = new Date(ticket.Created);
 
     if (filters.startDate && createdDate < new Date(new Date(filters.startDate.getTime()).setHours(0, 0, 0, 0))) {
@@ -39,6 +40,7 @@ export function filterTickets(tickets: ITicket[], filters: { startDate?: Date | 
 }
 
 export function getDashboardStats(tickets: ITicket[]): IDashboardStats {
+  tickets = tickets.filter(ticket => !ticket.Archived);
   const openTickets = tickets.filter((ticket) => !isResolved(ticket.Status));
   const criticalTickets = openTickets.filter((ticket) => ticket.Priority === 'Critical');
 
@@ -70,6 +72,7 @@ export function getDashboardStats(tickets: ITicket[]): IDashboardStats {
 }
 
 export function getStatusChartData(tickets: ITicket[]): IChartDataset {
+  tickets = tickets.filter(ticket => !ticket.Archived);
   const displayedStatuses = statusOrder.concat((['Escalated'] as TicketStatus[]).filter(status => tickets.some(ticket => ticket.Status === status)));
   const counts = displayedStatuses.reduce<Record<string, number>>((result, status) => {
     result[status] = tickets.filter((ticket) => normalizeStatus(ticket.Status) === status).length;
@@ -89,6 +92,7 @@ export function getStatusChartData(tickets: ITicket[]): IChartDataset {
 }
 
 export function getPriorityChartData(tickets: ITicket[]): IChartDataset {
+  tickets = tickets.filter(ticket => !ticket.Archived);
   const values = Array.from(new Set([...priorityOrder, ...tickets.map(ticket => ticket.Priority)]));
   const counts = values.reduce<Record<string, number>>((result, priority) => {
     result[priority] = tickets.filter((ticket) => ticket.Priority === priority).length;
@@ -108,6 +112,7 @@ export function getPriorityChartData(tickets: ITicket[]): IChartDataset {
 }
 
 export function getAssignedUserOptions(tickets: ITicket[]) {
+  tickets = tickets.filter(ticket => !ticket.Archived);
   const users = tickets
     .map((ticket) => ticket.AssignedTo)
     .filter((user): user is NonNullable<typeof user> => Boolean(user && user.Id));

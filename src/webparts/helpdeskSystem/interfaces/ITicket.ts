@@ -9,6 +9,8 @@ export interface IUserLookup {
 }
 
 export interface ITicket {
+  ChangeVersion?: string;
+  AssignedUnitId?: number;
   Id: number;
   Title: string;
   Description?: string;

@@ -1,3 +1,4 @@
+import { NotificationCenter } from './NotificationCenter';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { pagePaths, adminPaths, resolveAppRoute } from '../utils/appRoutes';
 import { MissingWorkspaceNotice } from './WorkspaceSetupPanel';
@@ -74,7 +75,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
     <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
       <header className={styles.appHeader}>
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
-        <div className={styles.headerActions}>{props.accountActions}</div>
+        <div className={styles.headerActions}><NotificationCenter service={props.service} onOpenTicket={id=>routerNavigate('/tickets/'+id)} />{props.accountActions}</div>
       </header>
       {!props.settingsContent && <nav className={styles.navigation} aria-label="DeskPilot navigation">
         {canUse(props.service, 'dashboard') && (rules ? <button type="button" aria-current={dashboardActive ? 'page' : undefined} className={[styles.dashboardNav, dashboardActive ? styles.activeNav : ''].join(' ')} onClick={() => navigate('Dashboard')}>Dashboard</button> : <div className={[styles.dashboardSplit, styles.dashboardNav].join(' ')} data-active={dashboardActive}><DefaultButton text="Dashboard" split onClick={() => navigate(props.service.access?.agent ? 'My Dashboard' : 'Dashboard')} splitButtonAriaLabel="Choose dashboard view" className={dashboardActive ? styles.activeNav : undefined} menuProps={{ items: [

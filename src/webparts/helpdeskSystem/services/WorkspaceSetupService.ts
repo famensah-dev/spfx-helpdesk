@@ -13,6 +13,8 @@ const common = (): Column[] => [text('Title'), {name: 'Active', boolean: {}, def
 export const ticketViewOrder = ['Title','Status','Priority','TicketType','Category','Subcategory','IssueType','AssignedTo','DueDate','FirstRespondedAt','ResolvedAt','ClosedAt','ResolutionSummary','RelatedIssue','Created','Author','Editor'];
 export function workspaceDefinitions(ticketName: string): Definition[] {
   const definitions: Definition[] = [
+    {key:'emailSettings',name:workspaceLists.emailSettings,columns:[text('Title'),{...text('SettingKey'),indexed:true,enforceUniqueValues:true,required:true},{name:'Configuration',text:{allowMultipleLines:true,textType:'plain'}}]},
+    {key:'notificationLog',name:workspaceLists.notificationLog,columns:[text('Title'),{...text('NotificationKey'),indexed:true,enforceUniqueValues:true,required:true},{name:'TicketId',number:{decimalPlaces:'none'}},text('Event'),text('Subject'),{name:'Audience',text:{allowMultipleLines:true,textType:'plain'}},{name:'InApp',boolean:{}},text('DeliveryStatus'),{name:'Error',text:{allowMultipleLines:true,textType:'plain'}}]},
     {key: 'categories', name: workspaceLists.categories, columns: common()},
     {key: 'comments', name: workspaceLists.comments, columns: [text('Title'),{...text('TicketKey'),indexed:true,required:true},{name:'Content',text:{allowMultipleLines:true,textType:'plain'},required:true}]},
     {key: 'subcategories', name: workspaceLists.subcategories, columns: [...common(), {...lookup('Category', 'categories'), required: true}]},
@@ -84,6 +86,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
         const actual = matchingColumn(columns,expected);
         if (!actual) {steps.push({resource: `${definition.name} / ${expected.name}`, action:'Add column'}); continue;}
         const conflict = columnConflict(actual,expected,ids, definition.key === 'tickets' || definition.key === 'faqs');
+        if(expected.enforceUniqueValues && !actual.enforceUniqueValues)steps.push({resource:definition.name+' / '+actual.name,action:'Enforce unique notification key'});
         if (expected.indexed && !actual.indexed) steps.push({resource:`${definition.name} / ${actual.displayName || actual.name}`,action:'Index column for comment lookup'});
         if (conflict) steps.push({resource: `${definition.name} / ${actual.displayName || actual.name}`, action:conflict, blocked:true});
         else if (expected.choice && (expected.choice as {choices:string[]}).choices.some(value => !(actual.choice as {choices:string[]}).choices.includes(value))) steps.push({resource:`${definition.name} / ${actual.name}`, action:'Append missing supported choices; preserve existing choices'});
@@ -116,6 +119,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
           const conflict = columnConflict(actual,expected,ids, definition.key === 'tickets' || definition.key === 'faqs');
           if (conflict) throw new Error(`${definition.name}.${actual.name}: ${conflict}. Existing records preserved.`);
           if (expected.indexed && !actual.indexed) await this.graph.patch(`${columnPath}/${actual.id}`,{indexed:true});
+          if(expected.enforceUniqueValues && !actual.enforceUniqueValues)await this.graph.patch(`${columnPath}/${actual.id}`,{indexed:true,enforceUniqueValues:true});
           if (expected.choice) {
             const choices = [...new Set([...(actual.choice as {choices:string[]}).choices,...(expected.choice as {choices:string[]}).choices])];
             if (choices.length !== (actual.choice as {choices:string[]}).choices.length) await this.graph.patch(`${columnPath}/${actual.id}`, {choice:{...actual.choice as object, choices}});

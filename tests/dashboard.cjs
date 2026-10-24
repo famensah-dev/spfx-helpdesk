@@ -34,6 +34,12 @@ assert.equal(filterTickets(tickets, {assignedTo: 'unassigned'}).length, 4);
 assert.equal(filterTickets(tickets, {status: 'Assigned', priority: 'Critical', assignedTo: '7'}).length, 1);
 assert.deepEqual(getStatusChartData(tickets).datasets[0].data, [1, 1, 0, 0, 0, 2, 1]);
 assert.deepEqual(getPriorityChartData(tickets).datasets[0].data, [5, 0, 0, 0]);
+const withArchive=[...tickets,{...base,Id:99,Status:'New',Archived:true}];
+assert.deepEqual(getDashboardStats(withArchive),getDashboardStats(tickets),'Archived tickets must not affect stats');
+assert.deepEqual(getStatusChartData(withArchive),getStatusChartData(tickets));
+assert.deepEqual(getPriorityChartData(withArchive),getPriorityChartData(tickets));
+assert.deepEqual(filterTickets(withArchive,{}),tickets,'Archive remains outside dashboard data');
+assert.equal(getDashboardStats(withArchive.map(ticket=>({...ticket,Archived:ticket.Id===99?false:ticket.Archived}))).totalOpenTickets,3,'Unarchiving restores the ticket to stats');
 console.log('Dashboard checks passed: metrics, missing and invalid resolution dates, immutable inclusive date filters, assignees, combined filters, and chart totals.');
 
 const globalSource = fs.readFileSync('src/webparts/helpdeskSystem/utils/globalDashboardUtils.ts', 'utf8');

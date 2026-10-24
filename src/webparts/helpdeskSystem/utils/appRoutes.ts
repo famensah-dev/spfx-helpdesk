@@ -8,7 +8,7 @@ export const pagePaths = {
   'Users & Roles': '/users-and-roles'
 } as const;
 export type AppPage = keyof typeof pagePaths;
-export const adminPaths = {home:'', units:'teams', assignment:'auto-assignment', categories:'categories', subcategories:'subcategories', issueTypes:'issue-types', sla:'sla', faqs:'knowledge-base', members:'users', schema:'ticket-schema'} as const;
+export const adminPaths = {home:'', email:'email-notifications', units:'teams', assignment:'auto-assignment', categories:'categories', subcategories:'subcategories', issueTypes:'issue-types', sla:'sla', faqs:'knowledge-base', members:'users', schema:'ticket-schema'} as const;
 export type AdminSection = keyof typeof adminPaths;
 export const workspacePaths = {'General':'general', 'SharePoint Settings':'sharepoint', 'Site Lists':'lists', 'Site Documents':'documents', 'Hidden Lists':'hidden-lists'} as const;
 export type WorkspaceSection = keyof typeof workspacePaths;

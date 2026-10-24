@@ -77,7 +77,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
   const { tickets, filteredTickets, loading, error, refresh, filters, setFilters, assignedUsers, hasResolvedAt, hasCategory, hasDueDate, lastUpdated } = props;
   const [department, setDepartment] = React.useState('');
   const [filtersOpen, setFiltersOpen] = React.useState(false);
-  const departments = Array.from(new Set(tickets.map(ticket => ticket.Department?.trim()).filter((value): value is string => Boolean(value)))).sort();
+  const departments = Array.from(new Set(tickets.filter(ticket => !ticket.Archived).map(ticket => ticket.Department?.trim()).filter((value): value is string => Boolean(value)))).sort();
   const inDepartment = (values: ITicket[]): ITicket[] => department ? values.filter(ticket => ticket.Department?.trim() === department) : values;
   const visible = inDepartment(filteredTickets);
   const previousFilters = getPreviousPeriod(filters);
