@@ -42,7 +42,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
       if (!input.resolutionSummary.trim() && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can clear the resolution summary.');
     }
     if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
-    if (input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined) requireAction('edit');
+    if (input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined || input.requesterName !== undefined || input.requesterEmail !== undefined || input.dueDate !== undefined || input.department !== undefined || input.ticketSource !== undefined) requireAction('edit');
     if (input.status !== ticket.Status) requireAction('status');
     if (input.priority !== ticket.Priority) requireAction('priority');
     if (input.assignedToId !== (ticket.AssignedTo?.Id || null)) requireAction('assign');

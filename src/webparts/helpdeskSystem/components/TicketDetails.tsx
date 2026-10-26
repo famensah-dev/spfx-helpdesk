@@ -1,3 +1,4 @@
+import { TicketDueDatePicker } from './TicketDueDatePicker';
 import { ticketLink } from '../utils/appRoutes';
 import { canUse } from '../services/appRoleRules';
 import type { IFaqInput } from '../interfaces/IFaq';
@@ -21,6 +22,8 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const agent = !service?.roleRules && service?.access?.agent === true;
   const canManage = !agent || ticket.AssignedTo?.Email?.toLowerCase() === service?.access?.email.toLowerCase();
   const heading = React.useRef<HTMLHeadingElement>(null);
+  const [extraEdit,setExtraEdit]=React.useState<{requesterName?:string;requesterEmail?:string;dueDate?:string;department?:string;ticketSource?:string}>({});
+  const [editSources,setEditSources]=React.useState<string[]>(['DeskPilot','Forms','Email','Phone / Call-in','Other']);
   const [classificationEdit, setClassificationEdit] = React.useState<{ category?: string; subcategory?: string; issueType?: string; ticketType?: string }>({});
   const commentInput = React.useRef<HTMLDivElement>(null);
   const [resolutionOpen, setResolutionOpen] = React.useState(false);
@@ -123,12 +126,12 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   }, [service, ticket.Id]);
   React.useEffect(() => { heading.current?.focus(); void loadComments(); return () => { commentRequest.current++; }; }, [loadComments]);
   const date = (value?: string | null): string => value && Number.isFinite(new Date(value).getTime()) ? new Date(value).toLocaleString('en-US', {year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).replace(/[\s\u00a0\u202f]+(AM|PM)/g, '$1') : 'Not provided';
-  const beginEdit = (): void => { setEditFiles([]); setClassificationEdit({}); setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
+  const beginEdit = (): void => { setExtraEdit({});service?.getCreationOptions?.().then(value=>{if(value.ticketSources)setEditSources(value.ticketSources);}).catch(()=>undefined);setEditFiles([]); setClassificationEdit({}); setTitle(ticket.Title); setDescription(ticket.Description || ''); setPriority(ticket.Priority); setStatus(normalizeStatus(ticket.Status)); setAssigned(ticket.AssignedTo?.Id || 0); setAssignedName(ticket.AssignedTo?.Title || 'Unassigned'); setError(''); setSaved(false); setEditing(true); };
   const save = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault(); if (!service?.updateTicket || lock.current) return;
     lock.current = true; setSaving(true); setError('');
     try {
-      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null, ...classificationEdit});
+      await service.updateTicket(ticket.Id, {title, description: description !== (ticket.Description || '') ? description : undefined, priority, status, assignedToId: assigned || null, ...classificationEdit,...extraEdit});
       if (editFiles.length) {
         try {
           if (!service.uploadAttachments) throw new Error('Attachment uploads are not available.');
@@ -227,7 +230,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         </div>
         <Dialog hidden={!editing} onDismiss={saving ? undefined : () => setEditing(false)} minWidth={320} maxWidth={1100} dialogContentProps={{title:"Edit Ticket",showCloseButton:!saving}} modalProps={{isBlocking:saving,styles:{main:{width:"min(1100px, calc(100vw - 32px))",maxWidth:1100,selectors:{"@media (min-width: 480px)":{width:"min(1100px, calc(100vw - 32px))",minWidth:0,maxWidth:1100}}}}}}><form className={styles.ticketEditForm} onSubmit={event => { void save(event); }}>
           <div className={styles.detailSectionHeading}><Icon iconName="Edit" /><h3>Edit details</h3></div>
-          <TextField label="Issue" required value={title} maxLength={255} disabled={saving || !canUse(service, 'edit')} onChange={(_, value) => setTitle(value || '')} />
+          <div className="ticket-title-source-row"><TextField label="Title" required value={title} maxLength={255} disabled={saving || !canUse(service, 'edit')} onChange={(_, value) => setTitle(value || '')} />{ticket.TicketSource ? <TextField label="Ticket Source" value={ticket.TicketSource} readOnly /> : <Dropdown label="Ticket Source" placeholder="Select source" selectedKey={extraEdit.ticketSource || ''} disabled={saving || !canUse(service,'edit')} options={editSources.map(value=>({key:value,text:value==='Forms'?'Microsoft Forms':value}))} onChange={(_,option)=>setExtraEdit(current=>({...current,ticketSource:String(option?.key || '')}))} />}</div>
           <RichTextEditor value={description} disabled={saving || !canUse(service, 'edit')} onChange={setDescription} />
           {service?.uploadAttachments && <AttachmentPicker compact files={editFiles} onChange={setEditFiles} disabled={saving || !canUse(service, 'edit')} />}
           <div className={styles.detailFormGrid}>
@@ -238,6 +241,12 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
           <Dropdown label="Ticket Type" selectedKey={classificationEdit.ticketType || ticket.TicketType || ''} disabled={saving || !canUse(service, 'edit')} options={[{key: '', text: 'Not specified', disabled: true}, ...['Problem', 'Incident', 'Question', 'Request'].map(value => ({key: value, text: value}))]} onChange={(_,option) => { if (option) setClassificationEdit(current => ({...current, ticketType: String(option.key)})); }} />
           <TicketClassificationFields service={service} ticket={ticket} disabled={saving || !canUse(service, 'edit')} onChange={value => setClassificationEdit(current => ({ ...current, ...value }))} />
           
+          <details className={styles.newTicketAdvanced}><summary>Show all</summary><div className={styles.newTicketFields}>
+            <TextField label="Department" value={extraEdit.department ?? ticket.Department ?? ''} disabled={saving || !canUse(service,'edit')} onChange={(_,value)=>setExtraEdit(current=>({...current,department:value || ''}))} />
+            <TicketDueDatePicker value={extraEdit.dueDate ?? ticket.DueDate ?? ''} disabled={saving || !canUse(service,'edit')} onChange={value=>setExtraEdit(current=>({...current,dueDate:value}))} />
+            <TextField label="Requester name" maxLength={255} value={extraEdit.requesterName ?? ticket.Requester?.Title ?? ''} disabled={saving || !canUse(service,'edit')} onChange={(_,value)=>setExtraEdit(current=>({...current,requesterName:value || ''}))} />
+            <TextField label="Requester email" type="email" maxLength={254} value={extraEdit.requesterEmail ?? ticket.RequesterEmail ?? ticket.Requester?.Email ?? ''} disabled={saving || !canUse(service,'edit')} onChange={(_,value)=>setExtraEdit(current=>({...current,requesterEmail:value || ''}))} />
+          </div></details>
           {editUploadProgress && <Spinner label={editUploadProgress} />}
           <div className={styles.detailSaveBar}><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving} onClick={() => setEditing(false)} /><PrimaryButton type="submit" text={saving ? 'Saving…' : 'Save changes'} iconProps={{iconName: 'Save'}} disabled={saving || assignmentBusy || !title.trim()} /></div>
         </form></Dialog>

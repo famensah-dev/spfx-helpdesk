@@ -44,7 +44,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const aadId = (await graph.get<{ id: string }>('/me?$select=id')).id;
   const sharePointToken = (): Promise<string> => provider.getToken(new URL(siteUrl).origin);
   const workspaceSettings: import('../interfaces/IRoleManagement').IWorkspaceSettings = configuration.workspace || {title: '', description: '', listName: listName || 'Tickets', listId: listId || ''};
-  const config = {currentUserId,currentUserEmail:context.pageContext.user.email,tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
+  const config = {currentUserName:context.pageContext.user.displayName,currentUserId,currentUserEmail:context.pageContext.user.email,tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
   const supportUnits = new GraphSupportUnitsService(graph, config);
   const tickets = new GraphTicketService(graph, config, graph, sharePointToken, id => supportUnits.routeTicket(id));
   const faqs = new GraphFaqService(graph, config, sharePointToken);

@@ -1230,6 +1230,22 @@
 
 .settingsBreadcrumb { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .settingsBreadcrumb > span { color: #8799b0; }
+.newTicketPage :global(.ticket-due-picker) { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+.newTicketPage :global(.ticket-due-picker) > :global(.ms-DatePicker), .newTicketPage :global(.ticket-due-picker) > :global(.ms-TextField) { margin: 0; padding: 0; }
+.newTicketPage :global(.ticket-due-picker .ms-Label) { margin: 0; padding: 5px 0; line-height: 20px; }
+.newTicketPage :global(.ticket-due-picker .ms-TextField-fieldGroup) { height: 34px; box-sizing: border-box; }
+.newTicketPage :global(.ticket-due-picker) > button { align-self: flex-end; }
+.newTicketPage :global(.ticket-due-picker) > :global(.ms-DatePicker) { flex: 1 1 160px; }
+.newTicketPage :global(.ticket-due-picker) > :global(.ms-TextField) { flex: 0 1 130px; }
+.newTicketPage :global(.ticket-due-picker) > button { border: 0; background: transparent; color: #244a78; padding: 8px 0; cursor: pointer; }
+.newTicketPage :global(.ticket-title-source-row), .ticketEditForm :global(.ticket-title-source-row) { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1fr); align-items: start; gap: 18px; }
+@media (max-width: 760px) { .newTicketPage :global(.ticket-title-source-row), .ticketEditForm :global(.ticket-title-source-row) { grid-template-columns: 1fr; } }
+.ticketEditForm :global(.ticket-due-picker) { display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.ticketEditForm :global(.ticket-due-picker) > :global(.ms-DatePicker) { flex: 1 1 160px; margin: 0; }
+.ticketEditForm :global(.ticket-due-picker) > :global(.ms-TextField) { flex: 0 1 130px; margin: 0; }
+.ticketEditForm :global(.ticket-due-picker .ms-Label) { padding: 5px 0; margin: 0; line-height: 20px; }
+.ticketEditForm :global(.ticket-due-picker .ms-TextField-fieldGroup) { height: 34px; }
+.ticketEditForm :global(.ticket-due-picker) > button { border: 0; background: transparent; color: #244a78; align-self: flex-end; padding: 8px 0; cursor: pointer; }
 .helpdeskSettingsGroups .settingsInlineControl { display: flex; align-items: center; gap: 10px; padding: 7px 16px; min-height: 44px; font-size: 14px; color: #293d58; }
 .helpdeskSettingsGroups .settingsInlineControl > span { flex: 1; min-width: 0; font-weight: 400; }
 .settingsToggleControl { display: flex; align-items: center; gap: 4px; }

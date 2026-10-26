@@ -6,6 +6,7 @@ export interface IAppConfig {
   siteId?: string;
   currentUserId?: number;
   currentUserEmail?: string;
+  currentUserName?: string;
   listName: string;
   listId?: string;
   faqListName?: string;

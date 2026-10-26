@@ -1,3 +1,4 @@
+import { TicketDueDatePicker } from './TicketDueDatePicker';
 import { SearchableSelect } from './SearchableSelect';
 import { attachmentAccept, validateTicketAttachments } from '../utils/ticketAttachments';
 import { RichTextEditor } from './RichTextEditor';
@@ -13,7 +14,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
   const [files, setFiles] = React.useState<File[]>([]);
   const [createdTicketId, setCreatedTicketId] = React.useState<number | null>(null);
   const fileInput = React.useRef<HTMLInputElement>(null);
-  const [input, setInput] = React.useState<INewTicketInput>({ title: '', description: '', priority: 'Medium' });
+  const [input, setInput] = React.useState<INewTicketInput>({ title: '', description: '', priority: 'Medium', ticketSource:'DeskPilot', requesterName:props.service?.access?.name || '', requesterEmail:props.service?.access?.email || '' });
   const [options, setOptions] = React.useState<ITicketCreationOptions | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
@@ -52,20 +53,23 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to select these files.'); }
   };
   const field = (item: ITicketCreationOptions['fields'][number]): React.ReactNode => {
+    const labels:Record<string,string>={category:'Ticket Category',subcategory:'Ticket Subcategory',issueType:'Ticket Issue Type',ticketType:'Ticket Type',department:'Department',dueDate:'Due date'};
+    item={...item,label:labels[item.key] || item.label};
+    if(item.key==='dueDate')return <TicketDueDatePicker key={item.key} value={input.dueDate || ''} required={item.required} disabled={saving} onChange={value=>change('dueDate',value)} />;
     const taxonomy = options?.classification;
     const entries = item.key === 'category' ? taxonomy?.categories : item.key === 'subcategory' ? taxonomy?.subcategories.filter(value => value.parentId === input.category) : item.key === 'issueType' ? taxonomy?.issueTypes : undefined;
     const choices = entries ? entries.map(value => ({ key: value.id, text: value.name })) : item.choices?.map(value => ({ key: value, text: value }));
     if (['category', 'subcategory', 'issueType'].includes(item.key) && choices) return <SearchableSelect key={item.key} label={item.label} required={item.required} disabled={saving || (item.key === 'subcategory' && !input.category)} value={input[item.key] || ''} options={[...(!item.required ? [{ key: '', text: 'Not specified' }] : []), ...choices]} onChange={value => change(item.key, value)} />;
     return choices ? <Dropdown calloutProps={{ calloutMaxHeight: 280, directionalHint: DirectionalHint.bottomLeftEdge, gapSpace: 4 }} key={item.key} label={item.label} required={item.required} placeholder="Select an option" selectedKey={input[item.key] || ''} disabled={saving || (item.key === 'subcategory' && !input.category)} options={[...(!item.required ? [{ key: '', text: 'Not specified' }] : []), ...choices]} onChange={(_, option) => change(item.key, String(option?.key || ''))} />
-      : <TextField key={item.key} label={item.label} required={item.required} type={item.key === 'dueDate' ? 'datetime-local' : 'text'} value={input[item.key] || ''} disabled={saving} onChange={(_, value) => change(item.key, value || '')} />;
+      : <TextField key={item.key} label={item.label} required={item.required} type="text" value={input[item.key] || ''} disabled={saving} onChange={(_, value) => change(item.key, value || '')} />;
   };
   return <section className={styles.newTicketPage} aria-labelledby="new-ticket-title">
-    <div className={styles.newTicketHeader}><div><h2 id="new-ticket-title" tabIndex={-1} ref={heading}>New ticket</h2><p>Create a support request and describe the help you need.</p></div><DefaultButton styles={cancelButtonStyles} text="Back to tickets" disabled={saving || resolving} onClick={props.onDismiss} /></div>
+    <div className={styles.newTicketHeader}><div><h2 id="new-ticket-title" tabIndex={-1} ref={heading}>New ticket</h2><p>Create a support request and describe the help you need.</p></div><DefaultButton styles={cancelButtonStyles} text="Back to tickets" iconProps={{iconName:'Back'}} disabled={saving || resolving} onClick={props.onDismiss} /></div>
     {createdTicketId && <MessageBar>Ticket #{createdTicketId} already exists. Retry uploads to finish attaching your files without creating another ticket.</MessageBar>}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {loading ? <Spinner label="Loading ticket fields?" /> : options && <form onSubmit={event => { void submit(event); }} className={styles.newTicketForm}>
       <div className={styles.newTicketSection}>
-        <TextField label="Title" required autoFocus maxLength={255} value={input.title} disabled={saving} onChange={(_, value) => change('title', value || '')} />
+        <div className="ticket-title-source-row"><TextField label="Title" required autoFocus maxLength={255} value={input.title} disabled={saving} onChange={(_, value) => change('title', value || '')} /><Dropdown label="Ticket Source" selectedKey={input.ticketSource || 'DeskPilot'} disabled={saving || Boolean(createdTicketId)} options={(options.ticketSources || ['DeskPilot','Email','Forms','Phone / Call-in','Other']).map(value=>({key:value,text:value==='Forms'?'Microsoft Forms':value}))} onChange={(_,option)=>change('ticketSource',String(option?.key || 'DeskPilot'))} /></div>
         <div className={styles.newTicketDescriptionRow}>
         {options.description && <RichTextEditor value={input.description} disabled={saving || Boolean(createdTicketId)} onChange={value => change('description', value)} />}
         <div><Label>Attachments</Label><div className={styles.ticketUploadArea} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (!saving && !createdTicketId) addFiles(Array.from(event.dataTransfer.files)); }}>
@@ -77,7 +81,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
         <div className={styles.newTicketClassification}>{options.fields.filter(item => item.key === 'ticketType').map(field)}<ChoiceGroup className={styles.ticketPriorityChoices} label="Priority" required selectedKey={input.priority} disabled={saving} options={options.priorities.map(value => ({ key: value, text: value }))} onChange={(_, option) => change('priority', String(option?.key || ''))} />
         {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}</div>
         <div className={styles.newTicketClassification}>{options.fields.filter(item => ['category', 'subcategory', 'issueType'].includes(item.key)).map(field)}</div>
-        {options.fields.some(item => ['department', 'dueDate'].includes(item.key)) && <details className={styles.newTicketAdvanced} open={options.fields.some(item => ['department', 'dueDate'].includes(item.key) && item.required) || undefined}><summary>Advanced fields</summary><div className={styles.newTicketFields}>{options.fields.filter(item => ['department', 'dueDate'].includes(item.key)).map(field)}</div></details>}
+        <details className={styles.newTicketAdvanced} open={options.fields.some(item=>['department','dueDate'].includes(item.key)&&item.required) || undefined}><summary>Show all</summary><div className={styles.newTicketFields}>{options.fields.filter(item => ['department', 'dueDate'].includes(item.key)).map(field)}<TextField label="Requester name" maxLength={255} value={input.requesterName || ''} disabled={saving} onChange={(_,value)=>change('requesterName',value || '')} /><TextField label="Requester email" type="email" maxLength={254} value={input.requesterEmail || ''} disabled={saving} onChange={(_,value)=>change('requesterEmail',value || '')} /></div></details>
       <div className={styles.newTicketFooter}><p>{person ? 'This ticket will start with Assigned status.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry uploads' : 'Create ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
       </div>
     </form>}

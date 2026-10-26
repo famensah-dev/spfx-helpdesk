@@ -47,7 +47,7 @@ export class GraphTicketService implements ITicketDataSource {
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; listId: string; key: string; content: string };
   private solutionSchema?: {path:string;summary:string;comment:string};
-  private requesterFields?: {requestedBy?:string;email?:string;source?:string};
+  private requesterFields?: {requestedBy?:string;email?:string;name?:string;source?:string;sourceChoices?:string[]};
   public async markCommentAsSolution(id:number,commentId:string,replaceExisting = false): Promise<void> {
     if (!/^[1-9]\d*$/.test(commentId)) throw new Error('Invalid comment ID.');
     if (!this.solutionSchema) await this.getTickets();
@@ -112,6 +112,46 @@ export class GraphTicketService implements ITicketDataSource {
     if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
+    let sourceEtag:string|undefined;
+    if(input.ticketSource!==undefined){
+      const requester=this.requesterFields;
+      if(!requester?.source)throw new Error('Run Initialize workspace to add Ticket Source.');
+      const current=await this.graph.get<IGraphItem>(`${schema.path}/items/${id}?$expand=fields`);
+      const stored=String(current.fields[requester.source] || '').trim();
+      if(stored&&stored!==input.ticketSource)throw new Error('Ticket Source cannot be changed after it has been recorded.');
+      if(!stored){
+        if(!input.ticketSource.trim()||input.ticketSource.length>255||(requester.sourceChoices&&!requester.sourceChoices.includes(input.ticketSource)))throw new Error('Select a configured Ticket Source.');
+        sourceEtag=current.eTag || current['@odata.etag'];
+        if(!sourceEtag)throw new Error('Unable to verify Ticket Source. Refresh the ticket before saving.');
+        fields[requester.source]=input.ticketSource;
+      }
+    }
+    if(input.requesterName!==undefined||input.requesterEmail!==undefined){
+      const requester=this.requesterFields;
+      if(!requester?.name||!requester.email)throw new Error('Run Initialize workspace to add requester fields before editing them.');
+      const current=(await this.getTickets()).tickets.find(ticket=>ticket.Id===id);
+      if(!current)throw new Error('This ticket is no longer available.');
+      const name=(input.requesterName ?? current.Requester?.Title ?? '').trim();
+      const email=(input.requesterEmail ?? current.RequesterEmail ?? current.Requester?.Email ?? '').trim();
+      if(name.length>255||email.length>254||(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))throw new Error('Enter a requester name of up to 255 characters and a valid email.');
+      if(name&&!email)throw new Error('Enter an email for the requester.');
+      fields[requester.name]=name;fields[requester.email]=email;
+      if(requester.requestedBy&&(name!==(current.Requester?.Title || '')||email.toLowerCase()!==(current.RequesterEmail || current.Requester?.Email || '').toLowerCase()))fields[`${requester.requestedBy}LookupId`]=null;
+    }
+    for(const key of ['department','dueDate'] as const){
+      if(input[key]===undefined)continue;
+      const field=this.creationFields.find(item=>item.key===key);
+      if(!field)throw new Error(`The ticket list has no writable ${key} field.`);
+      const value=input[key]!.trim();
+      if(!value&&field.column.required)throw new Error(`Enter ${field.label}.`);
+      if(key==='dueDate'){
+        if(value&&!Number.isFinite(new Date(value).getTime()))throw new Error('Enter a valid due date and time.');
+        fields[field.column.name]=value?new Date(value).toISOString():null;
+      }else{
+        if(value.length>255||(value&&field.column.choice&&!field.column.choice.choices.includes(value)))throw new Error('Select a configured department.');
+        fields[field.column.name]=value;
+      }
+    }
     if (input.resolutionSummary !== undefined) {
       if (!this.solutionSchema) throw new Error('Run Initialize workspace to add Resolution Summary and Solution Comment ID.');
       if (input.resolutionSummary.length > 10000) throw new Error('Resolution Summary must be 10,000 characters or fewer.');
@@ -149,7 +189,7 @@ export class GraphTicketService implements ITicketDataSource {
     }
     const notificationBefore=await this.captureChange(id);
     await this.addResolutionTimestamp(id, status, fields);
-    await this.graph.patch(`${schema.path}/items/${id}/fields`, fields);
+    await this.graph.patch(`${schema.path}/items/${id}/fields`, fields,sourceEtag);
     await this.notifyChange(id,notificationBefore);
   }
   private async addResolutionTimestamp(id: number, next: string, fields: Record<string, unknown>): Promise<void> {
@@ -286,7 +326,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
     const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
-    return {classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('Assigned')), fields:this.creationFields.map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
+    return {ticketSources:this.requesterFields?.sourceChoices || ['DeskPilot','Email','Forms','Phone / Call-in','Other'],classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('Assigned')), fields:this.creationFields.map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
   }
   public async uploadAttachments(id: number, files: File[], progress?: (message:string) => void): Promise<void> {
     if (!this.context) await this.getTickets();
@@ -306,9 +346,19 @@ export class GraphTicketService implements ITicketDataSource {
     if (input.description.trim() && !schema.description) throw new Error('Add an Issue description text column to the list to save a description.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.status]: 'New', [schema.priority]: input.priority };
     const requester = this.requesterFields;
-    if (requester?.requestedBy && this.config.currentUserId) fields[`${requester.requestedBy}LookupId`] = String(this.config.currentUserId);
-    if (requester?.email && this.config.currentUserEmail) fields[requester.email] = this.config.currentUserEmail;
-    if (requester?.source) fields[requester.source] = 'DeskPilot';
+    const requesterEmail=input.requesterEmail?.trim() || this.config.currentUserEmail || '';
+    const requesterName=input.requesterName?.trim() || '';
+    if(requesterEmail && (requesterEmail.length>254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(requesterEmail)))throw new Error('Enter a valid requester email.');
+    if(requesterName.length>255)throw new Error('Requester name must be 255 characters or fewer.');
+    const customRequester=Boolean((input.requesterEmail?.trim()&&requesterEmail.toLowerCase()!==this.config.currentUserEmail?.toLowerCase()) || (requesterName&&this.config.currentUserName&&requesterName!==this.config.currentUserName));
+    if(customRequester&&(!requester?.email||requesterName&&!requester?.name))throw new Error('Run Initialize workspace to add RequesterEmail and RequesterName before creating a ticket for someone else.');
+    if(requester?.name&&requesterName)fields[requester.name]=requesterName;
+    if (requester?.requestedBy && this.config.currentUserId && !customRequester) fields[`${requester.requestedBy}LookupId`] = String(this.config.currentUserId);
+    if (requester?.email && requesterEmail) fields[requester.email] = requesterEmail;
+    const ticketSource=input.ticketSource || 'DeskPilot';
+    if(ticketSource.length>255 || (requester?.sourceChoices && !requester.sourceChoices.includes(ticketSource)))throw new Error('Choose a configured Ticket Source. Run Initialize workspace to enable Phone / Call-in.');
+    if(!requester?.source && ticketSource!=='DeskPilot')throw new Error('Run Initialize workspace to add the Ticket Source field.');
+    if (requester?.source) fields[requester.source] = ticketSource;
     if (schema.description) fields[schema.description] = input.description.trim();
     for (const key of ['category', 'subcategory', 'issueType'] as const) {
       if (input[key] && !this.creationFields.some(field => field.key === key)) throw new Error(`The ticket list has no writable ${key} column. The selected value cannot be saved.`);
@@ -418,19 +468,20 @@ export class GraphTicketService implements ITicketDataSource {
     const resolutionSummary = optionalDisplay(['Resolution Summary'], ['text']);
     const requestedBy = optionalDisplay(['Requested By','RequestedBy'],['personOrGroup']);
     const requesterEmail = optionalDisplay(['RequesterEmail','Requester Email'],['text']);
+    const requesterName = optionalDisplay(['RequesterName','Requester Name'],['text']);
     const ticketSource = optionalDisplay(['TicketSource','Ticket Source'],['choice','text']);
-    this.requesterFields = {requestedBy:requestedBy && !requestedBy.readOnly ? requestedBy.name : undefined,email:requesterEmail && !requesterEmail.readOnly ? requesterEmail.name : undefined,source:ticketSource && !ticketSource.readOnly ? ticketSource.name : undefined};
+    this.requesterFields = {sourceChoices:ticketSource?.choice?.choices,name:requesterName && !requesterName.readOnly ? requesterName.name : undefined,requestedBy:requestedBy && !requestedBy.readOnly ? requestedBy.name : undefined,email:requesterEmail && !requesterEmail.readOnly ? requesterEmail.name : undefined,source:ticketSource && !ticketSource.readOnly ? ticketSource.name : undefined};
     const solutionComment = optionalDisplay(['Solution Comment ID','SolutionCommentId'], ['text']);
     this.solutionSchema = resolutionSummary && !resolutionSummary.readOnly && solutionComment && !solutionComment.readOnly ? {path:listPath,summary:resolutionSummary.name,comment:solutionComment.name} : undefined;
     this.creationFields = [
-      { key: 'category' as const, label: 'Issue category', column: category },
-      { key: 'subcategory' as const, label: 'Issue subcategory', column: subcategory },
-      { key: 'issueType' as const, label: 'Issue Type', column: issueType },
+      { key: 'category' as const, label: 'Ticket Category', column: category },
+      { key: 'subcategory' as const, label: 'Ticket Subcategory', column: subcategory },
+      { key: 'issueType' as const, label: 'Ticket Issue Type', column: issueType },
       { key: 'ticketType' as const, label: 'Ticket Type', column: ticketType },
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = ["AuthorLookupId", ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = ["AuthorLookupId", ...(requesterName ? [requesterName.name] : []), ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -468,7 +519,7 @@ export class GraphTicketService implements ITicketDataSource {
         IssueType: issueType ? text(values[issueType.name]) : undefined,
         Department: department ? text(values[department.name]) : undefined,
         CreatedBy: users.has(Number(values.AuthorLookupId)) ? {...users.get(Number(values.AuthorLookupId)), AadId:item.createdBy?.user?.id} : (item.createdBy?.user && (item.createdBy.user.id || item.createdBy.user.displayName) ? { Title: item.createdBy.user.displayName, AadId: item.createdBy.user.id, Email: item.createdBy.user.email } : undefined),
-        Requester: (requestedBy && users.get(Number(values[`${requestedBy.name}LookupId`]))) || (requesterEmail && text(values[requesterEmail.name]) ? {Email:text(values[requesterEmail.name]),Title:text(values[requesterEmail.name])} : undefined) || users.get(Number(values.AuthorLookupId)) || (item.createdBy?.user ? {Title:item.createdBy.user.displayName,Email:item.createdBy.user.email,AadId:item.createdBy.user.id} : undefined),
+        Requester: (requestedBy && users.get(Number(values[`${requestedBy.name}LookupId`]))) || (requesterEmail && text(values[requesterEmail.name]) ? {Email:text(values[requesterEmail.name]),Title:requesterName ? text(values[requesterName.name]) || text(values[requesterEmail.name]) : text(values[requesterEmail.name])} : undefined) || users.get(Number(values.AuthorLookupId)) || (item.createdBy?.user ? {Title:item.createdBy.user.displayName,Email:item.createdBy.user.email,AadId:item.createdBy.user.id} : undefined),
         TicketSource: ticketSource ? text(values[ticketSource.name]) || undefined : undefined,
         RequesterEmail: requesterEmail ? text(values[requesterEmail.name]) || undefined : undefined,
         StartedAt: started ? text(values[started.name]) || undefined : undefined,
