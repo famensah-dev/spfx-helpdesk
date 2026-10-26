@@ -10,7 +10,7 @@ const rules=load('src/webparts/helpdeskSystem/services/appRoleRules.ts');
 const empty=new Proxy({},{get:()=>()=>null});
 const {AdministrationPage}=load('src/webparts/helpdeskSystem/pages/AdministrationPage.tsx',{
   '../components/HelpdeskSettingsHub':hub,'../components/HelpdeskSystem.module.scss':style,'../services/appRoleRules':rules,
-  './EmailSettingsPage':empty,'./SupportUnitsPage':empty,'../components/AutoAssignmentSetting':empty,'../components/WorkspaceSetupPanel':empty,
+  '../components/TeamAssignmentMethods':empty,'./EmailSettingsPage':empty,'./SupportUnitsPage':empty,'../components/AutoAssignmentSetting':empty,'../components/WorkspaceSetupPanel':empty,
   './DepartmentMembersPage':empty,'./SlaPrioritiesPage':empty,'../components/TicketSchemaWorkspace':empty,
   '../components/AdminColumnForm':empty,'../components/SearchableSelect':empty,'../components/cancelButtonStyles':empty,'./FaqPage':empty
 });
@@ -18,6 +18,7 @@ const render=service=>renderToStaticMarkup(React.createElement(AdministrationPag
 const admin={access:{admin:true,superAdmin:false},roleRules:{actions:[]},supportUnits:{}};
 let html=render(admin);
 assert(html.includes('Helpdesk Settings') && html.includes('Support teams') && html.includes('Auto Assignment'));
+assert(html.includes('Assignment Method'),'Team methods must be available directly in Helpdesk Settings');
 assert(!html.includes('Ticket list schema') && !html.includes('Users &amp; Roles') && !html.includes('SLA &amp; Priorities'),'Super Admin and disabled features must not leak into the hub');
 html=render({...admin,roleRules:{actions:['classifications','sla','manageFaqs']}});
 assert(html.includes('Categories') && html.includes('Subcategories') && html.includes('Issue Types') && html.includes('SLA &amp; Priorities') && html.includes('Knowledge Base'));

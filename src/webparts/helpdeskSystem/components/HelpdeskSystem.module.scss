@@ -1055,7 +1055,7 @@
   [data-tone='slate'] { --setting-ink: #61728b; --setting-bg: #edf0f5; }
   section { background: var(--hd-surface); border: 1px solid #e4ebf4; border-radius: 7px; overflow: hidden; }
   h3 { display: flex; align-items: center; gap: 14px; margin: 0; padding: 8px 16px; border-bottom: 1px solid #edf1f7; font-size: 14px; font-weight: 500; color: #213a5b; }
-  button { display: flex; width: 100%; align-items: center; gap: 14px; padding: 7px 16px; border: 0; border-bottom: 1px solid #edf1f7; color: #293d58; background: transparent; text-align: left; font: inherit; cursor: pointer;
+  > section > button { display: flex; width: 100%; align-items: center; gap: 14px; padding: 7px 16px; border: 0; border-bottom: 1px solid #edf1f7; color: #293d58; background: transparent; text-align: left; font: inherit; cursor: pointer;
     &:last-child { border-bottom: 0; } &:hover { background: #f8fafd; } &:focus-visible { outline: 2px solid #597eaf; outline-offset: -2px; }
     > span { flex: 1; min-width: 0; font-size: 14px; font-weight: 400; }
     > i:last-child { color: #8799b0; font-size: 14px; }
@@ -1199,6 +1199,7 @@
   .teamMemberName { display: inline-flex; align-items: center; gap: 9px; }
   .teamStatus { display: inline-block; border-radius: 999px; padding: 3px 8px; background: #edf0f5; color: #61728b; font-size: 11px; white-space: nowrap; }
   .teamStatus[data-active='true'] { background: #e5f5ed; color: #187747; }
+  .teamStatus[data-role='lead'] { background: #e8f0fc; color: #244a78; }
   header .teamStatus { margin-top: 6px; }
   .teamMembersEmpty { padding: 20px 0; text-align: center; }
   .teamMembersEmpty p { margin-top: 0; }
@@ -1208,6 +1209,24 @@
 
 .teamsWorkspace .teamCategorySummary { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; padding: 12px 0 0; color: #61728b; font-size: 12px; }
 .teamsWorkspace .teamCategorySummary .ms-Button { flex-shrink: 0; }
+.teamsWorkspace :global(.teams-heading-search) { display: flex; align-items: center; flex-wrap: wrap; gap: 20px; }
+.teamsWorkspace :global(.teams-heading-search) > :global(.ms-SearchBox) { width: 240px; max-width: 100%; }
+.teamsWorkspace :global(.teams-member-category-grid) { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr); gap: 20px; align-items: start; }
+.teamsWorkspace :global(.teams-member-category-grid) > section { min-width: 0; }
+.teamsWorkspace :global(.teams-categories) { border-left: 1px solid var(--hd-line); padding-left: 20px; }
+.teamsWorkspace :global(.teams-category-checklist) { display: grid; gap: 12px; margin-bottom: 20px; }
+.teamsWorkspace .teamsSidebar nav button { font-weight: 500; }
+.teamsWorkspace .teamDetailsFields { grid-template-columns: minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) auto; }
+.teamsWorkspace :global(.team-active-choice) { display: inline-flex; align-items: center; gap: 8px; border: 1px solid #d6e1ee; border-radius: 18px; padding: 6px 10px; margin-bottom: 1px; font-size: 13px; cursor: pointer; }
+.teamsWorkspace :global(.team-active-choice) input { appearance: none; width: 16px; height: 16px; border: 1px solid #8799b0; border-radius: 50%; margin: 0; background: #fff; }
+.teamsWorkspace :global(.team-active-choice) input:checked { border-color: #2855b6; background: #2855b6; box-shadow: inset 0 0 0 3px #fff; }
+.teamsWorkspace :global(.team-active-choice) input:focus-visible { outline: 2px solid #2855b6; outline-offset: 3px; }
+.teamsWorkspace :global(.team-active-choice):has(input:disabled) { opacity: .6; cursor: default; }
+.teamsWorkspace :global(.teams-page-alerts) { margin-inline: calc(-1 * var(--page-inset)); }
+.teamsWorkspace :global(.teams-page-alerts):empty { display: none; }
+.teamsWorkspace :global(.teams-page-alerts) > :global(.ms-MessageBar) { width: 100%; box-sizing: border-box; }
+@media (max-width: 850px) { .teamsWorkspace .teamDetailsFields { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .teamsWorkspace :global(.teams-member-category-grid) { grid-template-columns: 1fr; } .teamsWorkspace :global(.teams-categories) { border-left: 0; border-top: 1px solid var(--hd-line); padding-left: 0; } }
 
 .settingsBreadcrumb { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .settingsBreadcrumb > span { color: #8799b0; }
@@ -1216,6 +1235,14 @@
 .settingsToggleControl { display: flex; align-items: center; gap: 4px; }
 .settingsToggleControl :global(.ms-Toggle) { margin: 0; }
 .settingsToggleControl :global(.ms-Toggle-stateText) { display: none; }
+.settingsToggleControl :global(.ms-Toggle-innerContainer) { display: flex; align-items: center; }
+.settingsToggleControl :global(.ms-Toggle-pill) { margin: 0; }
+.helpdeskSettingsGroups .settingsInlineControl[data-setting='teamMethods'] { flex-wrap: wrap; }
+.helpdeskSettingsGroups :global(.settings-team-methods) { flex-basis: 100%; min-width: 0; font-size: 12px; }
+.helpdeskSettingsGroups :global(.settings-team-methods) .ticketPriorityChoices { margin: 0; }
+.helpdeskSettingsGroups :global(.settings-team-methods) summary { cursor: pointer; padding: 5px 0; color: #1b385c; }
+.helpdeskSettingsGroups :global(.settings-team-method) { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--hd-line); }
+.helpdeskSettingsGroups :global(.settings-team-method) > span { font-weight: 500; }
 
 .settingsBreadcrumb { column-gap: 10px; row-gap: 4px; }
 .settingsBreadcrumb > .toolbarTitle { margin: 0; font-size: 14px; font-weight: 500; line-height: 28px; }

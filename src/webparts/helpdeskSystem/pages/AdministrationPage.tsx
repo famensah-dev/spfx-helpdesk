@@ -1,3 +1,4 @@
+import { TeamAssignmentMethods } from '../components/TeamAssignmentMethods';
 import { EmailSettingsPage } from './EmailSettingsPage';
 import type { AdminSection } from '../utils/appRoutes';
 import { HelpdeskSettingsHub, type IHelpdeskSettingLink } from '../components/HelpdeskSettingsHub';
@@ -76,10 +77,10 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   };
   const hubLinks:IHelpdeskSettingLink[]=availableTabs.map(tab=>({key:tab.key,title:tab.text,...settingDescriptions[tab.key]}));
   if(props.service.notifications?.canManage)hubLinks.push({key:'email',title:'Email & Notifications',description:'Configure email templates, recipients and ticket notifications.',icon:'Mail',group:'Automation'});
-  if(props.service.supportUnits)hubLinks.push({key:'assignment',title:'Auto Assignment',description:'Enable category-based assignment through support teams.',icon:'Flow',group:'Automation'});
+  if(props.service.supportUnits)hubLinks.push({key:'assignment',title:'Auto Assignment',description:'Enable category-based assignment through support teams.',icon:'Flow',group:'Automation'},{key:'teamMethods',title:'Assignment Method',description:'Round robin or team lead assignment for each support team.',icon:'People',group:'Automation'});
   if(props.service.roleManagement && props.onUsersAndRoles)hubLinks.push({key:'usersRoles',title:'Users & Roles',description:'Manage app access and role permissions. Super Admin only.',icon:'Permissions',group:'People & Teams'});
   if(page!=='home' && !hubLinks.some(link=>link.key===page))return <MessageBar messageBarType={MessageBarType.error}>You do not have access to this settings page.</MessageBar>;
-  if(page==='home')return <section className={styles.secondaryPage}><HelpdeskSettingsHub links={hubLinks} onOpen={key=>{if(key==='usersRoles')props.onUsersAndRoles?.();else setPage(key as typeof page);}} /></section>;
+  if(page==='home')return <section className={styles.secondaryPage}><HelpdeskSettingsHub links={hubLinks} controls={props.service.supportUnits ? {assignment:<AutoAssignmentSetting service={props.service} compact />,teamMethods:<TeamAssignmentMethods service={props.service} />} : undefined} onOpen={key=>{if(key==='usersRoles')props.onUsersAndRoles?.();else setPage(key as typeof page);}} /></section>;
   const modal = {isBlocking: true, styles: {main: {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760, borderRadius: 6, selectors: {'@media (min-width: 480px)': {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760}}}}};
   return <section className={styles.secondaryPage}>
     <nav aria-label="Breadcrumb" className={[styles.administrationHeader,styles.settingsBreadcrumb].join(' ')}><DefaultButton text="Helpdesk Settings" styles={{root:{minWidth:0,height:28,padding:0,margin:0,border:0,background:"transparent"},rootHovered:{background:"transparent"},label:{fontSize:14,fontWeight:400,margin:0}}} disabled={busy} onClick={()=>setPage('home')} /><span aria-hidden="true">/</span><h2 className={styles.toolbarTitle}>{hubLinks.find(link=>link.key===page)?.title || 'Helpdesk Settings'}</h2></nav>
