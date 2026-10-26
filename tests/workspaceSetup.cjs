@@ -66,11 +66,11 @@ const {WorkspaceSetupService, columnConflict} = load('src/webparts/helpdeskSyste
   assert(columns.get(ticket.id).some(value=>value.name==='SolutionCommentId'));
   assert(columnConflict({name:'ResolutionSummary',text:{}},{name:'ResolutionSummary',text:{allowMultipleLines:true}},{}));
   const status=columns.get(ticket.id).find(value=>value.name==='Status');
-  assert(status.choice.choices.includes('Waiting on Third Party'));
+  assert(status.choice.choices.includes('Pending'));
   status.choice.choices.push('Legacy');
-  status.choice.choices=status.choice.choices.filter(value=>value!=='Assigned');
+  status.choice.choices=status.choice.choices.filter(value=>value!=='Pending');
   await setup.inspect(); await setup.run(()=>{});
-  assert(status.choice.choices.includes('Legacy') && status.choice.choices.includes('Assigned'));
+  assert(status.choice.choices.includes('Legacy') && status.choice.choices.includes('Pending'));
   assert(columnConflict({name:'Category',lookup:{listId:'wrong'}},{name:'Category',lookup:{target:'categories'}},{categories:cats.id}));
   const missing = new WorkspaceSetupService(graph,{siteUrl:'https://example.sharepoint.com/sites/test',listName:'Tickets',listId:'missing'},async()=>{});
   await assert.rejects(missing.inspect(),/Configured/);

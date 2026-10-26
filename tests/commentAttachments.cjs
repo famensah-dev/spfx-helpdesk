@@ -3,7 +3,7 @@ function load(path,deps={}){const module={exports:{}};new Function('require','mo
 const validation=load('src/webparts/helpdeskSystem/utils/ticketAttachments.ts');
 let failedUpload=true,enabled=true,uploadCalls=0,author=7,lostResponse=false;
 class AttachmentStore{async ensureEnabled(){if(!enabled)throw Error('disabled');}async list(){return[{name:'report.pdf',url:'https://example.sharepoint.com/report.pdf'}];}async upload(){uploadCalls++;if(failedUpload)throw Error('interrupted');}}
-const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./SharePointAttachments':{SharePointAttachments:AttachmentStore},'../../utils/ticketAttachments':validation,'./GraphClassificationService':{},'./GraphClient':{}});
+const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'../../utils/ticketStatuses':load('src/webparts/helpdeskSystem/utils/ticketStatuses.ts'),'../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./SharePointAttachments':{SharePointAttachments:AttachmentStore},'../../utils/ticketAttachments':validation,'./GraphClassificationService':{},'./GraphClient':{}});
 (async()=>{
   const items=[];let posts=0;
   const graph={getAll:async()=>items,get:async()=>items[0],post:async(_path,{fields})=>{posts++;const item={id:String(posts),fields:{...fields,AuthorLookupId:'7',Attachments:true},createdDateTime:'2026-10-19T10:00:00Z',createdBy:{user:{displayName:'Agent'}}};items.push(item);if(lostResponse){lostResponse=false;throw Error('Save result unknown');}return item;}};

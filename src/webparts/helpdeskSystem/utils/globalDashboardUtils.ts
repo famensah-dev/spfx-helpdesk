@@ -9,7 +9,7 @@ export function getGlobalSummary(tickets: ITicket[], now: Date = new Date()): IG
     const unresolved = !isResolved(ticket.Status);
     result.total++;
     if (unresolved) result.open++;
-    if (normalizeStatus(ticket.Status) === 'On Hold') result.pending++;
+    if (normalizeStatus(ticket.Status) === 'Pending') result.pending++;
     if (ticket.Status === 'Closed') result.closed++;
     if (ticket.Escalated || ticket.Status === 'Escalated') result.escalated++;
     if (unresolved && ticket.DueDate && new Date(ticket.DueDate).getTime() < now.getTime()) result.overdue++;

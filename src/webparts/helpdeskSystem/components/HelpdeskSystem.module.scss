@@ -86,7 +86,7 @@
 .statusPill { display: inline-flex; align-items: center; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; line-height: 1.5; white-space: nowrap; background: #edf0f5; color: #536176;
   &[data-status='New'] { background: #e7efff; color: #2855a4; }
   &[data-status='Assigned'] { background: #ede9fc; color: #6850a5; }
-  &[data-status='Pending'] { background: #fff3d6; color: #866210; }
+  &[data-status='Pending'] { background: #ffe69a; color: #8a5700; }
   &[data-status='Completed'] { background: #e4f5ed; color: #237653; }
   &[data-status='Closed'] { background: #ebedf2; color: #536176; }
   &[data-status='Escalated'] { background: #fde8eb; color: #a83750; }
@@ -110,7 +110,7 @@
 .ticketToolbar .ticketControls { order: 1; margin-left: 0; }
 .ticketActions { gap: 0; > button { border: 0; background: transparent; font-size: 12px; padding: 0 8px; min-width: 0; } }
 .ticketControls { margin-left: auto; select { border: 1px solid var(--hd-line); border-radius: 3px; padding: 6px; background: white; font-size: 12px; } :global(.ms-SearchBox) { width: 230px; max-width: 100%; } }
-.ticketCounts { gap: 2px; button { border: 0; background: transparent; padding: 7px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; display: flex; gap: 7px; &[data-active='true'] { background: #eef2f3; box-shadow: inset 0 -2px #1b385c; } } strong { color: #279bac; &[data-status='Open'] { color: #008959; } &[data-status='Closed'] { color: #337fe5; } &[data-status='Pending'] { color: #ad7d00; } &[data-status='Escalated'] { color: #c64d75; } } }
+.ticketCounts { gap: 2px; button { border: 0; background: transparent; padding: 7px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; display: flex; gap: 7px; &[data-active='true'] { background: #eef2f3; box-shadow: inset 0 -2px #1b385c; } } strong { color: #279bac; &[data-status='Open'] { color: #008959; } &[data-status='Closed'] { color: #337fe5; } &[data-status='Pending'] { color: #b77900; } &[data-status='Escalated'] { color: #c64d75; } } }
 @media (max-width: 900px) { .ticketControls { margin-left: 0; width: 100%; } }
 
 // Soft surfaces and royal blue controls across dashboard and ticket views.
@@ -653,7 +653,7 @@
   strong { font-weight: 600; }
 }
 .columnPanelHint { color: #657187; font-size: 11px; line-height: 1.5; margin: 8px 4px; }
-.statusPill[data-status='In Progress'] { background: #fff0bb; color: #815900; }
+.statusPill[data-status='In Progress'] { background: #ede9fc; color: #6850a5; }
 .statusPill[data-status='On Hold'] { background: #edf0f3; color: #596371; }
 .statusPill[data-status='Waiting on Third Party'] { background: #fff4d6; color: #946200; }
 .statusPill[data-status='Resolved'] { background: #e0f5e9; color: #13794e; }
@@ -661,7 +661,7 @@
 .ticketCounts { flex-wrap: wrap;
   strong[data-status='New'] { color: #1686b1; }
   strong[data-status='Assigned'] { color: #8054c7; }
-  strong[data-status='In Progress'] { color: #996a00; }
+  strong[data-status='In Progress'] { color: #8054c7; }
   strong[data-status='On Hold'] { color: #596371; }
   strong[data-status='Resolved'] { color: #159663; }
   strong[data-status='Closed'] { color: #c43f59; }
@@ -1307,3 +1307,21 @@
   :global(.email-history) .ticketTable td { font-size: 12px; line-height: 1.5; }
 }
 @media (max-width: 900px) { .helpdeskSystemShell :global(.deskpilot-email-settings .email-template-grid) { grid-template-columns: 1fr; } }
+.notificationPanel {
+  :global(.notification-heading) { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0; padding: 18px 20px 0; flex-shrink: 0; }
+  :global(.notification-heading) h2 { margin: 0; padding: 0; color: #172536; font-size: 20px; font-weight: 600; line-height: 28px; }
+  :global(.notification-intro) { margin: 4px 0 10px; color: #61728b; font-size: 12px; line-height: 1.5; }
+  :global(.notification-actions) { display: flex; justify-content: space-between; align-items: center; padding: 0 0 10px; border-bottom: 1px solid #e4ebf4; }
+  :global(.notification-actions) > :global(.ms-Button) { min-height: 26px; height: 26px; padding: 0; }
+  :global(.notification-refresh-loading .ms-Icon) { animation: notificationRefreshSpin 1s linear infinite; }
+  :global(.notification-item) { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 16px 6px; border: 0; border-bottom: 1px solid #e4ebf4; background: #fff; color: #172536; text-align: left; font: inherit; cursor: pointer; }
+  :global(.notification-item):focus-visible { outline: 2px solid #2855b6; outline-offset: -2px; }
+  :global(.notification-copy) { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  :global(.notification-subject), :global(.notification-detail) { font-size: 13px; line-height: 1.5; font-weight: 400; color: #172536; }
+  :global(.notification-item[data-unread='true'] .notification-subject), :global(.notification-item[data-unread='true'] .notification-detail) { font-weight: 600; }
+  :global(.notification-copy) time { display: flex; align-items: center; gap: 6px; color: #61728b; font-size: 11px; line-height: 1.5; margin-top: 2px; }
+  :global(.notification-event-icon) { display: inline-flex; justify-content: center; align-items: center; width: 30px; height: 30px; flex: 0 0 30px; border-radius: 50%; color: #2855b6; background: #edf4ff; font-size: 14px; }
+  :global(.notification-event-icon[data-event='resolved']) { color: #159663; background: #e5f5ed; }
+  :global(.notification-unread-dot) { width: 8px; height: 8px; flex: 0 0 8px; border-radius: 50%; background: #2878ef; margin-top: 5px; }
+}
+@keyframes notificationRefreshSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

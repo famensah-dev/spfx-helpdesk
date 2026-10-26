@@ -1,3 +1,4 @@
+import { normalizeStatus, ticketStatuses } from '../../utils/ticketStatuses';
 import type { IChangeSnapshot } from '../../interfaces/INotifications';
 import { encodeComment, decodeComment } from '../../utils/commentContent';
 import { loadClassification } from './GraphClassificationService';
@@ -107,8 +108,9 @@ export class GraphTicketService implements ITicketDataSource {
     const workflow = this.updateSchema!;
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
     if (!input.title.trim() || input.title.trim().length > 255) throw new Error('Enter an issue title of 1–255 characters.');
+    if(!ticketStatuses.includes(input.status))throw new Error('Select one of the five configured ticket statuses.');
     if (!schema.priorities.includes(input.priority)) throw new Error('This priority is not configured in the list.');
-    const status = workflow.choices.includes(input.status) ? input.status : input.status === 'On Hold' && workflow.choices.includes('Pending') ? 'Pending' : input.status === 'Resolved' && workflow.choices.includes('Completed') ? 'Completed' : undefined;
+    const status = workflow.choices.includes(input.status) ? input.status : input.status === 'Pending' && workflow.choices.includes('On Hold') ? 'On Hold' : input.status === 'Resolved' && workflow.choices.includes('Completed') ? 'Completed' : undefined;
     if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
@@ -299,16 +301,16 @@ export class GraphTicketService implements ITicketDataSource {
     } else if (action.kind === 'assign') {
       if (action.userId !== null && (!Number.isSafeInteger(action.userId) || action.userId <= 0)) throw new Error('Select a valid SharePoint person.');
       fields[`${schema.assigned}LookupId`] = action.userId === null ? null : String(action.userId);
-      const status = action.userId === null ? 'New' : 'Assigned';
-      if (!schema.choices.includes(status)) throw new Error(`Add ${status} to the list’s Status choices before assigning tickets.`);
-      fields[schema.status] = status;
+
+
+
     } else if (action.kind === 'priority') {
       if (!this.editSchema) await this.getTickets();
       if (!this.editSchema!.priorities.includes(action.priority)) throw new Error('This priority is not configured in the list.');
       fields[this.editSchema!.priority] = action.priority;
     } else {
-      if (!statuses.includes(action.status)) throw new Error('Select a valid ticket status.');
-      const value = schema.choices.includes(action.status) ? action.status : action.status === 'On Hold' && schema.choices.includes('Pending') ? 'Pending' : action.status === 'Resolved' && schema.choices.includes('Completed') ? 'Completed' : undefined;
+      if (!ticketStatuses.includes(action.status)) throw new Error('Select a valid ticket status.');
+      const value = schema.choices.includes(action.status) ? action.status : action.status === 'Pending' && schema.choices.includes('On Hold') ? 'On Hold' : action.status === 'Resolved' && schema.choices.includes('Completed') ? 'Completed' : undefined;
       if (!value) throw new Error(`Add ${action.status} to the list’s Status choices before using this action.`);
       fields[schema.status] = value;
       // Resolution timestamps are recorded below only for actual status transitions.
@@ -326,7 +328,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
     const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
-    return {ticketSources:this.requesterFields?.sourceChoices || ['DeskPilot','Email','Forms','Phone / Call-in','Other'],classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('Assigned')), fields:this.creationFields.map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
+    return {ticketSources:this.requesterFields?.sourceChoices || ['DeskPilot','Email','Forms','Phone / Call-in','Other'],classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('New')), fields:this.creationFields.map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
   }
   public async uploadAttachments(id: number, files: File[], progress?: (message:string) => void): Promise<void> {
     if (!this.context) await this.getTickets();
@@ -392,9 +394,10 @@ export class GraphTicketService implements ITicketDataSource {
     }
     if (input.assignedToId != null) {
       if (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0) throw new Error('Select a valid SharePoint person.');
-      if (!this.updateSchema?.choices.includes('Assigned')) throw new Error('Add Assigned to the Status choices before assigning a new ticket.');
+
+      if(!this.updateSchema)throw new Error('Initialize workspace to configure ticket assignment.');
       fields[`${this.updateSchema.assigned}LookupId`] = String(input.assignedToId);
-      fields[schema.status] = 'Assigned';
+
     }
     if (input.attachments?.length) await this.attachments().ensureEnabled(this.context!.listId);
     const created = await this.graph.post<{ id: string }>(`${schema.path}/items`, { fields });
@@ -503,7 +506,7 @@ export class GraphTicketService implements ITicketDataSource {
     const tickets: ITicket[] = items.map(item => {
       const values = item.fields;
       const rawState = text(values[status.name]);
-      const state = (rawState === 'Pending' ? 'On Hold' : rawState === 'Completed' ? 'Resolved' : rawState) as TicketStatus;
+      const state = normalizeStatus(rawState);
       const urgency = text(values[priority.name]) as TicketPriority;
       if (statuses.indexOf(state) < 0 || !priority.choice!.choices.includes(urgency)) throw new Error(`Ticket ${item.id} has an unsupported status or priority.`);
       const userId = Number(values[`${assigned.name}LookupId`]);
@@ -527,7 +530,7 @@ export class GraphTicketService implements ITicketDataSource {
         ResolutionSummary: resolutionSummary ? text(values[resolutionSummary.name]) : undefined,
         SolutionCommentId: solutionComment ? text(values[solutionComment.name]) : undefined,
         DueDate: due ? text(values[due.name]) || undefined : undefined,
-        Escalated: escalated ? values[escalated.name] === true : undefined,
+        Escalated: rawState==='Escalated' || (escalated ? values[escalated.name] === true : false),
         FirstRespondedAt: response ? text(values[response.name]) || null : null, HasResponseTracking: Boolean(response), HasResolutionTracking: Boolean(resolved),
         ResolvedAt: resolved ? text(values[resolved.name]) || null : null };
     });

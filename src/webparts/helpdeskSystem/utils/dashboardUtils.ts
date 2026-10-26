@@ -73,7 +73,7 @@ export function getDashboardStats(tickets: ITicket[]): IDashboardStats {
 
 export function getStatusChartData(tickets: ITicket[]): IChartDataset {
   tickets = tickets.filter(ticket => !ticket.Archived);
-  const displayedStatuses = statusOrder.concat((['Escalated'] as TicketStatus[]).filter(status => tickets.some(ticket => ticket.Status === status)));
+  const displayedStatuses = statusOrder;
   const counts = displayedStatuses.reduce<Record<string, number>>((result, status) => {
     result[status] = tickets.filter((ticket) => normalizeStatus(ticket.Status) === status).length;
     return result;

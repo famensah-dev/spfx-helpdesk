@@ -66,7 +66,7 @@ export class GraphNotificationService {
   }
   public async test(settings:IEmailSettings,event:NotificationEvent):Promise<void>{
     this.requireAdmin();validateEmailSettings(settings);if(!isEmail(this.actor.email))throw new Error('Your email address is unavailable.');
-    const ticket:ITicket={Id:123,Title:'Example support request',Status:event==='closed'?'Closed':event==='resolved'?'Resolved':'Assigned',Priority:'Medium',Created:new Date().toISOString(),Modified:new Date().toISOString(),Requester:{Title:'Example requester',Email:this.actor.email},RequesterEmail:this.actor.email,AssignedTo:{Id:1,Title:'Example agent',Email:this.actor.email},AssignedUnit:'Example team',ResolutionSummary:'The issue has been fixed.'};
+    const ticket:ITicket={Id:123,Title:'Example support request',Status:event==='closed'?'Closed':event==='resolved'?'Resolved':'New',Priority:'Medium',Created:new Date().toISOString(),Modified:new Date().toISOString(),Requester:{Title:'Example requester',Email:this.actor.email},RequesterEmail:this.actor.email,AssignedTo:{Id:1,Title:'Example agent',Email:this.actor.email},AssignedUnit:'Example team',ResolutionSummary:'The issue has been fixed.'};
     const rendered=renderEmail(settings.rules[event],ticketEmailValues(ticket,settings.appUrl,this.workspace,this.actor.name,event,'team@example.com'));
     await this.send(settings,'[TEST] '+rendered.subject,rendered.html,[this.actor.email],[]);
   }

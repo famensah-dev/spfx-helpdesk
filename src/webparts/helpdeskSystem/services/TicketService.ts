@@ -1,3 +1,4 @@
+import { normalizeStatus, ticketStatuses } from '../utils/ticketStatuses';
 import { spfi, SPFx, type SPFI } from '@pnp/sp';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import '@pnp/sp/webs';
@@ -43,9 +44,10 @@ export class TicketService {
     const query = list.items.select(...selected).expand(assigned).orderBy('Id').top(1000);
     for await (const batch of query) {
       for (const item of batch) {
-        if (item[status] === 'Pending') item[status] = 'On Hold';
-        if (item[status] === 'Completed') item[status] = 'Resolved';
-        if (['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed', 'Escalated'].indexOf(item[status]) < 0 ||
+        const wasEscalated=item[status]==='Escalated';
+        item[status]=normalizeStatus(item[status]);
+
+        if (ticketStatuses.indexOf(item[status]) < 0 ||
           ['Low', 'Medium', 'High', 'Critical'].indexOf(item[priority]) < 0) {
           throw new Error(`Ticket ${item.Id} has an unsupported status or priority. Review the list choice values.`);
         }
@@ -56,7 +58,7 @@ export class TicketService {
           AssignedTo: person ? { Id: person.Id, Title: person.Title, Email: person.EMail } : undefined,
           Category: category ? item[category] : undefined,
           DueDate: dueDate ? item[dueDate] : undefined,
-          Escalated: escalated ? Boolean(item[escalated]) : undefined,
+          Escalated: wasEscalated || (escalated ? Boolean(item[escalated]) : false),
           ResolvedAt: resolved ? item[resolved] || null : null
         });
       }

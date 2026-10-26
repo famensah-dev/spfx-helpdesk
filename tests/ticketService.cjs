@@ -1,3 +1,4 @@
+const statusesModule={exports:{}};
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const ts = require('typescript');
@@ -29,8 +30,9 @@ const list = {items: query, fields: {
 const sp = {using() {return this;}, web: {lists: {getByTitle: name => {assert.equal(name, 'Tickets'); return list;}}}};
 const loaded = {exports: {}};
 const code = ts.transpileModule(fs.readFileSync('src/webparts/helpdeskSystem/services/TicketService.ts', 'utf8'), {compilerOptions: {module: ts.ModuleKind.CommonJS}}).outputText;
-new Function('exports', 'require', 'module', code)(loaded.exports, name => name === '@pnp/sp' ? {spfi: () => sp, SPFx: () => ({})} : {}, loaded);
+new Function('exports', 'require', 'module', code)(loaded.exports, name => name === '../utils/ticketStatuses' ? statusesModule.exports : name === '@pnp/sp' ? {spfi: () => sp, SPFx: () => ({})} : {}, loaded);
 (async () => {
+  new Function('exports','require','module',ts.transpileModule(fs.readFileSync('src/webparts/helpdeskSystem/utils/ticketStatuses.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText)(statusesModule.exports,require,statusesModule);
   const service = new loaded.exports.TicketService({});
   const result = await service.getTickets();
   assert.equal(result.tickets.length, 2);

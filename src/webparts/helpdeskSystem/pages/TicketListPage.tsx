@@ -111,7 +111,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
     return (duration === 'all' || (created >= dateRange.start && created < dateRange.end)) && `${ticket.Id} ${ticket.Title}`.toLowerCase().includes(search.toLowerCase());
   });
 
-  const statusFilters = ['Total', ...ticketStatuses, ...(scoped.some(ticket => ticket.Status === 'Escalated') ? ['Escalated'] : [])];
+  const statusFilters = ['Total', ...ticketStatuses];
   const matching = scoped.filter(ticket => status === 'Total' || normalizeStatus(ticket.Status) === status);
   const pageCount = Math.max(1, Math.ceil(matching.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);

@@ -40,11 +40,11 @@ const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
   assert.equal(nextUnitMember(data.members.map(member=>({...member,available:false})),1,0),undefined);
   await service.routeTicket(1);await service.routeTicket(2);await service.routeTicket(3);
   assert.deepEqual(store.tickets.slice(0,3).map(value=>value.fields.AssignedToLookupId),['11','12','11']);
-  assert.equal(store.tickets[0].fields.AssignedUnitLookupId,'1');assert.equal(store.tickets[0].fields.Status,'Assigned');
+  assert.equal(store.tickets[0].fields.AssignedUnitLookupId,'1');assert.equal(store.tickets[0].fields.Status,'New');
   const before=writes;await service.routeTicket(1);assert.equal(writes,before,'Retries must preserve existing assignments');
   cursorConflict=true;await service.routeTicket(4);assert.equal(store.tickets[3].fields.AssignedToLookupId,'12','A cursor conflict must re-read and choose the next person');
   store.tickets[4].fields.CategoryLookupId='2';await service.routeTicket(5);
-  assert.equal(store.tickets[4].fields.AssignedUnitLookupId,'2');assert.equal(store.tickets[4].fields.AssignedToLookupId,'14');assert.equal(store.tickets[4].fields.Status,'Assigned');
+  assert.equal(store.tickets[4].fields.AssignedUnitLookupId,'2');assert.equal(store.tickets[4].fields.AssignedToLookupId,'14');assert.equal(store.tickets[4].fields.Status,'New');
   store.unitMembers.forEach(value=>value.fields.Available=false);await service.routeTicket(6);
   assert.equal(store.tickets[5].fields.AssignedUnitLookupId,'1');assert.equal(store.tickets[5].fields.AssignedToLookupId,undefined,'Unavailable unit must fall back to queue');
   store.unitMembers[0].fields.Available=true;await service.routeTicket(6);assert.equal(store.tickets[5].fields.AssignedToLookupId,'11','Admin can route a waiting ticket once somebody becomes available');
@@ -103,7 +103,7 @@ const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
   store.units.push(item(998,{RecordType:'Settings',Title:'Duplicate Settings',AutoAssignEnabled:true}));assert.equal((await service.load()).autoAssignEnabled,false);await assert.rejects(service.setAutoAssignment(true),/Duplicate/);store.units.pop();
   lists.splice(lists.findIndex(list=>list.id==='unitMembers'),1);await assert.rejects(service.load(),/incomplete/);
   const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{
-    '../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./GraphClient':{},'./GraphClassificationService':{},'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}},
+    '../../utils/ticketStatuses':load('src/webparts/helpdeskSystem/utils/ticketStatuses.ts'),'../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./GraphClient':{},'./GraphClassificationService':{},'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}},
     './SharePointAttachments':{SharePointAttachments:class {async ensureEnabled(){}}}
   });
   let creations=0,routingFails=false;const events=[];

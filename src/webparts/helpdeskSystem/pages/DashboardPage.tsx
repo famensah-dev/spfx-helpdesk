@@ -101,12 +101,12 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
   const cards = [
     { label: 'Total Tickets', value: visible.length, previous: previous?.length, icon: 'Page', color: '#2d88ff' },
     { label: 'Resolved', value: countStatus(visible, 'Resolved'), previous: previous ? countStatus(previous, 'Resolved') : null, icon: 'Completed', color: '#28b47d' },
-    { label: 'In Progress', value: countStatus(visible, 'In Progress'), previous: previous ? countStatus(previous, 'In Progress') : null, icon: 'Clock', color: '#ff941d' },
-    { label: 'On Hold', value: countStatus(visible, 'On Hold'), previous: previous ? countStatus(previous, 'On Hold') : null, icon: 'Pause', color: '#87909d' },
+    { label: 'In Progress', value: countStatus(visible, 'In Progress'), previous: previous ? countStatus(previous, 'In Progress') : null, icon: 'Clock', color: '#8054c7' },
+    { label: 'Pending', value: countStatus(visible, 'Pending'), previous: previous ? countStatus(previous, 'Pending') : null, icon: 'Pause', color: '#ffbf00' },
     { label: 'Overdue', value: hasDueDate ? summary.overdue : null, previous: hasDueDate ? previousSummary?.overdue : null, icon: 'Warning', color: '#ed4c60' },
     { label: 'Avg. Resolution (days)', value: average, previous: hasResolvedAt && previous ? averageResolutionDays(previous) : null, icon: 'Group', color: '#72829c' }
   ];
-  const displayedStatuses = [...ticketStatuses, ...(visible.some(ticket => ticket.Status === 'Escalated') ? ['Escalated'] : [])];
+  const displayedStatuses = ticketStatuses;
   const statusData = { labels: displayedStatuses, datasets: [{ data: displayedStatuses.map(status => countStatus(visible, status)), backgroundColor: displayedStatuses.map(status => statusColors[status]), borderWidth: 1, borderColor: '#ffffff' }] };
   const priorities = Array.from(new Set(['Low', 'Medium', 'High', 'Critical', ...tickets.map(ticket => ticket.Priority)]));
   const priorityData = { labels: priorities, datasets: [{ label: 'Tickets', data: priorities.map(priority => visible.filter(ticket => ticket.Priority === priority).length), backgroundColor: priorities.map(priority => priorityColors[priority] || '#87909d'), borderRadius: 0, maxBarThickness: 44 }] };
