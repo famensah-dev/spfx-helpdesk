@@ -2,6 +2,7 @@
   --hd-surface: #ffffff; --hd-canvas: #f5f5f9; --hd-ink: #252939; --hd-line: #e9eaf1;
   --hd-header: #101e32; --hd-blue: #219dcd; --hd-green: #008959; --hd-amber: #e8a500;
   --hd-closed: #337fe5; --hd-pink: #df5d85; --hd-overdue: #d9512b;
+  container: deskpilot / inline-size;
   width: 100%; min-width: 0; min-height: 100vh; background: var(--hd-canvas);
   font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: var(--hd-ink); line-height: 1.45;
   *, *::before, *::after { box-sizing: border-box; }
@@ -1334,11 +1335,13 @@
 
 // Small-screen overrides stay last so desktop workspace rules cannot undo them.
 .mobileTableHint { display: none; }
+.accountDesktopAvatar { display: contents; }
+.accountMobileInitials { display: none; }
 @media (max-width: 1023px) {
   .dashboardSummaryCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .dashboardAdvancedFilters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media (max-width: 767px) {
+@mixin compactDeskPilot {
   .helpdeskSystemShell {
     .appHeader { padding: 12px; gap: 10px; align-items: center; }
     .brand { flex: 1; min-width: 0; flex-wrap: wrap; gap: 4px 8px; }
@@ -1352,11 +1355,14 @@
       > button, > div { flex-shrink: 0; white-space: nowrap; }
     }
     .navigation { padding: 4px 8px; > button { min-height: 40px; } }
-    .mainContent { --page-inset: 12px; padding-inline: 12px; }
+    .mainContent { --page-inset: clamp(8px, 2.5vw, 16px); padding-inline: var(--page-inset); }
     .pageContent, .ticketListCard { min-width: 0; padding: 12px; gap: 12px; }
+    .pageContent.ticketPage { padding: 0; margin-inline: calc(6px - var(--page-inset)); }
+    .ticketPage > .ticketListCard { padding-inline: 10px; }
+    .ticketPage > .ticketTabs { margin-inline: -6px; padding-inline: 12px; }
     .pageHeading, .dashboardTopRow, .secondaryPageHeader { gap: 10px; }
     .pageHeading h2, .dashboardTitle, .detailToolbarTitle h2 { margin-right: 0; }
-    .ticketPage > .pageAlerts { margin: -12px -12px 0; --alert-inset: 12px; }
+    .ticketPage > .pageAlerts { margin: 0 -6px; --alert-inset: 12px; }
     .ticketToolbar { gap: 10px; min-width: 0; }
     .ticketToolbar .ticketControls { width: 100%; flex: 1 1 100%; min-width: 0; gap: 8px; }
     .ticketPage .ticketControls > :global(.ms-SearchBox) { flex: 1 1 100%; width: 100%; min-width: 0; order: -1; }
@@ -1368,12 +1374,41 @@
     .tableContainer > table, .dashboardRecentTable { min-width: 640px; }
     .ticketTable th, .ticketTable td { padding: 10px 8px; }
     .ticketTable th { white-space: nowrap; }
+    .ticketPage .tableContainer { width: 100%; }
+    .ticketPage .ticketTable { table-layout: auto; width: max-content; min-width: 100%; }
+    .ticketPage .ticketTable th, .ticketPage .ticketTable td {
+      min-width: 120px; overflow-wrap: normal; word-break: normal; vertical-align: middle;
+    }
+    .ticketPage .ticketTable .selectionCell { width: 40px; min-width: 40px; }
+    .ticketPage .ticketTable [data-column='ID'] { width: 72px; min-width: 72px; white-space: nowrap; }
+    .ticketPage .ticketTable [data-column='Title'] { width: 280px; min-width: 260px; max-width: 340px; }
+    .ticketPage .ticketTable [data-column='Description'] { width: 300px; min-width: 260px; max-width: 340px; }
+    .ticketPage .ticketTable .columnSortButton { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
+    .ticketPage .ticketTable .ticketSubjectLink { display: block; width: 100%; white-space: normal; overflow-wrap: break-word; word-break: normal; line-height: 1.5; }
     .mobileTableHint { display: block; margin: 0; font-size: 12px; color: #61728b; }
     .pagination, .userTableFooter { flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
     .pagination > span { margin-inline: 0; }
-    .dashboardSummaryCards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .dashboardSummaryCards { grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: clamp(8px, 2vw, 12px); }
     .dashboardSummaryCard { padding: 12px 10px; gap: 8px; }
     .dashboardChartsGrid, .dashboardTicketsRow, .chartGrid, .slaDashboardRow { grid-template-columns: minmax(0, 1fr); }
+    // Desktop's two-column trend span must not create an implicit second mobile column.
+    .dashboardTrendCard { grid-column: 1 / -1; }
+    .analyticsDashboard { padding: 0; width: 100%; }
+    .analyticsDashboard > .pageAlerts { margin: 0; --alert-inset: var(--page-inset); }
+    .dashboardTopRow { margin: 0; padding: clamp(10px, 2vw, 16px); }
+    .dashboardSummaryCard, .dashboardChartCard, .dashboardRecentCard { width: 100%; min-width: 0; max-width: 100%; }
+    .dashboardChartsGrid { gap: clamp(10px, 2vw, 16px); }
+    .dashboardChartCard { padding: clamp(12px, 2.5vw, 18px); }
+    .dashboardStatusChart { flex-wrap: wrap; }
+    .dashboardDonut { flex: 1 1 160px; }
+    .dashboardStatusLegend { flex: 1 1 140px; min-width: 0; }
+    .dashboardCardHeading, .dashboardTrendLegend { flex-wrap: wrap; }
+    .dashboardBarLabel { white-space: normal; text-overflow: clip; overflow: visible; overflow-wrap: break-word; word-break: normal; line-height: 1.4; }
+    .dashboardMetricLabel, .dashboardCardHeading h3, .ticketSubjectLink, .detailSubject, .commentContent { overflow-wrap: break-word; word-break: normal; }
+    .accountIdentity { gap: 0; }
+    .accountIdentity > span, :global(.account-name) { display: none; }
+    .accountDesktopAvatar { display: none; }
+    .accountMobileInitials { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 100%; }
     .dashboardTopFilters { width: 100%; min-width: 0; }
     .dashboardTopFilters > :global(.ms-Dropdown-container) { flex: 1 1 140px; min-width: 0; }
     .chartCanvas { height: 250px; }
@@ -1428,6 +1463,8 @@
     }
   }
 }
+@media (max-width: 767px) { @include compactDeskPilot; }
+@container deskpilot (max-width: 767px) { @include compactDeskPilot; }
 @media (max-width: 400px) {
   .helpdeskSystemShell .dashboardAdvancedFilters, .helpdeskSystemShell .filterGroup { grid-template-columns: minmax(0, 1fr); }
   .helpdeskSystemShell .dashboardSummaryCard { flex-wrap: wrap; }

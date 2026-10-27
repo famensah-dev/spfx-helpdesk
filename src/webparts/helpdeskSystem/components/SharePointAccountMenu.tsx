@@ -40,7 +40,8 @@ export function SharePointAccountMenu(props: { context: WebPartContext }): React
         { key: 'switch', text: 'Sign in with another account', iconProps: { iconName: 'AddFriend' }, href: switchUrl },
         { key: 'out', text: 'Sign out', iconProps: { iconName: 'SignOut' }, href: `${siteUrl}/_layouts/15/SignOut.aspx` }
       ] }}>
-      {photo ? <img className={styles.accountPhoto} src={photo} alt="" onError={() => setPhoto(undefined)} /> : <span aria-hidden="true">{initials}</span>}
+      <span className={styles.accountDesktopAvatar}>{photo ? <img className={styles.accountPhoto} src={photo} alt="" onError={() => setPhoto(undefined)} /> : <span aria-hidden="true">{initials}</span>}</span>
+      <span className={styles.accountMobileInitials} aria-hidden="true">{initials}</span>
     </DefaultButton>
   </div>;
 }
