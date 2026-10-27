@@ -55,6 +55,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     workspaceSettings,
     access,
     supportUnits: admin || superAdmin ? supportUnits : undefined,
+    getTeamCandidates: admin || superAdmin ? () => groupAccess.members() : undefined,
     administration: role.actions.includes('classifications') ? new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()) : undefined,
     sla: new GraphSlaService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()),
     getFaqs: faqs.getFaqs.bind(faqs), getFaqAccess: faqs.getAccess.bind(faqs),

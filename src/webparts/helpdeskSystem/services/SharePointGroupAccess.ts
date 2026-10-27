@@ -2,6 +2,7 @@ import { SPHttpClient } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { IRoleAssignment } from '../interfaces/IRoleManagement';
 import type { ISetupPlan } from '../interfaces/IWorkspaceSetup';
+import type { IOrganizationUser } from '../interfaces/ITicketDataSource';
 export const deskPilotGroups={agent:'DeskPilot Agents',admin:'DeskPilot Helpdesk Administrator'} as const;
 interface Group {Id:number;Title:string;Description?:string;}
 const pendingDescription='DeskPilot: Read permission initialization pending.';
@@ -36,6 +37,20 @@ export class SharePointGroupAccess {
       const group=groups.find(item=>item.Title.toLowerCase()===name.toLowerCase());
       return {resource:name,action:!group?'Create SharePoint group with Read permission only':group.Description===pendingDescription?'Complete Read permission initialization':'Reuse SharePoint group; preserve its current permissions'};
     });
+  }
+  /** Read existing role-group membership only; never expose the private access configuration. */
+  public async members():Promise<IOrganizationUser[]>{
+    const groups=await this.groups();
+    const users=new Map<number,IOrganizationUser>();
+    for(const group of groups){
+      const people=await this.collection<{Id:number;Title:string;Email:string;LoginName:string}>(this.web+`/sitegroups/getbyid(${group.Id})/users?$select=Id,Title,Email,LoginName&$top=5000`);
+      for(const person of people){
+        const login=person.LoginName?.split('|').pop()?.trim();
+        if(!login || !Number.isSafeInteger(person.Id) || person.Id<=0)continue;
+        users.set(person.Id,{id:'sp:'+person.Id,sharePointId:person.Id,displayName:person.Title||person.Email||login,email:person.Email||login,userPrincipalName:login});
+      }
+    }
+    return [...users.values()].sort((a,b)=>a.displayName.localeCompare(b.displayName));
   }
   public initialize():Promise<Group[]>{
     if(!this.prepared)this.prepared=this.prepare().catch(reason=>{this.prepared=undefined;throw reason;});

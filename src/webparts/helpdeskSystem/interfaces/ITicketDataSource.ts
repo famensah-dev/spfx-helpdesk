@@ -2,7 +2,7 @@ import type { ITicketQueryResult } from './IDashboard';
 import type { TicketStatus, TicketPriority } from './ITicket';
 import type { IUserLookup } from './ITicket';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from './IFaq';
-export interface IOrganizationUser { id: string; displayName: string; email: string; userPrincipalName: string; department?: string; }
+export interface IOrganizationUser { id: string; displayName: string; email: string; userPrincipalName: string; department?: string; sharePointId?: number; }
 export interface INewTicketInput { ticketSource?: string; requesterName?: string; requesterEmail?: string; title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; department?: string; dueDate?: string; attachments?: File[]; }
 export interface IClassificationOption { id: string; name: string; parentId?: string; }
 export interface ITicketClassification { categories: IClassificationOption[]; subcategories: IClassificationOption[]; issueTypes: IClassificationOption[]; listIds: { category: string; subcategory: string; issueType: string }; }
@@ -38,6 +38,7 @@ export interface ITicketDataSource {
   deleteFaq?(id: number): Promise<void>;
   updateFaqs?(ids: number[], action: FaqBulkAction): Promise<IFaqBulkResult>;
   searchUsers?(query: string, department?: string): Promise<IOrganizationUser[]>;
+  getTeamCandidates?(): Promise<IOrganizationUser[]>;
   resolveUser?(user: IOrganizationUser): Promise<IUserLookup>;
   getTickets(): Promise<ITicketQueryResult>;
   createTicket?(input: INewTicketInput): Promise<void>;
