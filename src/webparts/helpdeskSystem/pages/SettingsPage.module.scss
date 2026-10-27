@@ -31,3 +31,10 @@
   a, button { border: 0; background: transparent; display: flex; align-items: center; gap: 10px; padding: 12px 10px; }
   :global(.ms-Icon) { font-size: 18px; width: 20px; flex-shrink: 0; text-decoration: none; }
 }
+@media (max-width: 767px) {
+  .settings > header, .heading { flex-wrap: wrap; gap: 10px; }
+  .layout { padding: 12px; gap: 12px; grid-template-columns: minmax(0, 1fr); > nav { flex-direction: row; flex-wrap: nowrap; overflow-x: auto; min-width: 0; > button { flex-shrink: 0; min-height: 40px; } } }
+  .content { padding: 14px 12px; }
+  .links { grid-template-columns: minmax(0, 1fr); }
+  .actions { flex-wrap: wrap; }
+}

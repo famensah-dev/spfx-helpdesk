@@ -1331,3 +1331,104 @@
 .teamMemberPickerHeading { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: #526783; }
 .teamMemberChecklist { max-height: 330px; overflow-y: auto; }
 .teamMemberCandidate { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--hd-line); > span { flex: 1; min-width: 0; } strong { display: block; font-size: 13px; font-weight: 500; } small { display: block; font-size: 12px; color: #61728b; overflow-wrap: anywhere; } }
+
+// Small-screen overrides stay last so desktop workspace rules cannot undo them.
+.mobileTableHint { display: none; }
+@media (max-width: 1023px) {
+  .dashboardSummaryCards { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboardAdvancedFilters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 767px) {
+  .helpdeskSystemShell {
+    .appHeader { padding: 12px; gap: 10px; align-items: center; }
+    .brand { flex: 1; min-width: 0; flex-wrap: wrap; gap: 4px 8px; }
+    .lightLogo { width: 124px; height: 32px; background-size: contain; background-repeat: no-repeat; }
+    .portalLabel { flex-basis: 100%; overflow-wrap: anywhere; font-size: 11px; }
+    .brandDivider { display: none; }
+    .headerActions { gap: 4px; }
+    .navigation, .ticketTabs, .adminTabs, .userRoleFilters {
+      flex-wrap: nowrap; overflow-x: auto; max-width: 100%; min-width: 0;
+      overscroll-behavior-x: contain; scrollbar-width: thin;
+      > button, > div { flex-shrink: 0; white-space: nowrap; }
+    }
+    .navigation { padding: 4px 8px; > button { min-height: 40px; } }
+    .mainContent { --page-inset: 12px; padding-inline: 12px; }
+    .pageContent, .ticketListCard { min-width: 0; padding: 12px; gap: 12px; }
+    .pageHeading, .dashboardTopRow, .secondaryPageHeader { gap: 10px; }
+    .pageHeading h2, .dashboardTitle, .detailToolbarTitle h2 { margin-right: 0; }
+    .ticketPage > .pageAlerts { margin: -12px -12px 0; --alert-inset: 12px; }
+    .ticketToolbar { gap: 10px; min-width: 0; }
+    .ticketToolbar .ticketControls { width: 100%; flex: 1 1 100%; min-width: 0; gap: 8px; }
+    .ticketPage .ticketControls > :global(.ms-SearchBox) { flex: 1 1 100%; width: 100%; min-width: 0; order: -1; }
+    .ticketToolbar > .ticketActions { margin-left: 0; flex-wrap: wrap; gap: 4px; }
+    .ticketControls > :global(.ms-Dropdown-container) { flex: 1 1 140px; min-width: 0; }
+    .ticketCounts { width: 100%; flex-wrap: nowrap; overflow-x: auto; > button { flex-shrink: 0; min-height: 36px; } }
+    .ticketActions > button { min-height: 36px; }
+    .tableContainer, .dashboardRecentScroll { min-width: 0; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+    .tableContainer > table, .dashboardRecentTable { min-width: 640px; }
+    .ticketTable th, .ticketTable td { padding: 10px 8px; }
+    .ticketTable th { white-space: nowrap; }
+    .mobileTableHint { display: block; margin: 0; font-size: 12px; color: #61728b; }
+    .pagination, .userTableFooter { flex-wrap: wrap; justify-content: flex-start; gap: 8px; }
+    .pagination > span { margin-inline: 0; }
+    .dashboardSummaryCards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .dashboardSummaryCard { padding: 12px 10px; gap: 8px; }
+    .dashboardChartsGrid, .dashboardTicketsRow, .chartGrid, .slaDashboardRow { grid-template-columns: minmax(0, 1fr); }
+    .dashboardTopFilters { width: 100%; min-width: 0; }
+    .dashboardTopFilters > :global(.ms-Dropdown-container) { flex: 1 1 140px; min-width: 0; }
+    .chartCanvas { height: 250px; }
+    .detailWorkspace { padding: 0 0 12px; }
+    .detailWorkspace > .ticketDetailLayout { padding-inline: 0; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .detailWorkspace .detailSidebar { grid-template-columns: minmax(0, 1fr); }
+    .detailWorkspace .detailSummary, .detailWorkspace .detailSection { padding: 14px 12px; }
+    .detailWorkspace .detailHero > div:first-child { min-width: 0; flex-basis: 100%; }
+    .detailWorkspace .ticketTitleActions { width: 100%; align-items: flex-start; }
+    .detailWorkspace .ticketTitleActions > div { flex-wrap: wrap; gap: 8px; }
+    .detailWorkspace .ticketTitleActions :global(.ms-Button) { min-height: 36px; height: 36px; }
+    .detailWorkspace .resolveTicketControl { flex-shrink: 0; }
+    .detailWorkspace .detailSectionNav { flex-wrap: wrap; padding-inline: 0; gap: 0; }
+    .detailWorkspace .detailSectionNav > button { padding: 10px 8px; min-height: 40px; }
+    .detailWorkspace .commentTabControls { flex: 1 1 100%; margin-left: 0; padding: 6px 8px; border-top: 1px solid var(--hd-line); flex-wrap: wrap; }
+    .detailWorkspace .commentThread { padding-inline: 12px; max-height: none; }
+    .detailWorkspace .commentEntry { gap: 12px; }
+    .detailWorkspace .commentComposer { padding: 12px; }
+    .commentComposerFooter, .detailSaveBar { flex-wrap: wrap; gap: 10px; }
+    .detailWorkspace .commentContent { overflow-wrap: anywhere; }
+    .detailWorkspace .detailEyebrow { flex-wrap: wrap; }
+    .detailFormGrid, .newTicketFields, .newTicketClassification, .newTicketDescriptionRow,
+    .newTicketPage :global(.ticket-title-source-row), .ticketEditForm :global(.ticket-title-source-row) { grid-template-columns: minmax(0, 1fr); }
+    .newTicketHeader { padding: 12px; flex-wrap: wrap; }
+    .newTicketSection { padding: 14px 12px; }
+    .markdownToolbar, .commentFormatBar { flex-wrap: wrap; gap: 2px; }
+    .markdownContent pre { max-width: 100%; overflow-x: auto; }
+    .faqTitleRow { flex-wrap: wrap; min-width: 0; > .toolbarTitle { margin-right: 0; } > .faqCategoryTabs { flex-basis: 100%; } }
+    .faqCategoryTabs { min-width: 0; overflow-x: auto; }
+    .faqModalFooter { flex-wrap: wrap; gap: 8px; }
+    .helpdeskSettingsHeading { padding: 14px 12px; gap: 12px; }
+    .helpdeskSettingsGroups { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .teamsWorkspace .teamsEditor { padding: 4px 12px 12px; }
+    .teamsWorkspace .teamsEditorLayout, .teamsWorkspace .teamDetailsFields,
+    .teamsWorkspace :global(.teams-member-category-grid) { grid-template-columns: minmax(0, 1fr); }
+    .teamsWorkspace .teamsSidebar nav { display: flex; overflow-x: auto; gap: 6px; > button { flex: 0 0 auto; } }
+    .teamsWorkspace :global(.teams-heading-search) { flex-wrap: wrap; width: 100%; }
+    .teamsWorkspace :global(.teams-heading-search) > :global(.ms-SearchBox) { width: 100%; }
+    .teamsWorkspace .teamsToolbar { gap: 8px; }
+    .teamMemberCandidate { gap: 8px; flex-wrap: wrap; > span { flex-basis: 55%; } }
+    .addUsersForm .addUsersSearchRow { flex-wrap: wrap; > :global(.ms-TextField), > :global(.ms-Dropdown-container) { width: 100%; flex-basis: 100%; min-width: 0; } }
+    .addUserResult { flex-wrap: wrap; }
+    input:not([type='checkbox']):not([type='radio']), textarea, select,
+    :global(.ms-TextField-field), :global(.ms-SearchBox-field), .richTextInput { font-size: 16px; }
+    :global(.deskpilot-email-settings) {
+      :global(.email-settings-tabs) { padding-inline: 12px; overflow-x: auto; }
+      :global(.email-settings-tabs) nav { flex-wrap: nowrap; gap: 20px; > button { white-space: nowrap; flex-shrink: 0; min-height: 40px; } }
+      :global(.email-card-header) { flex-wrap: wrap; align-items: flex-start; }
+      :global(.email-event-heading) { flex: 1 1 100%; }
+      :global(.email-event-selector) { width: 100%; min-width: 0; }
+      :global(.email-recipient-grid), :global(.email-template-grid) { grid-template-columns: minmax(0, 1fr); }
+    }
+  }
+}
+@media (max-width: 400px) {
+  .helpdeskSystemShell .dashboardAdvancedFilters, .helpdeskSystemShell .filterGroup { grid-template-columns: minmax(0, 1fr); }
+  .helpdeskSystemShell .dashboardSummaryCard { flex-wrap: wrap; }
+}

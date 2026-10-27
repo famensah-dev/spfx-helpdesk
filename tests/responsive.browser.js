@@ -1,0 +1,59 @@
+// Browser layout fixtures using the real stylesheet. No tenant data or network services.
+// Run: node tests/responsive.browser.js [baseline.scss]. Requires azure-app's Sass dependency.
+// Set DESKPILOT_BROWSER to a Chrome/Edge executable if Chrome is not installed in the default path.
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{spawn}=require('node:child_process');
+const sass=require('../azure-app/node_modules/sass');
+const directory=path.resolve('temp/mobile-layout');fs.mkdirSync(directory,{recursive:true});
+const browser=process.env.DESKPILOT_BROWSER||'C:/Program Files/Google/Chrome/Application/chrome.exe';
+const button=text=>'<button class="ms-Button">'+text+'</button>';
+const search='<div class="ms-SearchBox"><input class="ms-SearchBox-field" aria-label="Search" placeholder="Search"></div>';
+const field='<div class="ms-TextField"><label>Requester email</label><input class="ms-TextField-field" value="someone.with.a.long.name@example.com"></div>';
+const table='<div class="tableContainer"><table class="ticketTable"><thead><tr>'+['Ticket','Title','Status','Priority','Requester','Assigned to'].map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody><tr><td>#123</td><td>A support request with a longer title</td><td>In progress</td><td>Medium</td><td>Requester name</td><td>Assigned support agent</td></tr></tbody></table></div>';
+const fixture='<header class="appHeader"><div class="brand"><i>◉</i><strong>DeskPilot</strong><span class="brandDivider">|</span><span class="portalLabel">IT Helpdesk</span></div><div class="headerActions">'+button('⚙')+button('♧')+button('AB')+'</div></header><nav class="navigation">'+['Dashboard','Tickets','Knowledge Base','Helpdesk Settings','Users & Roles'].map(button).join('')+'</nav><main class="mainContent">'+
+'<section class="ticketPage pageContent"><div class="ticketListCard"><div class="ticketToolbar"><div class="ticketControls"><div class="ticketCounts">'+['All tickets 128','New 12','In progress 34','Pending 8','Resolved 25','Closed 49'].map(button).join('')+'</div>'+search+button('Last 30 days')+'</div><div class="ticketActions">'+['New','Columns','Import/Export'].map(button).join('')+'</div></div>'+table+'</div></section>'+
+'<section class="detailWorkspace"><div class="ticketDetailLayout"><div class="ticketDetailBody"><section class="detailSummary"><div class="detailHero"><div><div class="detailEyebrow">Ticket ID #123 <span class="statusPill">In progress</span></div><h3 class="detailSubject">A long support request title for the clinical administration department</h3><p>Submitted today by Example requester</p></div><div class="ticketTitleActions"><div>'+button('Back to Tickets')+button('Edit Ticket')+'<span class="resolveTicketControl">'+button('Resolve Ticket')+button('⌄')+'</span></div></div></div><div class="ticketDescriptionBox">Description of the issue and the steps needed to reproduce it.</div></section><nav class="detailSectionNav">'+['Comments','Attachments','History','Related Tickets'].map(button).join('')+'<div class="commentTabControls">'+button('Add comment')+'<select><option>Newest first</option></select>'+button('↻')+'</div></nav><div class="ticketComments"><div class="commentThread"><article class="commentEntry"><span class="personInitials">AB</span><div class="commentContent"><header><strong>Example support agent</strong><time>27 Oct 2026, 10:30AM</time></header><p>A comment describing the fix for this request.</p></div></article></div></div></div><aside class="detailSidebar"><section class="detailSidebarCard"><h3>Ticket Details</h3><dl class="detailSidebarMetadata"><div><dt>Assigned to</dt><dd>Example support agent</dd></div></dl></section></aside></div></section>'+
+'<section class="newTicketPage"><div class="newTicketSection"><div class="ticket-title-source-row">'+field+field+'</div><div class="newTicketFields">'+field+field+'</div></div></section>'+
+'<section class="teamsWorkspace"><div class="teamsEditorLayout"><aside class="teamsSidebar">'+search+'<nav>'+['HealthPro','Active Directory','Hardware','Software','Network'].map(button).join('')+'</nav></aside><div class="teamsEditor"><div class="teamDetailsFields">'+field+field+field+button('Active')+'</div><div class="teams-member-category-grid"><section>'+table+'</section><section class="teams-categories">Categories</section></div></div></div></section>'+
+'<div class="helpdeskSettingsGroups">'+['People & Access','Ticket Configuration','Automation','Knowledge Base','Advanced Settings'].map(x=>'<section><h3>'+x+'</h3>'+button('Configure')+'</section>').join('')+'</div>'+
+'<section class="deskpilot-email-settings"><div class="email-settings-toolbar email-settings-tabs"><nav>'+['Notification Rules','Email Templates','Sender Settings','History'].map(button).join('')+'</nav></div><div class="email-template-grid"><section class="ticketListCard">Email message'+field+'</section><section class="ticketListCard">Preview</section></div></section></main>';
+let socket,sequence=0;const pending=new Map();
+const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+async function send(method,params={},sessionId){const id=++sequence;const promise=new Promise((resolve,reject)=>pending.set(id,{resolve,reject}));socket.send(JSON.stringify({id,method,params,sessionId}));return promise;}
+async function run(source,width,name){
+ const css=sass.compileString(fs.readFileSync(source,'utf8'),{logger:sass.Logger.silent}).css.replace(/:global\(([^)]+)\)/g,'$1');
+ const file=path.join(directory,name+'-'+width+'.html');
+ const metrics=`const selectors=['.appHeader','.navigation','.ticketToolbar','.ticketActions','.ticketDetailLayout','.detailHero','.ticketTitleActions','.newTicketFields','.teamsEditorLayout','.teamDetailsFields','.helpdeskSettingsGroups','.email-template-grid'];const boxes=Object.fromEntries(selectors.map(s=>{const e=document.querySelector(s),r=e.getBoundingClientRect(),c=getComputedStyle(e);return[s,{x:r.x,width:r.width,height:r.height,columns:c.gridTemplateColumns}]}));document.getElementById('result').textContent=JSON.stringify({width:innerWidth,scroll:document.documentElement.scrollWidth,boxes});`;
+ fs.writeFileSync(file,'<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}input{max-width:100%;box-sizing:border-box}.ms-SearchBox{height:34px;display:flex}.ms-SearchBox input{width:100%;min-width:0}.ms-Button{min-height:32px}.ms-TextField input{display:block;width:100%}'+css+'</style><div class="helpdeskSystemShell">'+fixture+'</div><pre id="result" style="display:none"></pre><script>'+metrics+'</script>');
+ const {targetId}=await send('Target.createTarget',{url:'about:blank'});
+ const {sessionId}=await send('Target.attachToTarget',{targetId,flatten:true});
+ await send('Emulation.setDeviceMetricsOverride',{width,height:1000,deviceScaleFactor:1,mobile:width<768},sessionId);
+ await send('Page.navigate',{url:new URL('file:///'+file.replace(/\\/g,'/')).href},sessionId);
+ let value;
+ for(let attempt=0;attempt<100;attempt++){const response=await send('Runtime.evaluate',{expression:"document.getElementById('result')?.textContent",returnByValue:true},sessionId);if(response.result.value){value=JSON.parse(response.result.value);break;}await pause(50);}
+ assert(value,'Browser did not return layout metrics');
+ if(width===390&&name==='current'){const image=await send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false},sessionId);fs.writeFileSync(path.join(directory,'mobile-390.png'),Buffer.from(image.data,'base64'));}
+ await send('Target.closeTarget',{targetId});return value;
+}
+(async()=>{
+const profile=path.join(directory,'cdp-profile-'+Date.now());
+const child=spawn(browser,['--headless','--disable-gpu','--no-first-run','--no-default-browser-check','--disable-extensions','--remote-debugging-port=0','--remote-debugging-address=127.0.0.1','--user-data-dir='+profile,'about:blank'],{stdio:'ignore'});
+child.on('error',error=>{throw error;});
+try {
+ let port;
+ for(let attempt=0;attempt<100;attempt++){try{port=Number(fs.readFileSync(path.join(profile,'DevToolsActivePort'),'utf8').split('\n')[0]);break;}catch{await pause(100);}}
+ assert(port,'Chrome debugging endpoint unavailable');
+ const info=await(await fetch('http://127.0.0.1:'+port+'/json/version')).json();socket=new WebSocket(info.webSocketDebuggerUrl);
+ await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject;});
+ socket.onmessage=message=>{const data=JSON.parse(message.data);const item=pending.get(data.id);if(item){pending.delete(data.id);data.error?item.reject(Error(data.error.message)):item.resolve(data.result);}};
+const source='src/webparts/helpdeskSystem/components/HelpdeskSystem.module.scss';
+for(const width of [320,390,600,768,1024,1440]){
+ const value=await run(source,width,'current');assert.equal(value.width,width);assert(value.scroll<=value.width+1,'Page overflow at '+width+': '+JSON.stringify(value));
+ if(value.width<=767){assert(!value.boxes['.ticketDetailLayout'].columns.includes(' '));assert(!value.boxes['.teamDetailsFields'].columns.includes(' '));}
+ console.log('Browser fixture fits '+value.width+'px; document width '+value.scroll+'px.');
+}
+if(process.argv[2])for(const width of [1024,1440]){
+ const before=await run(process.argv[2],width,'baseline'),after=await run(source,width,'desktop');assert.deepEqual(after.boxes,before.boxes,'Desktop geometry changed at '+width);console.log('Desktop fixture geometry unchanged at '+width+'px.');
+}
+
+} finally {if(socket){try{await send('Browser.close');}catch{}socket.close();}child.kill();}
+})().catch(error=>{console.error(error);process.exitCode=1;});
