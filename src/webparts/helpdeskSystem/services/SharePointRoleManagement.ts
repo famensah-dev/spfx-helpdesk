@@ -12,7 +12,7 @@ export class SharePointRoleManagement implements IRoleManagement {
   private itemId?: number;
   private etag?: string;
   private identity?: { user: number; owners: number; read: number; full: number };
-  public constructor(private context: WebPartContext, private owner: boolean) {
+  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>}) {
     this.web = `${context.pageContext.web.absoluteUrl}/_api/web`;
     this.root = `${this.web}/lists/getbytitle('DeskPilot Access')`;
     this.users = this.root;
@@ -84,6 +84,7 @@ export class SharePointRoleManagement implements IRoleManagement {
       const page: { value: AccessItem[]; 'odata.nextLink'?: string; '@odata.nextLink'?: string } = await this.read(next);
       items.push(...page.value); next = page['odata.nextLink'] || page['@odata.nextLink'];
     }
+    await this.groups?.sync(configuration.assignments,items.map(item=>Number(item.Title)).filter(id=>Number.isSafeInteger(id)&&id>0));
     const active = configuration.assignments.filter(item => !item.disabled);
     // Remove revoked users before updating or granting any new assignments.
     for (const item of items) {

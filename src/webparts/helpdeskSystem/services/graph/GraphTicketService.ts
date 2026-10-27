@@ -84,12 +84,19 @@ export class GraphTicketService implements ITicketDataSource {
   }
   public async resolveUser(user: IOrganizationUser): Promise<IUserLookup> {
     if (!this.getSharePointToken) throw new Error('SharePoint person resolution is not configured.');
+    const login=user.userPrincipalName?.trim();
+    if(!login || login.length>255)throw new Error('Select a Microsoft 365 user with a valid sign-in name.');
     const token = await this.getSharePointToken();
     const response = await fetch(`${this.config.siteUrl}/_api/web/ensureuser`, {
       method: 'POST', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json;odata=nometadata', 'Content-Type': 'application/json;odata=nometadata' },
-      body: JSON.stringify({ logonName: `i:0#.f|membership|${user.userPrincipalName}` }), signal: AbortSignal.timeout(30000)
+      body: JSON.stringify({ logonName: `i:0#.f|membership|${login}` }), signal: AbortSignal.timeout(30000)
     });
-    if (!response.ok) throw new Error(`Unable to resolve this person in SharePoint (${response.status}). Check SharePoint delegated AllSites.Write consent and your site access.`);
+    if (!response.ok) {
+      let detail='';
+      try {const result=await response.json() as {error?:{message?:string|{value?:string}}};const message=result.error?.message;detail=typeof message==='string'?message:message?.value || '';}catch{/* Keep the status if SharePoint does not return JSON. */}
+      const requestId=response.headers.get('SPRequestGuid') || response.headers.get('request-id');
+      throw new Error(`Unable to resolve ${user.displayName || login} in SharePoint (${response.status}). ${detail || (response.status===400?'SharePoint rejected the sign-in name or request.':'Check site access and the SharePoint API consent.')}${requestId?' Request ID: '+requestId:''}`);
+    }
     const person = await response.json() as { Id: number; Title?: string; Email?: string };
     if (!Number.isSafeInteger(person.Id) || person.Id <= 0) throw new Error('SharePoint did not return a valid person ID.');
     return { Id: person.Id, Title: person.Title || user.displayName, Email: person.Email || user.email };

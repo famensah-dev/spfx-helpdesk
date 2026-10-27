@@ -1,3 +1,4 @@
+import { SharePointGroupAccess } from './SharePointGroupAccess';
 import { GraphNotificationService } from './graph/GraphNotificationService';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import { SPHttpClient } from '@microsoft/sp-http';
@@ -29,7 +30,8 @@ export async function createSharePointService(context: WebPartContext, listName:
   const low = Number(permissions.Low);
   if (!Number.isFinite(low)) throw new Error('SharePoint did not return valid permissions.');
   const superAdmin = (low & 1073741824) !== 0 && (low & 33554432) !== 0; // ManageWeb and ManagePermissions
-  const roles = new SharePointRoleManagement(context, superAdmin);
+  const groupAccess=new SharePointGroupAccess(context);
+  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess);
   const configuration = await roles.load();
   const currentUserResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/currentuser`, SPHttpClient.configurations.v1);
   if (!currentUserResponse.ok) throw new Error('Unable to identify your SharePoint user.');
@@ -78,7 +80,7 @@ export async function createSharePointService(context: WebPartContext, listName:
         await fields.move(field,index);
       }
       tickets.invalidateSchema();
-    });
+    },groupAccess);
     source.saveWorkspaceSettings = async settings => {
       if (!settings.listName.trim()) throw new Error('Tickets list name is required.');
       if (settings.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(settings.listId)) throw new Error('Enter a valid list ID.');

@@ -55,7 +55,7 @@ export function columnConflict(actual: Column, expected: Column, ids: Record<str
 }
 export class WorkspaceSetupService implements IWorkspaceSetup {
   private reviewed?: string;
-  public constructor(private graph: GraphClient, private config: IAppConfig, private finish: (ids: Record<string,string>, orderedFields: string[]) => Promise<void>) {}
+  public constructor(private graph: GraphClient, private config: IAppConfig, private finish: (ids: Record<string,string>, orderedFields: string[]) => Promise<void>, private groups?:{inspect():Promise<ISetupPlan['steps']>;initialize():Promise<unknown>}) {}
   private async snapshot(): Promise<{path: string; definitions: Definition[]; ids: Record<string,string>; lists: List[]}> {
     const url = new URL(this.config.siteUrl);
     const site = await this.graph.get<{id:string}>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
@@ -96,6 +96,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
     steps.push({resource: workspaceLists.priorities, action:'Seed missing priorities and missing SLA targets; preserve existing targets'});
     steps.push({resource:this.config.listName, action:'Arrange default view in the requested column order; keep other view fields afterward'});
     steps.push({resource: workspaceLists.access, action:'Initialize/verify private configuration, synchronize user access and save list bindings'});
+    if(this.groups)steps.push(...await this.groups.inspect());
     this.reviewed = JSON.stringify(steps);
     return {steps};
   }
@@ -144,6 +145,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
       if (!item) await this.graph.post(prioritiesPath,{fields:{Title:name,Active:true,ResponseMinutes:targets[0],ResolutionMinutes:targets[1]}});
       else {const fields: Record<string,number> = {}; if (item.fields.ResponseMinutes == null) fields.ResponseMinutes = targets[0]; if (item.fields.ResolutionMinutes == null) fields.ResolutionMinutes = targets[1]; if (Object.keys(fields).length) await this.graph.patch(`${prioritiesPath}/${item.id}/fields`,fields);}
     }
+    if(this.groups){progress('Preparing DeskPilot SharePoint groups; preserving existing permissions...');await this.groups.initialize();}
     progress('Securing configuration and saving workspace connections...');
     const orderedFields = ticketViewOrder.map(name => ['Created','Author','Editor'].includes(name) ? name : matchingColumn(ticketColumns,{name})?.name).filter((name): name is string => Boolean(name));
     await this.finish(ids,orderedFields);
