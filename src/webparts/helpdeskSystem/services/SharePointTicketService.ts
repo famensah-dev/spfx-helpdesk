@@ -64,7 +64,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const mail=new GraphNotificationService(graph,config,{email:access.email,name:access.name || access.email},admin || superAdmin,window.location.href,workspaceSettings.title,async()=>(await visibleSource.getTickets()).tickets,async id=>{
     const data=await supportUnits.load();return data.units.find(team=>team.id===id)?.email || '';
   });
-  source.notifications={canManage:admin || superAdmin,getSettings:()=>mail.getSettings(),saveSettings:value=>mail.saveSettings(value),history:()=>mail.history(),inbox:()=>mail.inbox(),test:(value,event)=>mail.test(value,event)};
+  source.notifications={canManage:admin || superAdmin,getSettings:()=>mail.getSettings(),saveSettings:value=>mail.saveSettings(value),history:()=>mail.history(),inbox:()=>mail.inbox(),test:(value,event)=>mail.test(value,event),invite:(user,role,automatic)=>mail.invite(user,role,automatic)};
   tickets.notificationEnabled=()=>mail.enabled();
   tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
   if (superAdmin) {

@@ -49,6 +49,26 @@ const ticket={Id:5,Title:'Printer offline',Status:'Assigned',Priority:'Medium',C
  assert((await service.inbox()).some(item=>item.ticketId===5));allowed=[];assert.equal((await service.inbox()).length,0,'Inbox must respect ticket visibility');
  settings.sender='shared';settings.sharedMailbox='support@example.com';settings.replyTo='replies@example.com';await service.test(settings,'created');assert.deepEqual(emails.at(-1).message.toRecipients,[{emailAddress:{address:actor.email}}]);assert.deepEqual(emails.at(-1).message.from,{emailAddress:{address:'support@example.com'}});assert.deepEqual(emails.at(-1).message.replyTo,[{emailAddress:{address:'replies@example.com'}}]);
  const agent=new GraphNotificationService(graph,{siteId:'site',siteUrl:'https://example.com'},actor,false,url,'IT',async()=>[],async()=> '');await assert.rejects(agent.saveSettings(settings),/Only Helpdesk Admins/);await assert.rejects(agent.test(settings,'created'),/Only Helpdesk Admins/);await assert.rejects(agent.history(),/Only Helpdesk Admins/);
+ // Invitations are manual by default, isolated from ticket audiences and logged.
+ const invitee={userId:42,name:'New Agent',email:'new@example.com',roleId:'agent',addedAt:'2026-10-27T10:00:00Z'};
+ assert.equal(settings.autoInvite,false);
+ let count=emails.length;
+ assert.equal(await service.invite(invitee,'Agent',true),false);assert.equal(emails.length,count);
+ await service.invite(invitee,'Agent');assert.equal(emails.length,++count);
+ assert.deepEqual(emails.at(-1).message.toRecipients,[{emailAddress:{address:invitee.email}}]);
+ assert(emails.at(-1).message.body.content.includes('env=WebView#/tickets'));
+ assert(emails.at(-1).message.body.content.includes('New Agent'));
+ assert.equal(records.at(-1).fields.Event,'invited');assert.equal(records.at(-1).fields.InApp,false);
+ settings.enabled=false;settings.autoInvite=true;await service.saveSettings(settings);
+ await service.invite(invitee,'Agent',true);assert.equal(emails.length,++count);
+ await service.invite(invitee,'Agent',true);assert.equal(emails.length,count,'Automatic invite deduplicates');
+ await assert.rejects(service.invite({...invitee,disabled:true},'Agent'),/active user/);
+ await assert.rejects(agent.invite(invitee,'Agent'),/Only Helpdesk Admins/);
+ failSend=true;await assert.rejects(service.invite({...invitee,userId:43},'Agent',true),/Mail denied/);count=emails.length;failSend=false;
+ await service.invite({...invitee,userId:43},'Agent',true);assert.equal(emails.length,count,'Uncertain invites never resend automatically');
+ settings.autoInvite=false;settings.enabled=true;await service.saveSettings(settings);
+ const legacy=JSON.parse(configuration.fields.Configuration);delete legacy.rules.invited;delete legacy.autoInvite;configuration.fields.Configuration=JSON.stringify(legacy);
+ const migrated=await service.getSettings();assert.equal(migrated.autoInvite,false);assert(migrated.rules.invited);templates.validateEmailSettings(migrated);
  // Verify hooks at the mutation layer rather than only in page handlers.
  let fields={Title:'Printer',Status:'New',Priority:'Medium',AssignedToLookupId:null};const updates=[];
  const writes={get:async()=>({eTag:'version-1',fields:{...fields}}),patch:async(_path,value)=>Object.assign(fields,value),post:async(_path,body)=>{fields=body.fields;return{id:'5'};}};

@@ -60,6 +60,13 @@ export function SharePointUsersPage(props: { service: ITicketDataSource; configu
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save users.'); throw reason; }
     finally { lock.current = false; setWorking(false); }
   };
+  const sendInvite = async (user: IRoleAssignment): Promise<void> => {
+    if (lock.current || !props.service.notifications) return;
+    lock.current=true; setWorking(true); setError(''); setNotice('');
+    try { await props.service.notifications.invite(user,roleName(user.roleId)); setNotice('Invitation for '+user.name+' accepted for sending. Check Email Settings history for details.'); }
+    catch(reason) { setError(reason instanceof Error?reason.message:'Unable to send invitation.'); }
+    finally { lock.current=false; setWorking(false); }
+  };
   const addUsers = async (): Promise<void> => {
     if (!chosen.length || lock.current) return;
     lock.current = true; setWorking(true); setError(''); setNotice('');
@@ -73,7 +80,13 @@ export function SharePointUsersPage(props: { service: ITicketDataSource; configu
       }
       if (!resolved.length) throw new Error('The selected users already have assignments.');
       await props.onSave([...assignments, ...resolved]);
-      setAdding(false); setSearch(''); setChosen([]); setNotice(`${resolved.length} user${resolved.length === 1 ? '' : 's'} added and SharePoint group access synchronized. They can open the DeskPilot page directly.`);
+      const inviteErrors: string[]=[]; let sent=0;
+      for(const user of resolved) {
+        try { if(await props.service.notifications?.invite(user,roleName(user.roleId),true)) sent++; }
+        catch(reason) { inviteErrors.push(user.name+': '+(reason instanceof Error?reason.message:'Invitation failed.')); }
+      }
+      setAdding(false); setSearch(''); setChosen([]); setNotice(`${resolved.length} user${resolved.length === 1 ? '' : 's'} added and SharePoint group access synchronized. They can open the DeskPilot page directly.${sent?` ${sent} invitation(s) accepted for sending.`:" Use Send invite when ready."}`);
+      if(inviteErrors.length) setError("Users were saved, but invitations need attention: "+inviteErrors.join(" "));
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to add users.'); }
     finally { lock.current = false; setWorking(false); }
   };
@@ -93,7 +106,7 @@ export function SharePointUsersPage(props: { service: ITicketDataSource; configu
     <div className={styles.tableContainer}><table className={styles.ticketTable} aria-label="Helpdesk users"><thead><tr><th className={styles.selectionCell}><input type="checkbox" ref={selectPage} aria-label="Select users on this page" disabled={busy || !visible.length} checked={visible.length > 0 && visible.every(user => selected.includes(user.userId))} onChange={event => setSelected(current => event.target.checked ? Array.from(new Set([...current, ...visible.map(user => user.userId)])) : current.filter(id => !visible.some(user => user.userId === id)))} /></th><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Status</th><th>Date added</th><th>Actions</th></tr></thead><tbody>{visible.map(user => <tr key={user.userId} data-selected={selected.includes(user.userId)}>
       <td className={styles.selectionCell}><input type="checkbox" disabled={busy} aria-label={`Select ${user.name}`} checked={selected.includes(user.userId)} onChange={event => setSelected(current => event.target.checked ? [...current, user.userId] : current.filter(id => id !== user.userId))} /></td>
       <td><span className={styles.userIdentity}><PersonaCoin text={user.name} size={PersonaSize.size32} /><span>{user.name}</span></span></td><td>{user.email}</td><td>{user.department || '—'}</td><td><span className={styles.userRoleBadge} data-role={user.roleId}>{roleName(user.roleId)}</span></td><td><span className={styles.userStatusBadge} data-active={!user.disabled}>{user.disabled ? 'Inactive' : 'Active'}</span></td><td>{user.addedAt ? new Date(user.addedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '—'}</td>
-      <td><IconButton className={styles.userRowActions} iconProps={{ iconName: 'More' }} menuIconProps={{ iconName: '' }} ariaLabel={`Actions for ${user.name}`} disabled={busy} menuProps={{ items: [{ key: 'role', text: 'Change role', subMenuProps: { items: props.configuration.roles.map(role => ({ key: role.id, text: role.name, checked: user.roleId === role.id, canCheck: true, onClick: () => requestChange(user, 'role', role.id) })) } }, { key: 'status', text: user.disabled ? 'Activate' : 'Deactivate', onClick: () => requestChange(user, 'status') }, { key: 'remove', text: 'Remove user', onClick: () => requestChange(user, 'remove') }] }} /></td>
+      <td>{props.service.notifications && <DefaultButton text="Send invite" styles={{root:{border:0,background:'transparent',minWidth:0,padding:'0 6px',height:28},label:{fontSize:12,fontWeight:400}}} disabled={busy||Boolean(user.disabled)} title={'Send a DeskPilot invitation to '+user.email} onClick={()=>{sendInvite(user).catch(()=>undefined);}} />}<IconButton className={styles.userRowActions} iconProps={{ iconName: 'More' }} menuIconProps={{ iconName: '' }} ariaLabel={`Actions for ${user.name}`} disabled={busy} menuProps={{ items: [{ key: 'role', text: 'Change role', subMenuProps: { items: props.configuration.roles.map(role => ({ key: role.id, text: role.name, checked: user.roleId === role.id, canCheck: true, onClick: () => requestChange(user, 'role', role.id) })) } }, { key: 'status', text: user.disabled ? 'Activate' : 'Deactivate', onClick: () => requestChange(user, 'status') }, { key: 'remove', text: 'Remove user', onClick: () => requestChange(user, 'remove') }] }} /></td>
     </tr>)}</tbody></table>{!filtered.length && <p>No users match these filters.</p>}</div>
     <div className={styles.userTableFooter}><span>{filtered.length ? `Showing ${currentPage * pageSize + 1} to ${Math.min((currentPage + 1) * pageSize, filtered.length)} of ${filtered.length} users` : '0 users'}</span><div><IconButton iconProps={{ iconName: 'ChevronLeft' }} ariaLabel="Previous users page" disabled={currentPage === 0} onClick={() => setPage(currentPage - 1)} /><span>Page {currentPage + 1} of {pageCount}</span><IconButton iconProps={{ iconName: 'ChevronRight' }} ariaLabel="Next users page" disabled={currentPage + 1 >= pageCount} onClick={() => setPage(currentPage + 1)} /></div></div>
     <Dialog hidden={!adding} onDismiss={busy ? undefined : dismissAdd} dialogContentProps={{ title: roleFilter === 'all' ? 'Add users' : roleFilter === 'admin' ? 'Add Helpdesk Admins' : 'Add Agents', showCloseButton: !busy, closeButtonAriaLabel: 'Close add users', styles: { title: { fontSize: 14, color: '#172536' } } }} modalProps={{ isBlocking: true, styles: { root: { alignItems: 'flex-start', paddingTop: 'min(88px, 10vh)', boxSizing: 'border-box' }, main: { width: 'min(840px, calc(100vw - 32px))', minWidth: 0, maxWidth: 840, maxHeight: 'calc(100vh - 96px)', borderRadius: 6, overflowY: 'auto', selectors: { '@media (min-width: 480px)': { width: 'min(840px, calc(100vw - 32px))', minWidth: 0, maxWidth: 840 } } } } }} minWidth={320} maxWidth={840}>
