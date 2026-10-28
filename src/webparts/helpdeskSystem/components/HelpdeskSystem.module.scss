@@ -1469,3 +1469,63 @@
   .helpdeskSystemShell .dashboardAdvancedFilters, .helpdeskSystemShell .filterGroup { grid-template-columns: minmax(0, 1fr); }
   .helpdeskSystemShell .dashboardSummaryCard { flex-wrap: wrap; }
 }
+
+// Ticket conversation: scoped to the left column; metadata sidebar keeps its existing theme.
+.detailWorkspace .ticketConversation {
+  display:block; min-width:0; padding:20px 22px; background:#fff;
+  border:1px solid #e5eaf0; border-radius:4px;
+  .detailSummary { padding:0; border:0; border-radius:0; box-shadow:none; background:transparent; }
+  .conversationHeader { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:6px 12px; }
+  .conversationBack { justify-self:start; align-self:start; display:flex; gap:6px; align-items:center; padding:0; border:0; background:none; color:#365574; font-size:12px; cursor:pointer; }
+  .conversationActions { grid-column:2; grid-row:1 / span 2; display:flex; gap:6px; align-items:start;
+    > :global(.ms-Button) { height:32px; border-radius:4px; }
+    > :global(.ms-Button--primary) { padding:0 14px; background:#087581; }
+    > :global(.ms-Button--icon) { width:32px; background:white; color:#365574; border:1px solid #dce4ed; }
+  }
+  .conversationIdentity { font-size:11px; color:#60758e; }
+  .detailSubject { grid-column:1 / -1; margin:0; font-size:20px; line-height:1.35; font-weight:500; overflow-wrap:anywhere; }
+  .detailSubmitted { grid-column:1 / -1; margin:0; font-size:11px; line-height:1.6; }
+  .ticketDescriptionBox { margin:14px 0 20px; padding:0; border:0; background:none; }
+  .ticketDescription { padding:0; font-size:13px; line-height:1.6; p { margin:0; } }
+  .conversationEmpty { font-style:italic; color:#68788c; font-size:12px; }
+  .ticketResolutionBody { margin:8px 0 16px; padding-top:8px; }
+  .detailSectionNav { padding:0; margin:0; gap:22px; background:none; box-shadow:none; border:0; border-bottom:1px solid #e9edf3; border-radius:0; display:flex; flex-wrap:wrap;
+    > button { margin:0; padding:9px 0; font-size:12px; font-weight:400; background:none; border:0; border-bottom:2px solid transparent; color:#35506e; }
+    > button[data-active='true'] { border-bottom-color:#00899b; color:#172536; }
+  }
+  .ticketComments { margin:0; padding:0; display:block; }
+  .commentDisplay { margin:0; padding:0; border:0; background:none; box-shadow:none; }
+  .commentThread { padding:0; margin:0; max-height:none; overflow:visible; }
+  .commentEntry { display:flex; gap:10px; align-items:flex-start; padding:16px 0 0; margin:0; border:0; background:none;
+    > .personInitials { width:24px; height:24px; min-width:24px; flex:0 0 24px; }
+    > :global(.ms-Button) { width:24px; height:24px; flex:0 0 24px; color:#496280; background:transparent; }
+  }
+  .commentContent { min-width:0; flex:1;
+    header { display:flex; gap:4px; align-items:center; flex-wrap:wrap; padding:0; min-height:24px; }
+    header strong { font-size:12px; font-weight:500; color:#172536; }
+    time { font-size:11px; color:#60758e; }
+    > p { margin:3px 0 0; font-size:13px; line-height:1.6; overflow-wrap:anywhere; }
+  }
+  .commentSolution { font-size:10px; padding:1px 5px; line-height:1.4; background:#def8ed; color:#13794e; border:0; border-radius:8px; }
+  .commentComposer { margin:18px 0 0; padding:12px 0 0; background:none; border:0; border-top:1px solid #edf0f5; border-radius:0; box-shadow:none; }
+  .conversationComposeRow { display:flex; gap:10px; align-items:flex-start;
+    > :global(.ms-Button) { height:32px; min-width:32px; padding:0 10px; border-radius:4px; }
+    > :global(.ms-Button--icon) { padding:0; background:none; color:#52647b; }
+  }
+  .commentEditor { flex:1; min-width:0; padding:0; border:0; background:none;
+    :global(.ms-TextField-fieldGroup) { border:1px solid #d7e1ed; border-radius:8px; min-height:54px; height:auto; }
+    :global(.ms-TextField-fieldGroup::after) { border-radius:8px; }
+    :global(textarea) { min-height:52px; padding:8px 12px; font-size:12px; line-height:18px; }
+  }
+  .conversationFiles { margin-left:0;
+    .attachmentToolbarPicker { padding:0; border:0; background:none; }
+    .attachmentDropArea { display:none; }
+  }
+  .conversationActivity { padding:12px 0;
+    > div { display:flex; gap:10px; margin-bottom:12px; }
+    p { margin:0; font-size:12px; line-height:1.7; }
+    strong { font-weight:500; }
+  }
+}
+@media(max-width:600px) { .detailWorkspace .ticketConversation { padding:14px 12px; .detailSubject { font-size:18px; } .conversationComposeRow { gap:6px; } } }
+@container deskpilot(max-width:600px) { .detailWorkspace .ticketConversation { padding:14px 12px; .detailSubject { font-size:18px; } .conversationComposeRow { gap:6px; } } }
