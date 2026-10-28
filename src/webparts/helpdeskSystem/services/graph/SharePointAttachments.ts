@@ -17,9 +17,19 @@ export class SharePointAttachments {
   public async list(listId:string,id:number): Promise<ITicketAttachment[]> {
     const base = this.path(listId,id);
     const response = await this.request(base);
-    const data = await response.json() as {value:Array<{FileName:string}>};
+    const data = await response.json() as {value:Array<{FileName:string;ServerRelativeUrl?:string}>};
     if (!Array.isArray(data.value)) throw new Error('SharePoint returned an invalid attachment list.');
-    return data.value.map(file => ({name:file.FileName,url:`${base}('${quote(file.FileName)}')/$value`}));
+    return Promise.all(data.value.map(async file => {
+      const attachment:ITicketAttachment={name:file.FileName,url:`${base}('${quote(file.FileName)}')/$value`};
+      if(file.ServerRelativeUrl) {
+        try {
+          const metadata=await (await this.request(this.siteUrl.replace(/\/$/,'')+"/_api/web/GetFileByServerRelativePath(decodedUrl='"+quote(file.ServerRelativeUrl)+"')?$select=Length,TimeCreated,Author/Title&$expand=Author")).json() as {Length?:string;TimeCreated?:string;Author?:{Title?:string}};
+          if(metadata.Length!==undefined && Number.isFinite(Number(metadata.Length)))attachment.size=Number(metadata.Length);
+          attachment.created=metadata.TimeCreated;attachment.author=metadata.Author?.Title;
+        } catch { /* File links remain available when metadata cannot be read. */ }
+      }
+      return attachment;
+    }));
   }
   public async ensureEnabled(listId:string): Promise<void> {
     const path = this.path(listId,1).split('/items(')[0];
