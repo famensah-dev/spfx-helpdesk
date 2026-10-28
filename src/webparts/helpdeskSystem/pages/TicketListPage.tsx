@@ -68,6 +68,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   const [priorityOptions, setPriorityOptions] = React.useState<string[]>([]);
   React.useEffect(() => { let active = true; if (service?.getPriorities) service.getPriorities().then(values => {if (active) setPriorityOptions(values);}).catch(() => {if (active) setPriorityOptions([]);}); return () => {active = false;}; }, [service, tickets]);
   const [bulkBusy, setBulkBusy] = React.useState(false);
+  const [deleteIds,setDeleteIds]=React.useState<number[]>([]);
   const [assigningIds, setAssigningIds] = React.useState<number[]>([]);
   const [savingCell, setSavingCell] = React.useState<{ id: number; kind: string } | null>(null);
   const [bulkMessage, setBulkMessage] = React.useState('');
@@ -154,6 +155,18 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
     } catch (reason) { setBulkFailed(true); setBulkMessage(reason instanceof Error ? reason.message : 'Unable to update selected tickets.'); }
     finally { bulkLock.current = false; setBulkBusy(false); }
   };
+  const deleteArchived = async (): Promise<void> => {
+    if(bulkLock.current||!service?.access?.superAdmin||!service.deleteArchivedTickets||!deleteIds.length)return;
+    bulkLock.current=true;setBulkBusy(true);setBulkMessage('');
+    try{
+      const result=await service.deleteArchivedTickets(deleteIds);
+      setDeleteIds([]);setBulkFailed(Boolean(result.failed.length));
+      setBulkMessage(result.succeeded.length+' ticket(s) moved to the recycle bin.'+(result.failed.length?' '+result.failed.length+' failed: '+result.failed.map(item=>'#'+item.id).join(', ')+'. '+result.failed[0].message:''));
+      setSelectedIds(new Set(result.failed.map(item=>item.id)));
+      try{await refresh();}catch{setBulkFailed(true);setBulkMessage(current=>current+' Refresh failed; reload the page before retrying.');}
+    }catch(reason){setDeleteIds([]);setBulkFailed(true);setBulkMessage(reason instanceof Error?reason.message:'Deletion could not be confirmed. Refresh before retrying.');}
+    finally{bulkLock.current=false;setBulkBusy(false);}
+  };
   const updateRow = async (ticket: ITicket, action: TicketBulkAction): Promise<void> => {
     if (!onBulkAction || bulkLock.current) return;
     if (action.kind === 'assign' && (ticket.AssignedTo?.Id || null) === action.userId) return;
@@ -183,6 +196,10 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         { name: 'Archive', icon: 'Lock', disabled: false, hint: 'Archived tickets' }
       ].map(item => <button key={item.name} type="button" disabled={item.disabled} title={item.hint} aria-pressed={tab === item.name} className={tab === item.name ? styles.activeNav : undefined} onClick={() => { setTab(item.name); setPage(0); }}><Icon iconName={item.icon} />{item.name}</button>)}
     </div>
+    <Dialog hidden={!deleteIds.length} onDismiss={bulkBusy?undefined:()=>setDeleteIds([])} dialogContentProps={{title:'Delete archived tickets?',showCloseButton:!bulkBusy}} modalProps={{isBlocking:true}}>
+      <p>Delete {deleteIds.length} selected archived ticket(s)? Tickets and their attachments will move to the SharePoint recycle bin. Ticket comments and notification history will be retained.</p>
+      <DialogFooter><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={bulkBusy} onClick={()=>setDeleteIds([])} /><PrimaryButton text={bulkBusy?'Deleting?':'Delete tickets'} iconProps={{iconName:'Delete'}} disabled={bulkBusy} onClick={()=>{void deleteArchived();}} /></DialogFooter>
+    </Dialog>
     {(created || error || bulkMessage) && <div className={styles.pageAlerts}>
     {created && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setCreated(false)}>Ticket created successfully. Clear filters if it does not appear in this view.</MessageBar>}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
@@ -237,6 +254,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
       {canUse(service, 'archive') && canUse(service, 'assign') && !agent && <DefaultButton text={bulkBusy ? 'Updating…' : tab === 'Archive' ? 'Unarchive' : 'Archive'} iconProps={{ iconName: tab === 'Archive' ? 'Undo' : 'Archive' }} disabled={bulkBusy || !onBulkAction || Boolean(error)} onClick={() => { void runBulk({kind: 'archive', archived: tab !== 'Archive'}); }} />}
       <DefaultButton text="Mark as" iconProps={{ iconName: 'Tag' }} disabled={!canUse(service, 'status') || bulkBusy || !onBulkAction || Boolean(error) || selectedTickets.some(ticket => !canManageTicket(ticket))} menuProps={{ items: ticketStatuses.filter(value => !agent || !selectedTickets.some(ticket => ['Resolved', 'Completed', 'Closed'].includes(ticket.Status)) || ['Resolved', 'Closed'].includes(value)).map(value => ({key: value, text: value, onClick: () => { void runBulk({kind: 'status', status: value}); }})) }} />
       {canUse(service, 'assign') && !agent && <DefaultButton text="Assign" iconProps={{ iconName: 'Contact' }} disabled={bulkBusy || !onBulkAction || Boolean(error)} onClick={event => { if (assignTarget || bulkBusy) return; setAssignmentTicketIds(selectedTickets.map(ticket => ticket.Id)); setAssignAnchor(event.currentTarget as HTMLElement); setAssignTarget('bulk'); }} />}
+      {tab==='Archive'&&service?.access?.superAdmin&&service.deleteArchivedTickets&&<DefaultButton text="Delete selected" iconProps={{iconName:'Delete'}} title="Delete up to 200 archived tickets at a time" disabled={bulkBusy||Boolean(error)||selectedTickets.length>200} onClick={()=>setDeleteIds(selectedTickets.map(ticket=>ticket.Id))} />}
       <DefaultButton text="Export selected" iconProps={{ iconName: 'Download' }} disabled={bulkBusy || Boolean(error)} onClick={() => exportCsv(selectedTickets)} />
       <DefaultButton text={`Select all ${matching.length} matching`} disabled={bulkBusy || selectedTickets.length === matching.length} onClick={() => setSelectedIds(new Set(matching.map(ticket => ticket.Id)))} />
       <DefaultButton text="Clear selection" disabled={bulkBusy} onClick={() => setSelectedIds(new Set())} />

@@ -69,6 +69,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   tickets.notificationEnabled=()=>mail.enabled();
   tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
   if (superAdmin) {
+    source.deleteArchivedTickets=ids=>tickets.recycleArchivedTickets(ids);
     source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
       const current = await roles.load();

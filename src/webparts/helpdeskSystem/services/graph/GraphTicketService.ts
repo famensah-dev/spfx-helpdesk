@@ -331,6 +331,35 @@ export class GraphTicketService implements ITicketDataSource {
     }
     return result;
   }
+  public async recycleArchivedTickets(ids:number[]):Promise<ITicketBulkResult>{
+    const unique=[...new Set(ids)];
+    if(!unique.length||unique.length>200||unique.some(id=>!Number.isSafeInteger(id)||id<=0))throw new Error('Select between 1 and 200 archived tickets.');
+    if(!this.getSharePointToken)throw new Error('SharePoint ticket deletion is unavailable.');
+    const token=await this.getSharePointToken();
+    const web=this.config.siteUrl.replace(/\/$/,'')+'/_api/web';
+    const headers={Authorization:`Bearer ${token}`,Accept:'application/json;odata=nometadata','odata-version':'4.0'};
+    const permissions=await fetch(web+'/EffectiveBasePermissions',{headers,signal:AbortSignal.timeout(30000)});
+    if(!permissions.ok)throw new Error('Unable to verify Super Admin permissions.');
+    const permission=await permissions.json() as {Low:string};const low=Number(permission.Low);
+    if(!Number.isFinite(low)||!(low&1073741824)||!(low&33554432))throw new Error('Only SharePoint Super Admins can delete archived tickets.');
+    if(!this.updateSchema||!this.context)await this.getTickets();
+    const archived=this.updateSchema?.archived;
+    if(!archived||!this.context)throw new Error('The ticket list has no Archive field.');
+    const base=web+`/lists(guid'${this.context.listId}')/items`;
+    const result:ITicketBulkResult={succeeded:[],failed:[]};
+    for(const id of unique){
+      try{
+        const current=await fetch(`${base}(${id})?$select=Id,${encodeURIComponent(archived)}`,{headers,signal:AbortSignal.timeout(30000)});
+        if(!current.ok)throw new Error(`Unable to verify ticket (${current.status}).`);
+        const item=await current.json() as Record<string,unknown>;
+        if(item[archived]!==true)throw new Error('Only archived tickets can be deleted.');
+        const response=await fetch(`${base}(${id})/recycle()`,{method:'POST',headers,signal:AbortSignal.timeout(30000)});
+        if(!response.ok)throw new Error(`SharePoint could not recycle this ticket (${response.status}).`);
+        result.succeeded.push(id);
+      }catch(reason){result.failed.push({id,message:reason instanceof Error?reason.message:'Deletion could not be confirmed. Refresh before retrying.'});}
+    }
+    return result;
+  }
   public async getCreationOptions(): Promise<ITicketCreationOptions> {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');

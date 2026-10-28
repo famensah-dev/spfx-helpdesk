@@ -47,6 +47,7 @@ export interface ITicketDataSource {
   uploadAttachments?(id: number, files: File[], onProgress?: (message: string) => void): Promise<void>;
   uploadCommentAttachments?(ticketId: number, commentId: string, files: File[], onProgress?: (message: string) => void): Promise<void>;
   updateTickets?(ids: number[], action: TicketBulkAction): Promise<ITicketBulkResult>;
+  deleteArchivedTickets?(ids: number[]): Promise<ITicketBulkResult>;
   updateTicket?(id: number, input: ITicketEdit): Promise<void>;
   getComments?(id: number): Promise<ITicketComment[]>;
   markCommentAsSolution?(id: number, commentId: string, replaceExisting?: boolean): Promise<void>;
