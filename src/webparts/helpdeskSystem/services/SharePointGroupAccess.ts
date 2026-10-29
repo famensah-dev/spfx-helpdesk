@@ -3,7 +3,7 @@ import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import type { IRoleAssignment } from '../interfaces/IRoleManagement';
 import type { ISetupPlan } from '../interfaces/IWorkspaceSetup';
 import type { IOrganizationUser } from '../interfaces/ITicketDataSource';
-export const deskPilotGroups={agent:'DeskPilot Agents',admin:'DeskPilot Helpdesk Administrator'} as const;
+export const deskPilotGroups={agent:'DeskPilot Agents',admin:'DeskPilot Helpdesk Administrator',requester:'DeskPilot Requesters'} as const;
 interface Group {Id:number;Title:string;Description?:string;}
 const pendingDescription='DeskPilot: Read permission initialization pending.';
 export class SharePointGroupAccess {
@@ -42,7 +42,7 @@ export class SharePointGroupAccess {
   public async members():Promise<IOrganizationUser[]>{
     const groups=await this.groups();
     const users=new Map<number,IOrganizationUser>();
-    for(const group of groups){
+    for(const group of groups.filter(item=>item.Title.toLowerCase()!==deskPilotGroups.requester.toLowerCase())){
       const people=await this.collection<{Id:number;Title:string;Email:string;LoginName:string}>(this.web+`/sitegroups/getbyid(${group.Id})/users?$select=Id,Title,Email,LoginName&$top=5000`);
       for(const person of people){
         const login=person.LoginName?.split('|').pop()?.trim();
@@ -96,7 +96,7 @@ export class SharePointGroupAccess {
     // Remove obsolete membership first, so a role change cannot leave the old broader group grant.
     for(const id of ids){
       const user=assignments.find(item=>item.userId===id&&!item.disabled);
-      const desired=user&&(user.roleId==='agent'||user.roleId==='admin')?deskPilotGroups[user.roleId]:undefined;
+      const desired=user&&(user.roleId==='agent'||user.roleId==='admin'||user.roleId==='requester')?deskPilotGroups[user.roleId]:undefined;
       for(const group of groups){
         if(group.Title.toLowerCase()!==desired?.toLowerCase()&&members.get(group.Id)!.has(id)){
           await this.request(this.web+`/sitegroups/getbyid(${group.Id})/users/removebyid(${id})`,undefined,true);
@@ -104,7 +104,7 @@ export class SharePointGroupAccess {
         }
       }
     }
-    for(const user of assignments.filter(item=>!item.disabled&&(item.roleId==='agent'||item.roleId==='admin'))){
+    for(const user of assignments.filter(item=>!item.disabled&&(item.roleId==='agent'||item.roleId==='admin'||item.roleId==='requester'))){
       const name=deskPilotGroups[user.roleId as keyof typeof deskPilotGroups];
       const group=groups.find(item=>item.Title.toLowerCase()===name.toLowerCase())!;
       if(members.get(group.Id)!.has(user.userId))continue;

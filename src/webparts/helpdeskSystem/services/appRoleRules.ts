@@ -19,6 +19,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   const requireAction = (action: RoleAction): void => { if (!role.actions.includes(action)) throw new Error(`Your DeskPilot role does not allow ${action}.`); };
   const visible = (ticket: ITicket): boolean => ticketInScope(ticket, role, userId, email, aadId);
   const requireTicket = async (id: number): Promise<ITicket> => {
+    if(!role.actions.includes('tickets') && !role.actions.includes('dashboard'))throw new Error('Your DeskPilot role does not allow viewing tickets.');
     const ticket = (await source.getTickets()).tickets.find(item => item.Id === id);
     if (!ticket || !visible(ticket)) throw new Error('This ticket is outside your DeskPilot role’s view.');
     return ticket;
@@ -63,7 +64,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireTicket(id); await source.recordFirstResponse!(id); } : undefined;
   if (!role.actions.includes('classifications')) result.administration = undefined;
   if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canSubmitDraft: false }; };
-  if (source.getFaqs) result.getFaqs = async manage => { requireAction('faqs'); if (manage) requireAction('manageFaqs'); return source.getFaqs!(manage); };
+  if (source.getFaqs) result.getFaqs = async manage => { requireAction('faqs'); if (manage) requireAction('manageFaqs'); const articles=await source.getFaqs!(manage);return role.id==='requester' ? articles.filter(article=>article.published) : articles; };
   if (!role.actions.includes('manageFaqs')) { result.saveFaq = undefined; result.deleteFaq = undefined; result.updateFaqs = undefined; }
   if (source.sla) result.sla = { getSettings: manage => { if (manage) requireAction('sla'); return source.sla!.getSettings(manage); }, setup: async () => { throw new Error('SLA setup requires Super Admin.'); }, savePriority: async input => { requireAction('sla'); await source.sla!.savePriority(input); } };
   return result;

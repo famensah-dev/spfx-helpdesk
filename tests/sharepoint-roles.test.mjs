@@ -272,3 +272,18 @@ test('Add users opens on demand, saves multiple selected people once, and status
     assert.equal(writes.length, 2);
   } finally { globalThis.window = originalWindow; }
 });
+
+test('Requester can only create tickets and read published knowledge', async () => {
+ const {source,writes}=fixture();source.getFaqs=async()=>[{id:1,published:true},{id:2,published:false}];
+ const role=roles.defaultRoleConfiguration().roles.find(item=>item.id==='requester');
+ const service=applyAppRoleRules(source,role,7,'agent@example.com');
+ assert.deepEqual(role.actions,['create','faqs']);assert.deepEqual((await service.getTickets()).tickets,[]);
+ await service.createTicket({title:'Request',assignedToId:null});assert.equal(writes.length,1);
+ assert.equal((await service.getCreationOptions()).assignment,false);
+ await assert.rejects(service.createTicket({title:'Request',assignedToId:8}),/assign/);
+ assert.deepEqual((await service.getFaqs()).map(item=>item.id),[1]);await assert.rejects(service.getFaqs(true),/manageFaqs/);
+ for(const key of ['updateTicket','updateTickets','addComment','saveFaq','administration','supportUnits'])assert.equal(service[key],undefined,key);
+ await assert.rejects(service.getHistory(3),/viewing tickets/);await assert.rejects(service.getComments(3),/viewing tickets/);
+ const escalated={...role,actions:[...role.actions,'tickets']};assert.throws(()=>roles.validateRoleConfiguration({...roles.defaultRoleConfiguration(),roles:roles.defaultRoleConfiguration().roles.map(item=>item.id==='requester'?escalated:item)}),/fixed/);
+ const legacy=roles.defaultRoleConfiguration();legacy.roles=legacy.roles.filter(item=>item.id!=='requester');const upgraded=roles.upgradeRoleConfiguration(legacy);assert.equal(upgraded.roles.length,3);assert.deepEqual(upgraded.roles.slice(0,2),legacy.roles);assert.equal(roles.upgradeRoleConfiguration(upgraded),upgraded);
+});

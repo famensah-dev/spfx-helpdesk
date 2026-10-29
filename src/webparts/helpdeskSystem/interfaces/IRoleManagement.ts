@@ -12,19 +12,23 @@ export function assignedRole(configuration: IRoleConfiguration, userId: number):
 }
 export const defaultRoleConfiguration = (): IRoleConfiguration => ({ roles: [
   { id: 'agent', name: 'Agent', scope: 'assigned', actions: ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'comment'] },
-  { id: 'admin', name: 'Helpdesk Admin', scope: 'all', actions: [...roleActions] }
+  { id: 'admin', name: 'Helpdesk Admin', scope: 'all', actions: [...roleActions] },
+  { id: 'requester', name: 'Requester', scope: 'own', actions: ['create', 'faqs'] }
 ], assignments: [] });
 
 export function validateRoleConfiguration(value: IRoleConfiguration): void {
   if (value?.workspace && (['title', 'description', 'listName', 'listId'] as const).some(key => typeof value.workspace![key] !== 'string')) throw new Error('Invalid workspace settings.');
   if (value?.workspace && (!value.workspace.listName.trim() || value.workspace.title.length > 255 || value.workspace.description.length > 4000 || (value.workspace.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.workspace.listId)))) throw new Error('Invalid workspace title, description or ticket list binding.');
-  const ids = ['agent', 'admin'];
-  if (!value || !Array.isArray(value.roles) || value.roles.length !== 2 || !Array.isArray(value.assignments)) throw new Error('Invalid role configuration.');
-  if (new Set(value.roles.map(role => role.id)).size !== 2) throw new Error('Duplicate roles.');
+  const ids = ['agent', 'admin', 'requester'];
+  if (!value || !Array.isArray(value.roles) || ![2,3].includes(value.roles.length) || !Array.isArray(value.assignments)) throw new Error('Invalid role configuration.');
+  if (new Set(value.roles.map(role => role.id)).size !== value.roles.length) throw new Error('Duplicate roles.');
   for (const role of value.roles) {
+    if(role.id==='requester' && (role.scope!=='own' || role.actions.length!==2 || !role.actions.includes('create') || !role.actions.includes('faqs')))throw new Error('Requester permissions are fixed: create tickets and read published Knowledge Base articles.');
     if (!ids.includes(role.id) || !role.name || !['own', 'assigned', 'all'].includes(role.scope) || !Array.isArray(role.actions) || role.actions.some(action => !roleActions.includes(action))) throw new Error('Invalid role rules.');
     if (role.actions.includes('manageFaqs') && !role.actions.includes('faqs')) throw new Error(`${role.name}: enable the FAQs page before enabling FAQ management.`);
   }
+  if(!value.roles.some(role=>role.id==='agent') || !value.roles.some(role=>role.id==='admin'))throw new Error('Agent and Helpdesk Admin roles are required.');
+  if(value.assignments.some(item=>!value.roles.some(role=>role.id===item.roleId)))throw new Error('Invalid user assignments: unknown role.');
   if (new Set(value.assignments.map(item => item.userId)).size !== value.assignments.length || value.assignments.some(item => !Number.isInteger(item.userId) || item.userId < 1 || !item.email || !ids.includes(item.roleId))) throw new Error('Invalid user assignments.');
   for (const item of value.assignments) {
     const user = item.name || item.email;
@@ -32,4 +36,10 @@ export function validateRoleConfiguration(value: IRoleConfiguration): void {
     if (item.department !== undefined && item.department !== null && typeof item.department !== 'string') throw new Error(`The department for ${user} is invalid. Remove this selection and search for the user again.`);
     if (item.addedAt !== undefined && (typeof item.addedAt !== 'string' || !Number.isFinite(Date.parse(item.addedAt)))) throw new Error(`The date added for ${user} is invalid. Reload users and try again.`);
   }
+}
+
+/** Upgrade existing two-role workspaces without changing their configured permissions. */
+export function upgradeRoleConfiguration(value:IRoleConfiguration):IRoleConfiguration {
+  validateRoleConfiguration(value);
+  return value.roles.some(role=>role.id==='requester') ? value : {...value,roles:[...value.roles,defaultRoleConfiguration().roles.find(role=>role.id==='requester')!]};
 }

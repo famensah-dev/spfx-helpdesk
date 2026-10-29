@@ -82,7 +82,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
       <div className={styles.rolePermissionToolbar}>
         <Dropdown label="Role" selectedKey={selectedRoleId} disabled={busy || Boolean(draft)} options={config.roles.map(role => ({ key: role.id, text: role.name }))} onChange={(_, option) => { if (option) { setSelectedRoleId(String(option.key)); setMessage(''); setError(''); } }} />
         <div className={styles.ticketActions}>
-        {currentRole && <DefaultButton text="Edit permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft)} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
+        {currentRole && <DefaultButton text="Edit permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
         <DefaultButton text="Reload permissions" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />
         {currentRole && <DefaultButton text="Restore defaults" iconProps={{ iconName: 'Undo' }} disabled={busy} onClick={() => { const role = defaultRoleConfiguration().roles.find(item => item.id === selectedRoleId); if (role) setConfirmation({ role, restore: true }); }} />}
         </div>

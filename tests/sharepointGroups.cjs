@@ -17,7 +17,7 @@ const {SharePointGroupAccess,deskPilotGroups}=m.exports;
   },
   post:async(url,_configuration,options)=>{
    const body=options.body?JSON.parse(options.body):undefined;writes.push({url,body,headers:options.headers});assert.equal(options.headers['odata-version'],'');
-   if(url.endsWith('/sitegroups')){const group={Id:2,...body};groups.push(group);members.set(2,new Set([8,51]));if(loseCreate){loseCreate=false;throw Error('Lost response');}return response(group);}
+   if(url.endsWith('/sitegroups')){const id=body.Title===deskPilotGroups.admin?2:3;const group={Id:id,...body};groups.push(group);members.set(id,new Set(id===2?[8,51]:[]));if(loseCreate){loseCreate=false;throw Error('Lost response');}return response(group);}
    if(url.includes('addroleassignment')){if(failReadGrant){failReadGrant=false;return new Response('',{status:403});}const id=Number(url.match(/principalid=(\d+)/)[1]),level=Number(url.match(/roledefid=(\d+)/)[1]);permissions.set(id,level);return new Response(null,{status:204});}
    if(options.headers['X-HTTP-Method']==='MERGE'){Object.assign(groups.find(group=>group.Id===Number(url.match(/getbyid\((\d+)\)/)[1])),body);return new Response(null,{status:204});}
    if(url.includes('/users/removebyid')){members.get(Number(url.match(/getbyid\((\d+)\)/)[1])).delete(Number(url.match(/removebyid\((\d+)\)/)[1]));return new Response(null,{status:204});}
@@ -33,6 +33,7 @@ const {SharePointGroupAccess,deskPilotGroups}=m.exports;
  const desired=[assignment(7,'admin'),assignment(9,'agent'),assignment(10,'agent',true)];
  failAdd=true;await assert.rejects(service.sync(desired,[7,8,10]),/403/);await service.sync(desired,[7,8,10]);
  assert(!members.get(1).has(7));assert(members.get(2).has(7));assert(members.get(1).has(9));assert(!members.get(2).has(8));assert(members.get(1).has(50));assert(members.get(2).has(51));assert(members.get(90).has(7),'Other groups untouched');
+ await service.sync([...desired,assignment(11,'requester')],[7,8,10]);assert(members.get(3).has(11));assert(!members.get(1).has(11));await service.sync(desired,[7,8,10,11]);assert(!members.get(3).has(11));
  const before=writes.length;await service.sync(desired,[7,8,10]);assert.equal(writes.length,before,'Retry must not duplicate writes');
  await service.sync([], [7,9]);assert(!members.get(1).has(9));assert(!members.get(2).has(7));
  await assert.rejects(service.sync([assignment(-1,'agent')],[]),/valid SharePoint users/);

@@ -1,6 +1,6 @@
 import { SPHttpClient } from '@microsoft/sp-http';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
-import { defaultRoleConfiguration, validateRoleConfiguration } from '../interfaces/IRoleManagement';
+import { defaultRoleConfiguration, validateRoleConfiguration, upgradeRoleConfiguration } from '../interfaces/IRoleManagement';
 import type { IRoleConfiguration, IRoleManagement } from '../interfaces/IRoleManagement';
 
 interface AccessItem { Id: number; Title: string; Rules: string; }
@@ -139,7 +139,7 @@ export class SharePointRoleManagement implements IRoleManagement {
     if (!data.value.length) return defaultRoleConfiguration();
     if (data.value.length !== 1) throw new Error('DeskPilot Access must contain exactly one Configuration item.');
     const item = await this.configurationItem(data.value[0].Id);
-    const config = JSON.parse(item.Rules) as IRoleConfiguration; validateRoleConfiguration(config);
+    const config = upgradeRoleConfiguration(JSON.parse(item.Rules) as IRoleConfiguration);
     this.itemId = item.Id; this.etag = item.etag;
     await this.ensureList(this.root, 'DeskPilot Access');
     await this.secure(`${this.root}/items(${item.Id})`);
