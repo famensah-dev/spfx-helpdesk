@@ -24,8 +24,8 @@ export class WorkspaceMaintenanceService {
     await this.authorize();
     const config = await this.roles.load();
     const workspace = config.workspace;
-    const names = [workspace?.listName || 'Tickets', ...Object.entries(workspaceLists).filter(([key]) => !['access','emailSettings','notificationLog'].includes(key)).map(([,name]) => name)];
-    const ids = [workspace?.listId, ...Object.entries(workspace?.resourceIds || {}).filter(([key]) => !['access','emailSettings','notificationLog'].includes(key)).map(([,id]) => id)].filter(Boolean);
+    const names = [workspace?.listName || 'Tickets', ...Object.entries(workspaceLists).filter(([key]) => !['access','emailSettings','notificationLog','ticketViews'].includes(key)).map(([,name]) => name)];
+    const ids = [workspace?.listId, ...Object.entries(workspace?.resourceIds || {}).filter(([key]) => !['access','emailSettings','notificationLog','ticketViews'].includes(key)).map(([,id]) => id)].filter(Boolean);
     const values: MaintenanceList[] = [];
     let path: string | undefined = '/lists?$select=Id,Title,Description,ItemCount,BaseTemplate,Hidden&$top=100';
     while (path) {

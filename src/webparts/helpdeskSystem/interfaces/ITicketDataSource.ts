@@ -6,7 +6,7 @@ export interface IOrganizationUser { id: string; displayName: string; email: str
 export interface INewTicketInput { ticketSource?: string; requesterName?: string; requesterEmail?: string; title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; department?: string; dueDate?: string; attachments?: File[]; }
 export interface IClassificationOption { id: string; name: string; parentId?: string; }
 export interface ITicketClassification { categories: IClassificationOption[]; subcategories: IClassificationOption[]; issueTypes: IClassificationOption[]; listIds: { category: string; subcategory: string; issueType: string }; }
-export interface ITicketCreationOptions { ticketSources?: string[]; classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
+export interface ITicketCreationOptions { departments?:Array<{key:string;name:string}>; ticketSources?: string[]; classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
 export interface ITicketEdit { requesterName?: string; requesterEmail?: string; dueDate?: string; department?: string; ticketSource?: string; resolutionSummary?: string; title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; }
 export interface ITicketAttachment { name: string; url: string; size?: number; created?: string; author?: string; }
 export interface ICommentPostOptions { html?: string; files?: File[]; requestId?: string; onProgress?: (message: string) => void; }
@@ -17,6 +17,7 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  ticketViews?:import('./ITicketViews').ITicketViews;
   notifications?: import('./INotifications').INotificationService;
   supportUnits?: import('./ISupportUnits').ISupportUnitsService;
   workspaceSetup?: import('./IWorkspaceSetup').IWorkspaceSetup;

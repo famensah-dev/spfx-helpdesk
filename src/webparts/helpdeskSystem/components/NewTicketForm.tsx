@@ -38,6 +38,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
     if (submitting.current || loading || resolving || !options || !input.title.trim()) return;
     submitting.current = true; setSaving(true); setError('');
     try {
+      if(options.departments?.length && !input.department)throw new Error('Choose a department.');
       validateTicketAttachments(files);
       if (createdTicketId) {
         if (!props.service?.uploadAttachments) throw new Error('Attachment retry is unavailable.');
@@ -82,6 +83,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
         {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}</div>
         
         <details className={styles.newTicketAdvanced} open={options.fields.some(item=>['category','subcategory','issueType','department','dueDate'].includes(item.key)&&item.required) || undefined}><summary>Show all</summary><div className={styles.newTicketClassification}>{options.fields.filter(item => ['category', 'subcategory', 'issueType'].includes(item.key)).map(field)}</div><div className={styles.newTicketFields}><TextField label="Requester name" maxLength={255} value={input.requesterName || ''} disabled={saving} onChange={(_,value)=>change('requesterName',value || '')} /><TextField label="Requester email" type="email" maxLength={254} value={input.requesterEmail || ''} disabled={saving} onChange={(_,value)=>change('requesterEmail',value || '')} /></div><div className={styles.newTicketFields}>{options.fields.filter(item => ['dueDate','department'].includes(item.key)).sort((a,b)=>Number(a.key!=='dueDate')-Number(b.key!=='dueDate')).map(field)}</div></details>
+      {!!options.departments?.length && <Dropdown label="Department" required selectedKey={options.departments.find(item=>item.name===input.department)?.key || input.department} options={options.departments.map(item=>({key:item.key,text:item.name}))} disabled={saving || Boolean(createdTicketId)} onChange={(_,option)=>change('department',options.departments!.find(item=>item.key===option?.key)?.name || '')} />}
       <div className={styles.newTicketFooter}><p>{person ? 'This ticket will start with New status and the selected assignee.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry uploads' : 'Create ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
       </div>
     </form>}

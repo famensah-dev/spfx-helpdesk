@@ -34,6 +34,7 @@ const {SharePointGroupAccess,deskPilotGroups}=m.exports;
  failAdd=true;await assert.rejects(service.sync(desired,[7,8,10]),/403/);await service.sync(desired,[7,8,10]);
  assert(!members.get(1).has(7));assert(members.get(2).has(7));assert(members.get(1).has(9));assert(!members.get(2).has(8));assert(members.get(1).has(50));assert(members.get(2).has(51));assert(members.get(90).has(7),'Other groups untouched');
  await service.sync([...desired,assignment(11,'requester')],[7,8,10]);assert(members.get(3).has(11));assert(!members.get(1).has(11));await service.sync(desired,[7,8,10,11]);assert(!members.get(3).has(11));
+ service.collection=async()=>[{Id:1,Title:deskPilotGroups.requester},{Id:2,Title:deskPilotGroups.agent},{Id:3,Title:deskPilotGroups.admin}];assert.equal(await service.currentRole(),'admin');delete service.collection;
  const before=writes.length;await service.sync(desired,[7,8,10]);assert.equal(writes.length,before,'Retry must not duplicate writes');
  await service.sync([], [7,9]);assert(!members.get(1).has(9));assert(!members.get(2).has(7));
  await assert.rejects(service.sync([assignment(-1,'agent')],[]),/valid SharePoint users/);

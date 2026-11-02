@@ -31,6 +31,14 @@ export class SharePointGroupAccess {
       return matches;
     });
   }
+  /** Resolve the signed-in user's direct SharePoint role groups without enumerating other users. */
+  public async currentRole():Promise<keyof typeof deskPilotGroups | undefined>{
+    const groups=await this.collection<Group>(this.web+'/currentuser/groups?$select=Id,Title');
+    for(const role of ['admin','agent','requester'] as const){
+      if(groups.some(group=>group.Title.toLowerCase()===deskPilotGroups[role].toLowerCase()))return role;
+    }
+    return undefined;
+  }
   public async inspect():Promise<ISetupPlan['steps']>{
     const groups=await this.groups();
     return Object.values(deskPilotGroups).map(name=>{

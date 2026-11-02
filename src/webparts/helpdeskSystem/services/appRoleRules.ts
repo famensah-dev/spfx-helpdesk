@@ -62,6 +62,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.getAttachments) result.getAttachments = async id => {await requireTicket(id); return source.getAttachments!(id);};
   if (source.uploadAttachments) result.uploadAttachments = role.actions.includes('edit') ? async (id, files, progress) => { requireAction('edit'); await requireTicket(id); await source.uploadAttachments!(id, files, progress); } : undefined;
   if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireTicket(id); await source.recordFirstResponse!(id); } : undefined;
+  if(source.ticketViews)result.ticketViews=role.actions.includes('tickets') || role.actions.includes('dashboard') ? {getOpened:ids=>source.ticketViews!.getOpened(ids),markOpened:async id=>{await requireTicket(id);await source.ticketViews!.markOpened(id);},subscribe:source.ticketViews.subscribe?.bind(source.ticketViews)} : undefined;
   if (!role.actions.includes('classifications')) result.administration = undefined;
   if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canSubmitDraft: false }; };
   if (source.getFaqs) result.getFaqs = async manage => { requireAction('faqs'); if (manage) requireAction('manageFaqs'); const articles=await source.getFaqs!(manage);return role.id==='requester' ? articles.filter(article=>article.published) : articles; };

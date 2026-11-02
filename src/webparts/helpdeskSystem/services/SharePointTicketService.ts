@@ -1,3 +1,5 @@
+import { SharePointTicketViews } from './SharePointTicketViews';
+import { DepartmentFolderStore } from './DepartmentFolderStore';
 import { SharePointGroupAccess } from './SharePointGroupAccess';
 import { GraphNotificationService } from './graph/GraphNotificationService';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
@@ -14,7 +16,7 @@ import { GraphFaqService } from './graph/GraphFaqService';
 import { GraphAdministrationService } from './graph/GraphAdministrationService';
 import { GraphSlaService } from './graph/GraphSlaService';
 import { SharePointRoleManagement } from './SharePointRoleManagement';
-import { assignedRole, roleActions } from '../interfaces/IRoleManagement';
+import { roleActions, defaultRoleConfiguration } from '../interfaces/IRoleManagement';
 import { applyAppRoleRules } from './appRoleRules';
 import { WorkspaceSetupService } from './WorkspaceSetupService';
 import { WorkspaceMaintenanceService } from './WorkspaceMaintenanceService';
@@ -31,14 +33,15 @@ export async function createSharePointService(context: WebPartContext, listName:
   if (!Number.isFinite(low)) throw new Error('SharePoint did not return valid permissions.');
   const superAdmin = (low & 1073741824) !== 0 && (low & 33554432) !== 0; // ManageWeb and ManagePermissions
   const groupAccess=new SharePointGroupAccess(context);
-  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess);
+  const groupRole=superAdmin ? undefined : await groupAccess.currentRole();
+  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess,groupRole);
   const configuration = await roles.load();
   const currentUserResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/currentuser`, SPHttpClient.configurations.v1);
   if (!currentUserResponse.ok) throw new Error('Unable to identify your SharePoint user.');
   const currentUserData = await currentUserResponse.json();
   const currentUserId = Number((currentUserData.d || currentUserData).Id);
   if (!Number.isInteger(currentUserId) || currentUserId < 1) throw new Error('Unable to identify your SharePoint user.');
-  const role = superAdmin ? { id: 'superAdmin', name: 'Super Admin', scope: 'all' as const, actions: [...roleActions] } : assignedRole(configuration, currentUserId);
+  const role = superAdmin ? { id: 'superAdmin', name: 'Super Admin', scope: 'all' as const, actions: [...roleActions] } : groupRole ? configuration.roles.find(item=>item.id===groupRole) || defaultRoleConfiguration().roles.find(item=>item.id===groupRole) : undefined;
   if (!role) throw new Error('You do not have access to this DeskPilot workspace. Contact your helpdesk administrator to request access.');
   const admin = role.id === 'admin';
   const provider = await context.aadTokenProviderFactory.getTokenProvider();
@@ -49,10 +52,13 @@ export async function createSharePointService(context: WebPartContext, listName:
   const config = {currentUserName:context.pageContext.user.displayName,currentUserId,currentUserEmail:context.pageContext.user.email,tenantId: '', clientId: '', siteUrl, listName: workspaceSettings.listName, listId: workspaceSettings.listId || undefined, resourceIds: workspaceSettings.resourceIds, faqListName: 'FAQs', faqListId: workspaceSettings.resourceIds?.faqs, graphSiteScope: 'Sites.Selected' as const};
   const supportUnits = new GraphSupportUnitsService(graph, config);
   const tickets = new GraphTicketService(graph, config, graph, sharePointToken, id => supportUnits.routeTicket(id));
+  if(workspaceSettings.departmentFolders)tickets.folderStore=new DepartmentFolderStore(siteUrl,sharePointToken,workspaceSettings.departmentFolders,currentUserId,context.pageContext.user.email,admin || superAdmin || role.id==='agent');
+  const ticketViews=new SharePointTicketViews(siteUrl,sharePointToken,graph,currentUserId,async()=>{if(config.listId)return config.listId;const info=await graph.get<{id:string}>('/sites/'+new URL(siteUrl).hostname+':'+new URL(siteUrl).pathname+'?$select=id');const lists=await graph.getAll<{id:string;displayName:string}>('/sites/'+encodeURIComponent(info.id)+'/lists?$select=id,displayName');const list=lists.find(item=>item.displayName===config.listName);if(!list)throw new Error('Ticket list was not found.');return list.id;},workspaceSettings.resourceIds?.ticketViews);
   const faqs = new GraphFaqService(graph, config, sharePointToken);
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
   const source: ITicketDataSource = Object.assign(tickets, {
     workspaceSettings,
+    ticketViews,
     access,
     supportUnits: admin || superAdmin ? supportUnits : undefined,
     getTeamCandidates: admin || superAdmin ? () => groupAccess.members() : undefined,
@@ -72,6 +78,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     source.deleteArchivedTickets=ids=>tickets.recycleArchivedTickets(ids);
     source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
+      await ticketViews.setup(ids.ticketViews);
       const current = await roles.load();
       await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});
       const fields = spfi().using(SPFx(context)).web.lists.getById(ids.tickets).defaultView.fields;
@@ -97,6 +104,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     };
     source.roleManagement = roles; source.roleRules = role; return source;
   }
-  visibleSource=applyAppRoleRules(source, role, currentUserId, access.email, aadId);
+  const effectiveRole=workspaceSettings.departmentFolders && role.id==='agent' ? {...role,scope:'all' as const} : role;
+  visibleSource=applyAppRoleRules(source, effectiveRole, currentUserId, access.email, aadId);
   return visibleSource;
 }

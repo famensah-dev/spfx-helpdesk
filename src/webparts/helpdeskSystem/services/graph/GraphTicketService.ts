@@ -15,11 +15,12 @@ import type { IOrganizationUser } from '../../interfaces/ITicketDataSource';
 
 interface IGraphList { id: string; displayName: string; webUrl?: string; }
 interface IGraphColumn { required?: boolean; readOnly?: boolean; name: string; displayName: string; choice?: { choices: string[] }; text?: object; dateTime?: object; boolean?: object; personOrGroup?: { allowMultipleSelection?: boolean }; lookup?: { listId: string; allowMultipleValues?: boolean }; }
-interface IGraphItem { eTag?:string; '@odata.etag'?:string; id: string; webUrl?: string; createdBy?: { user?: { displayName?: string; id?: string; email?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
+interface IGraphItem { contentType?:{id?:string}; eTag?:string; '@odata.etag'?:string; id: string; webUrl?: string; createdBy?: { user?: { displayName?: string; id?: string; email?: string } }; createdDateTime: string; lastModifiedDateTime: string; fields: Record<string, unknown>; }
 const statuses: TicketStatus[] = ['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'];
 const text = (value: unknown): string => typeof value === 'string' ? value : '';
 
 export class GraphTicketService implements ITicketDataSource {
+  public folderStore?:import('../DepartmentFolderStore').DepartmentFolderStore;
   public notificationEnabled?:()=>Promise<boolean>;
   public onTicketChanged?:(ticket:ITicket,before?:IChangeSnapshot,created?:boolean)=>Promise<void>;
   private notificationWarnings=new Set<string>();
@@ -265,7 +266,8 @@ export class GraphTicketService implements ITicketDataSource {
     const previous = options.requestId ? (await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`)).filter(item => item.fields[schema.key] === schema.ticketKey && item.fields.Title === title) : [];
     if (previous.length > 1) throw new Error('Multiple matching comments were found. Refresh comments before continuing.');
     if (previous[0] && previous[0].fields[schema.content] !== stored) throw new Error('This comment was already saved with different text. Refresh before posting a changed comment.');
-    const created = previous[0] || await this.graph.post<{id:string}>(`${schema.path}/items`, { fields: { Title: title, [schema.key]: schema.ticketKey, [schema.content]: stored } });
+    const commentFields={Title:title,[schema.key]:schema.ticketKey,[schema.content]:stored};
+    const created=previous[0] || (this.folderStore ? await this.folderStore.createComment(this.context!.listId,id,schema.listId,commentFields) : await this.graph.post<{id:string}>(`${schema.path}/items`,{fields:commentFields}));
     if (!created?.id || !/^[1-9]\d*$/.test(String(created.id))) throw new Error('The comment save returned no valid ID. Refresh comments before retrying.');
     if (files.length) {
       try {
@@ -364,7 +366,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!this.creationSchema) await this.getTickets();
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
     const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
-    return {ticketSources:this.requesterFields?.sourceChoices || ['DeskPilot','Email','Forms','Phone / Call-in','Other'],classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('New')), fields:this.creationFields.map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
+    return {departments:this.folderStore?.policy.departments,ticketSources:this.requesterFields?.sourceChoices || ['DeskPilot','Email','Forms','Phone / Call-in','Other'],classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('New')), fields:this.creationFields.filter(field=>!this.folderStore || field.key!=='department').map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
   }
   public async uploadAttachments(id: number, files: File[], progress?: (message:string) => void): Promise<void> {
     if (!this.context) await this.getTickets();
@@ -436,7 +438,7 @@ export class GraphTicketService implements ITicketDataSource {
 
     }
     if (input.attachments?.length) await this.attachments().ensureEnabled(this.context!.listId);
-    const created = await this.graph.post<{ id: string }>(`${schema.path}/items`, { fields });
+    const created=this.folderStore ? await this.folderStore.createTicket(this.context!.listId,fields,input.department || '',requesterEmail) : await this.graph.post<{id:string}>(`${schema.path}/items`,{fields});
     try {
     if (input.attachments?.length) {
       const id = Number(created?.id);
@@ -539,7 +541,7 @@ export class GraphTicketService implements ITicketDataSource {
         warnings.push('Assignment identities could not be resolved. My Board is unavailable. Ask your administrator to configure read access to the site’s User Information List and its ID.');
       }
     }
-    const tickets: ITicket[] = items.map(item => {
+    const tickets: ITicket[] = items.filter(item=>!item.contentType?.id?.toLowerCase().startsWith('0x0120')).map(item => {
       const values = item.fields;
       const rawState = text(values[status.name]);
       const state = normalizeStatus(rawState);

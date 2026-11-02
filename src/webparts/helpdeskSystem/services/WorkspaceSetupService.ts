@@ -13,6 +13,7 @@ const common = (): Column[] => [text('Title'), {name: 'Active', boolean: {}, def
 export const ticketViewOrder = ['Title','Status','Priority','TicketType','Category','Subcategory','IssueType','AssignedTo','DueDate','FirstRespondedAt','ResolvedAt','ClosedAt','ResolutionSummary','RelatedIssue','Created','Author','Editor'];
 export function workspaceDefinitions(ticketName: string): Definition[] {
   const definitions: Definition[] = [
+    {key:'ticketViews',name:workspaceLists.ticketViews,columns:[{...text('Title'),indexed:true,required:true},date('LastOpenedAt')]},
     {key:'emailSettings',name:workspaceLists.emailSettings,columns:[text('Title'),{...text('SettingKey'),indexed:true,enforceUniqueValues:true,required:true},{name:'Configuration',text:{allowMultipleLines:true,textType:'plain'}}]},
     {key:'notificationLog',name:workspaceLists.notificationLog,columns:[text('Title'),{...text('NotificationKey'),indexed:true,enforceUniqueValues:true,required:true},{name:'TicketId',number:{decimalPlaces:'none'}},text('Event'),text('Subject'),{name:'Audience',text:{allowMultipleLines:true,textType:'plain'}},{name:'InApp',boolean:{}},text('DeliveryStatus'),{name:'Error',text:{allowMultipleLines:true,textType:'plain'}}]},
     {key: 'categories', name: workspaceLists.categories, columns: common()},
@@ -95,6 +96,7 @@ export class WorkspaceSetupService implements IWorkspaceSetup {
     }
     steps.push({resource: workspaceLists.priorities, action:'Seed missing priorities and missing SLA targets; preserve existing targets'});
     steps.push({resource:this.config.listName, action:'Arrange default view in the requested column order; keep other view fields afterward'});
+    steps.push({resource:workspaceLists.ticketViews,action:'Secure opened-ticket records to their creators; disable versions and attachments; grant role groups tracking access'});
     steps.push({resource: workspaceLists.access, action:'Initialize/verify private configuration, synchronize user access and save list bindings'});
     if(this.groups)steps.push(...await this.groups.inspect());
     this.reviewed = JSON.stringify(steps);

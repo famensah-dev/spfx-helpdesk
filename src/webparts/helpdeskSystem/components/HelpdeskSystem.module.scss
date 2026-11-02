@@ -1632,3 +1632,6 @@
   }
   time { flex:0 0 auto; color:#52647b; font-size:11px; line-height:22px; font-weight:400; }
 }
+.ticketUnopenedStar { display:inline-flex; align-items:center; justify-content:center; width:14px; height:14px; margin-right:7px; vertical-align:middle; color:#b45368; flex:0 0 14px; }
+.newTicketToast { position:fixed; z-index:100000; top:18px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:10px; padding:12px 18px; max-width:calc(100vw - 32px); box-sizing:border-box; border-radius:8px; background:#173849; color:#fff; box-shadow:0 5px 20px rgba(0,0,0,.18); font-size:14px; pointer-events:none; }
+.ticketTable tr[data-unopened='true'] .ticketSubjectLink { font-weight:600; }

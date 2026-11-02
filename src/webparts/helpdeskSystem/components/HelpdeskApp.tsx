@@ -62,7 +62,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   const page:Page = route.page;
   const allowed = route.creating ? canUse(props.service,'create') : route.workspace ? Boolean(props.service.access?.superAdmin) : route.ticketId ? canUse(props.service,'tickets') || canUse(props.service,'dashboard') : permittedPage(page);
   const personal = page === 'My Dashboard' || page === 'My Assigned Tickets';
-  const dashboard = useHelpdeskDashboard(props.service, personal ? props.currentUserEmail : undefined);
+  const dashboard = useHelpdeskDashboard(props.service, personal ? props.currentUserEmail : undefined, !route.creating && !route.ticketId && ['Dashboard','My Dashboard','Tickets','My Assigned Tickets'].includes(page) && permittedPage(page));
   const dashboardActive = page === 'Dashboard' || page === 'My Dashboard' || page === 'My Assigned Tickets';
   const detailTicket = dashboard.tickets.find(ticket=>ticket.Id===route.ticketId);
   const heading = React.useRef<HTMLHeadingElement>(null);
@@ -77,6 +77,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   if(location.pathname==='/' || location.pathname==='')return <Navigate to={pagePaths[initialPage]} replace />;
   return (
     <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
+      {dashboard.newTicketNotice>0 && <div key={dashboard.newTicketNotice} className={styles.newTicketToast} role="status"><Icon iconName="CheckMark" aria-hidden="true" />New ticket created</div>}
       <header className={styles.appHeader}>
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
         <div className={styles.headerActions}>{canUse(props.service,'tickets') && <NotificationCenter service={props.service} onOpenTicket={id=>routerNavigate('/tickets/'+id)} />}{props.accountActions}</div>
