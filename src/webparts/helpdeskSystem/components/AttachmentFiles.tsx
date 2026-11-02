@@ -4,7 +4,7 @@ import type { ITicketAttachment } from '../interfaces/ITicketDataSource';
 import { attachmentAccept, validateTicketAttachments } from '../utils/ticketAttachments';
 import styles from './HelpdeskSystem.module.scss';
 export function AttachmentFiles(props:{files:ITicketAttachment[]}): React.ReactElement {
-  return <ul className={styles.attachmentLinks}>{props.files.map(file => <li key={file.url}><Icon iconName="Attach" aria-hidden="true" /><a href={file.url} target="_blank" rel="noopener noreferrer">{file.name}</a></li>)}</ul>;
+  return <ul className={styles.attachmentLinks}>{props.files.map(file => <li key={file.url}><Icon iconName="Attach" aria-hidden="true" /><a href={file.previewUrl || file.url} target="_blank" rel="noopener noreferrer">{file.name}</a></li>)}</ul>;
 }
 export function AttachmentPicker(props:{files:File[];onChange:(files:File[])=>void;disabled?:boolean;compact?:boolean;chips?:boolean}): React.ReactElement {
   const input = React.useRef<HTMLInputElement>(null);

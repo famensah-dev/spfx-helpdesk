@@ -1,6 +1,16 @@
 import type { ITicketAttachment } from '../../interfaces/ITicketDataSource';
 import { validateTicketAttachments } from '../../utils/ticketAttachments';
 const quote = (name:string): string => encodeURIComponent(name.replace(/'/g,"''")).replace(/'/g,'%27');
+function namedUrl(siteUrl:string,path:string,name:string):string|undefined {
+  if(!path.startsWith('/') || path.startsWith('//') || /[\\\r\n]/.test(path) || /[\/\\\r\n]/.test(name))return undefined;
+  const slash=path.lastIndexOf('/');if(slash<1)return undefined;
+  const folder=path.slice(0,slash).split('/').map(segment=>{
+    try{return encodeURIComponent(decodeURIComponent(segment));}catch{return encodeURIComponent(segment);}
+  }).join('/');
+  const site=new URL(siteUrl),url=new URL(folder+'/'+encodeURIComponent(name),site.origin);
+  if(url.origin!==site.origin || !url.pathname.startsWith(site.pathname.replace(/\/$/,'')+'/'))return undefined;
+  return url.href;
+}
 /** Attachments stay on their ticket/comment list item and use its SharePoint permissions. */
 export class SharePointAttachments {
   public constructor(private siteUrl:string,private token:()=>Promise<string>) {}
@@ -22,6 +32,13 @@ export class SharePointAttachments {
     return Promise.all(data.value.map(async file => {
       const attachment:ITicketAttachment={name:file.FileName,url:`${base}('${quote(file.FileName)}')/$value`};
       if(file.ServerRelativeUrl) {
+        const direct=namedUrl(this.siteUrl,file.ServerRelativeUrl,file.FileName);
+        if(direct){
+          attachment.contentUrl=attachment.url;
+          attachment.url=direct;
+          // Office can use SharePoint's web viewer; downloads retain the named file URL.
+          if(/\.(docx?|xlsx?|pptx?)$/i.test(file.FileName))attachment.previewUrl=direct+'?web=1';
+        }
         try {
           const metadata=await (await this.request(this.siteUrl.replace(/\/$/,'')+"/_api/web/GetFileByServerRelativePath(decodedUrl='"+quote(file.ServerRelativeUrl)+"')?$select=Length,TimeCreated,Author/Title&$expand=Author")).json() as {Length?:string;TimeCreated?:string;Author?:{Title?:string}};
           if(metadata.Length!==undefined && Number.isFinite(Number(metadata.Length)))attachment.size=Number(metadata.Length);
@@ -50,7 +67,7 @@ export class SharePointAttachments {
       const match = existing.find(value => value.name.toLowerCase() === file.name.toLowerCase());
       if (!match) {pending.push(file); continue;}
       progress?.(`Checking previously uploaded ${file.name}...`);
-      const remote = await (await this.request(match.url)).arrayBuffer();
+      const remote = await (await this.request(match.contentUrl || match.url)).arrayBuffer();
       const local = await file.arrayBuffer();
       if (remote.byteLength !== local.byteLength) throw new Error(`${file.name}: a different file with this name already exists. Rename your file before uploading.`);
       const [a,b] = await Promise.all([crypto.subtle.digest('SHA-256',remote),crypto.subtle.digest('SHA-256',local)]);

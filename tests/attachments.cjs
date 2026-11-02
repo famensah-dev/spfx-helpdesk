@@ -18,7 +18,8 @@ const {SharePointAttachments}=load('src/webparts/helpdeskSystem/services/graph/S
       if(name==='second.pdf'&&failSecond){failSecond=false;return new Response('',{status:503});}
       store.set(name,await options.body.arrayBuffer());return new Response('{}');
     }
-    if(url.endsWith('/AttachmentFiles'))return new Response(JSON.stringify({value:[...store.keys()].map(FileName=>({FileName}))}));
+    if(url.endsWith('/AttachmentFiles'))return new Response(JSON.stringify({value:[...store.keys()].map(FileName=>({FileName,ServerRelativeUrl:'/sites/test/Lists/Tickets/Attachments/1/'+FileName}))}));
+    if(url.includes('GetFileByServerRelativePath'))return Response.json({Length:'4',Author:{Title:'Email sender'},TimeCreated:'2026-11-02T10:00:00Z'});
     const name=decodeURIComponent(url.match(/AttachmentFiles\('(.*)'\)\/\$value$/)[1]).replace(/''/g,"'");
     return new Response(store.get(name));
   };
@@ -33,7 +34,9 @@ const {SharePointAttachments}=load('src/webparts/helpdeskSystem/services/graph/S
     assert.equal(posts.length,before,'All name collisions must be checked before uploading anything');
     await service.upload(id,1,[new File(['safe'],"O'Brien #1%.png")]);
     const file=(await service.list(id,1)).find(value=>value.name.includes("O'Brien"));
-    assert(file.url.includes('%27%27')&&file.url.includes('%23')&&file.url.includes('%25'));assert(!file.url.includes('#'));
+    assert(file.contentUrl.includes('%27%27')&&file.contentUrl.includes('%23')&&file.contentUrl.includes('%25'));assert(!file.url.includes('#'));assert(!file.url.endsWith('/$value'));assert(file.url.endsWith("O'Brien%20%231%25.png"));assert.equal(file.author,'Email sender');
+    await service.upload(id,1,[new File(['word'],'email report.docx')]);const office=(await service.list(id,1)).find(value=>value.name==='email report.docx');assert(office.previewUrl.endsWith('email%20report.docx?web=1'));assert(!office.url.includes('?web='));
+    const apiFetch=global.fetch;global.fetch=async()=>Response.json({value:[{FileName:'report.pdf',ServerRelativeUrl:'//outside.example/report.pdf'}]});const fallback=(await service.list(id,1))[0];assert(fallback.url.startsWith('https://example.sharepoint.com/sites/test/_api/'));global.fetch=apiFetch;
     enabled=false;await assert.rejects(()=>service.ensureEnabled(id),/disabled/);
     await assert.rejects(()=>service.list('bad-id',1),/Invalid/);
   } finally {global.fetch=realFetch;}
