@@ -196,7 +196,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         { name: 'My Assigned Tickets', icon: 'Contact', disabled: !currentUserEmail || assignmentIdentityAvailable === false, hint: 'Tickets assigned to you' },
         { name: 'Created by Me', icon: 'Ticket', disabled: false, hint: 'Tickets you created' },
         { name: 'Archive', icon: 'Lock', disabled: false, hint: 'Archived tickets' }
-      ].map(item => <button key={item.name} type="button" disabled={item.disabled} title={item.hint} aria-pressed={tab === item.name} className={tab === item.name ? styles.activeNav : undefined} onClick={() => { setTab(item.name); setPage(0); }}><Icon iconName={item.icon} />{item.name}</button>)}
+      ].map(item => <button key={item.name} type="button" disabled={item.disabled} title={item.hint} aria-pressed={tab === item.name} className={tab === item.name ? styles.activeNav : undefined} onClick={() => { setTab(item.name); setPage(0); }}>{/* <Icon iconName={item.icon} /> */}{item.name}</button>)}
     </div>
     <Dialog hidden={!deleteIds.length} onDismiss={bulkBusy?undefined:()=>setDeleteIds([])} dialogContentProps={{title:'Delete archived tickets?',showCloseButton:!bulkBusy}} modalProps={{isBlocking:true}}>
       <p>Delete {deleteIds.length} selected archived ticket(s)? Tickets and their attachments will move to the SharePoint recycle bin. Ticket comments and notification history will be retained.</p>
