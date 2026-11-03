@@ -30,9 +30,9 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
   const [confirm, setConfirm] = React.useState(false);
   const version = React.useRef(0);
   const saveLock = React.useRef(false);
-  const site = props.context.pageContext.web.absoluteUrl.replace(/\/$/, '');
+  const site = props.service.workspaceConnection?.siteUrl || props.service.access?.siteUrl || props.context.pageContext.web.absoluteUrl.replace(/\/$/, '');
   const web = site + '/_api/web';
-  const normal = new URL(window.location.href); normal.searchParams.delete('env');
+  const normal = new URL(props.service.workspaceConnection?.pageUrl || window.location.href); normal.searchParams.delete('env');
   const app = new URL(normal.href); app.searchParams.set('env', 'WebView');
   const read = async <T,>(url: string): Promise<T> => {
     const address = new URL(url, site + '/');

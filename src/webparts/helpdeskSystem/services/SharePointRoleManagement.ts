@@ -12,8 +12,8 @@ export class SharePointRoleManagement implements IRoleManagement {
   private itemId?: number;
   private etag?: string;
   private identity?: { user: number; owners: number; read: number; full: number };
-  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>;initialize?():Promise<Array<{Id:number}>>},private groupRole?:'agent'|'admin'|'requester') {
-    this.web = `${context.pageContext.web.absoluteUrl}/_api/web`;
+  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>;initialize?():Promise<Array<{Id:number}>>},private groupRole?:'agent'|'admin'|'requester',siteUrl=context.pageContext.web.absoluteUrl) {
+    this.web = `${siteUrl.replace(/\/$/, '')}/_api/web`;
     this.root = `${this.web}/lists/getbytitle('DeskPilot Access')`;
     this.users = this.root;
   }

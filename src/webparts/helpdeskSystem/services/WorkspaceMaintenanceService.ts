@@ -9,7 +9,7 @@ export const maintenancePhrase = (action: MaintenanceAction): string => ({clear:
 export class WorkspaceMaintenanceService {
   private review?: string;
   private readonly web: string;
-  public constructor(private context: WebPartContext, private roles: IRoleManagement) { this.web = context.pageContext.web.absoluteUrl.replace(/\/$/, '') + '/_api/web'; }
+  public constructor(private context: WebPartContext, private roles: IRoleManagement,siteUrl=context.pageContext.web.absoluteUrl) { this.web = siteUrl.replace(/\/$/, '') + '/_api/web'; }
   private async read<T>(path: string): Promise<T> {
     const response = await this.context.spHttpClient.get(this.web + path, SPHttpClient.configurations.v1, {headers:{Accept:'application/json;odata=nometadata','odata-version':'4.0'}});
     if (!response.ok) throw new Error(`SharePoint request failed (${response.status}). Check your permissions.`);

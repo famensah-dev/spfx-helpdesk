@@ -9,7 +9,7 @@ const pendingDescription='DeskPilot: Read permission initialization pending.';
 export class SharePointGroupAccess {
   private readonly web:string;
   private prepared?:Promise<Group[]>;
-  public constructor(private readonly context:WebPartContext){this.web=context.pageContext.web.absoluteUrl.replace(/\/$/,'')+'/_api/web';}
+  public constructor(private readonly context:WebPartContext,siteUrl=context.pageContext.web.absoluteUrl){this.web=siteUrl.replace(/\/$/,'')+'/_api/web';}
   private async request<T>(url:string,body?:unknown,post=false,merge=false):Promise<T>{
     const options={headers:{Accept:'application/json;odata=nometadata','Content-Type':'application/json;odata=nometadata','odata-version':'',...(merge?{'X-HTTP-Method':'MERGE','IF-MATCH':'*'}:{})},body:body===undefined?undefined:JSON.stringify(body)};
     const response=post?await this.context.spHttpClient.post(url,SPHttpClient.configurations.v1,options):await this.context.spHttpClient.get(url,SPHttpClient.configurations.v1,options);

@@ -35,13 +35,14 @@ const service={access:{admin:true,superAdmin:true},workspaceSettings:{title:'IT'
 let finishConnection;
 let connection=new Promise(resolve=>{finishConnection=resolve;});
 const System=load(root+'components/HelpdeskSystem.tsx',{
+ '@microsoft/sp-http':{SPHttpClient:{configurations:{v1:{}}}},'../utils/workspaceConnection':load(root+'utils/workspaceConnection.ts'),
  'react-router-dom':Router,'../utils/appRoutes':routes,'react':React,'@fluentui/react':fluent,'./HelpdeskApp':app,'./HelpdeskSystem.module.scss':style,
  '../services/SharePointTicketService':{createSharePointService:async()=>{await connection;return service;}},
  './SharePointAccountMenu':{SharePointAccountMenu:()=>null},'./SharePointSettingsMenu':{SharePointSettingsMenu:p=>button('Open workspace settings',p.onOpenSettings)},
  '../pages/SettingsPage':{SettingsPage:p=>h('div',null,'Workspace '+p.section,button('SharePoint section',()=>p.onSectionChange('SharePoint Settings')),button('Leave workspace',p.onBack))}
 }).default;
 const container=document.getElementById('app');
-async function render(){await act(async()=>{ReactDOM.render(h(System,{spContext:{pageContext:{user:{email:'admin@example.com'}}},listName:'Tickets'}),container);});}
+async function render(){await act(async()=>{ReactDOM.render(h(System,{spContext:{pageContext:{web:{absoluteUrl:'https://tenant.sharepoint.com/sites/support'},user:{email:'admin@example.com'}}},listName:'Tickets'}),container);});}
 async function click(text){const b=[...container.querySelectorAll('button')].find(b=>b.textContent===text);assert(b,'Missing button '+text);await act(async()=>b.click());}
 async function hash(path){await act(async()=>{window.location.hash=path;await new Promise(resolve=>setTimeout(resolve,10));});}
 function unchanged(){assert.equal(window.location.search,'?env=WebView&source=portal');assert.equal(window.location.pathname,'/sites/support/SitePages/DeskPilot.aspx');}

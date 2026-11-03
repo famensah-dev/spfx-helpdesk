@@ -13,6 +13,8 @@ import HelpdeskSystem from './components/HelpdeskSystem';
 import { IHelpdeskSystemProps } from './components/IHelpdeskSystemProps';
 
 export interface IHelpdeskSystemWebPartProps {
+  workspaceSiteUrl?: string;
+  workspacePageUrl?: string;
   portalTitle?: string;
   description: string;
   listName: string;
@@ -32,6 +34,8 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
         portalTitle: this.properties.portalTitle,
         listName: this.properties.listName || 'Tickets',
         listId: this.properties.listId,
+        workspaceSiteUrl: this.properties.workspaceSiteUrl,
+        workspacePageUrl: this.properties.workspacePageUrl,
         isDarkTheme: this._isDarkTheme,
         environmentMessage: this._environmentMessage,
         userDisplayName: this.context.pageContext.user.displayName,
@@ -116,6 +120,8 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
             {
               groupName: strings.BasicGroupName,
               groupFields: [
+                PropertyPaneTextField('workspaceSiteUrl', { label: 'Workspace SharePoint site URL (optional)', description: 'Connect to an existing DeskPilot workspace instead of the hosting site.' }),
+                PropertyPaneTextField('workspacePageUrl', { label: 'Workspace DeskPilot page URL', description: 'Required with a workspace site URL. Used for ticket and invitation links.' }),
                 PropertyPaneTextField('portalTitle', { label: 'Workspace title (beside DeskPilot)', placeholder: 'IT Helpdesk', description: 'Set the title for this department’s DeskPilot page.' }),
                 PropertyPaneTextField('listName', { label: 'Tickets list name (on this site)' }),
                 PropertyPaneTextField('listId', { label: 'Tickets list ID (optional; takes precedence over name)' }),

@@ -1,4 +1,5 @@
 import { SharePointTicketViews } from './SharePointTicketViews';
+import { validateWorkspaceConnection, type IWorkspaceConnection } from '../utils/workspaceConnection';
 import { DepartmentFolderStore } from './DepartmentFolderStore';
 import { SharePointGroupAccess } from './SharePointGroupAccess';
 import { GraphNotificationService } from './graph/GraphNotificationService';
@@ -23,8 +24,16 @@ import { WorkspaceMaintenanceService } from './WorkspaceMaintenanceService';
 import { GraphSupportUnitsService } from './graph/GraphSupportUnitsService';
 
 /** SharePoint enforces access for every delegated request; UI roles are not a security boundary. */
-export async function createSharePointService(context: WebPartContext, listName: string, listId?: string): Promise<ITicketDataSource> {
-  const siteUrl = context.pageContext.web.absoluteUrl.replace(/\/$/, '');
+export async function createSharePointService(context: WebPartContext, listName: string, listId?: string, connection?: IWorkspaceConnection): Promise<ITicketDataSource> {
+  const selected = connection ? validateWorkspaceConnection(connection, context.pageContext.web.absoluteUrl) : undefined;
+  if (context.sdks?.microsoftTeams && !selected) throw new Error('Connect Teams to a DeskPilot workspace before loading or initializing lists.');
+  const siteUrl = selected?.siteUrl || context.pageContext.web.absoluteUrl.replace(/\/$/, '');
+  if (selected) {
+    const response = await context.spHttpClient.get(`${siteUrl}/_api/web?$select=Url`, SPHttpClient.configurations.v1);
+    if (!response.ok) throw new Error(`Unable to connect to the workspace site (${response.status}). Check the URL and your SharePoint access.`);
+    const data = await response.json();
+    if (String((data.d || data).Url).replace(/\/$/, '').toLowerCase() !== siteUrl.toLowerCase()) throw new Error('SharePoint returned a different workspace site. Check the connection URL.');
+  }
   const permissionsResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/EffectiveBasePermissions`, SPHttpClient.configurations.v1);
   if (!permissionsResponse.ok) throw new Error(`Unable to read your SharePoint permissions (${permissionsResponse.status}).`);
   const permissionData = await permissionsResponse.json();
@@ -32,9 +41,9 @@ export async function createSharePointService(context: WebPartContext, listName:
   const low = Number(permissions.Low);
   if (!Number.isFinite(low)) throw new Error('SharePoint did not return valid permissions.');
   const superAdmin = (low & 1073741824) !== 0 && (low & 33554432) !== 0; // ManageWeb and ManagePermissions
-  const groupAccess=new SharePointGroupAccess(context);
+  const groupAccess=new SharePointGroupAccess(context,siteUrl);
   const groupRole=superAdmin ? undefined : await groupAccess.currentRole();
-  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess,groupRole);
+  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess,groupRole,siteUrl);
   const configuration = await roles.load();
   const currentUserResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/currentuser`, SPHttpClient.configurations.v1);
   if (!currentUserResponse.ok) throw new Error('Unable to identify your SharePoint user.');
@@ -57,6 +66,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const faqs = new GraphFaqService(graph, config, sharePointToken);
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
   const source: ITicketDataSource = Object.assign(tickets, {
+    workspaceConnection: selected,
     workspaceSettings,
     ticketViews,
     access,
@@ -68,7 +78,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     saveFaq: faqs.save.bind(faqs), deleteFaq: faqs.delete.bind(faqs), updateFaqs: faqs.updateMany.bind(faqs)
   });
   let visibleSource:ITicketDataSource=source;
-  const mail=new GraphNotificationService(graph,config,{email:access.email,name:access.name || access.email},admin || superAdmin,window.location.href,workspaceSettings.title,async()=>(await visibleSource.getTickets()).tickets,async id=>{
+  const mail=new GraphNotificationService(graph,config,{email:access.email,name:access.name || access.email},admin || superAdmin,selected?.pageUrl || window.location.href,workspaceSettings.title,async()=>(await visibleSource.getTickets()).tickets,async id=>{
     const data=await supportUnits.load();return data.units.find(team=>team.id===id)?.email || '';
   });
   source.notifications={canManage:admin || superAdmin,getSettings:()=>mail.getSettings(),saveSettings:value=>mail.saveSettings(value),history:()=>mail.history(),inbox:()=>mail.inbox(),test:(value,event)=>mail.test(value,event),invite:(user,role,automatic)=>mail.invite(user,role,automatic)};
@@ -76,12 +86,12 @@ export async function createSharePointService(context: WebPartContext, listName:
   tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
   if (superAdmin) {
     source.deleteArchivedTickets=ids=>tickets.recycleArchivedTickets(ids);
-    source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles);
+    source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles,siteUrl);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
       await ticketViews.setup(ids.ticketViews);
       const current = await roles.load();
       await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});
-      const fields = spfi().using(SPFx(context)).web.lists.getById(ids.tickets).defaultView.fields;
+      const fields = spfi(siteUrl).using(SPFx(context)).web.lists.getById(ids.tickets).defaultView.fields;
       const existing = (await fields()).Items;
       for (let index = 0; index < orderedFields.length; index++) {
         const field = orderedFields[index] === 'Title' && existing.includes('LinkTitle') ? 'LinkTitle' : orderedFields[index];

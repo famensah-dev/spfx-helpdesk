@@ -31,6 +31,7 @@ export class GraphNotificationService {
     const items=await this.settingItems(context.settings);
     if(items.length>1)throw new Error('Duplicate email settings found. Ask a Super Admin to correct the configuration.');
     const value=items.length ? JSON.parse(String(items[0].fields.Configuration || '{}')) as IEmailSettings : defaultEmailSettings(this.appUrl);
+    if (/\/_layouts\/15\/(?:teams|teamstask)hostedapp\.aspx/i.test(value.appUrl || '') && /\/(?:SitePages|Pages)\//i.test(this.appUrl)) value.appUrl=this.appUrl;
     value.autoInvite=value.autoInvite??false;
     value.rules.invited=value.rules.invited||defaultEmailSettings(this.appUrl).rules.invited;
     validateEmailSettings(value);this.cache={expires:Date.now()+30000,value};return value;
