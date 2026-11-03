@@ -57,7 +57,7 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
   };
   return <>
     <button type="button" className={styles.launcher} onClick={() => setOpen(true)} aria-label="Open self-service help"><Icon iconName="Chat" />Need help?</button>
-    <Panel isOpen={open} onDismiss={() => { if (!loading) setOpen(false); }} type={PanelType.custom} customWidth="440px" headerText="Quick help" closeButtonAriaLabel="Close quick help" isLightDismiss={!loading} styles={{ main: { maxWidth: '100vw' }, content: { padding: 20 }, header: { padding: '20px 20px 0' } }}>
+    <Panel isOpen={open} onDismiss={() => { if (!loading) setOpen(false); }} type={PanelType.custom} customWidth="440px" headerText="Quick Help" closeButtonAriaLabel="Close Quick Help" isLightDismiss={!loading} styles={{ main: { maxWidth: '100vw' }, content: { padding: 20 }, commands: { paddingTop: 0 }, navigation: { alignItems: 'center', minHeight: 64, padding: '12px 20px', boxSizing: 'border-box' }, header: { padding: 0, alignSelf: 'center', minWidth: 0 }, headerText: { margin: 0, lineHeight: '32px' }, closeButton: { margin: 0, width: 32, height: 32, background: 'transparent', border: 0, color: '#52647a' } }}>
       <div className={styles.guide}>
         <p className={styles.intro}>Find an answer or let us help you create a support ticket.</p>
         <div className={styles.utilityNavigation}><button type="button" disabled={loading || (category === undefined && !escalating && !solved)} onClick={back}><Icon iconName="Back" />Back</button><button type="button" disabled={loading} onClick={reset}>Start again</button></div>

@@ -32,7 +32,7 @@ const AssigneeLabel: React.FC<{ person?: ITicket['AssignedTo'] }> = ({ person })
 };
 const columns = ['ID', 'Title', 'Description', 'Status', 'Priority', 'Assigned to', 'Assigned Team', 'Issue Category', 'Issue Subcategory', 'Issue Type', 'Ticket Type', 'Requested By', 'Requester Email', 'Created By', 'Ticket Source', 'Department / Unit', 'Created Date', 'Last Updated', 'Expected Resolution Date', 'Started At', 'First Response At', 'Resolved At', 'Closed At', 'Resolution Summary', 'Escalated'];
 const durationOptions = [{key: 'today', text: 'Today'}, {key: 'thisWeek', text: 'This Week'}, {key: 'month', text: 'This Month'}, {key: 'year', text: 'This Year'}, {key: 'all', text: 'All Time'}];
-const defaultColumns = ['ID', 'Title', 'Status', 'Priority', 'Assigned to', 'Created Date', 'Last Updated'];
+const defaultColumns = ['ID', 'Title', 'Status', 'Priority', 'Assigned to', 'Requested By', 'Created Date'];
 const ticketDescription = (ticket: ITicket): string => ticket.Description ? new DOMParser().parseFromString(ticket.Description, 'text/html').body.textContent || '' : '';
 const sortValue = (ticket: ITicket, column: string): string | number | null => {
   switch (column) {

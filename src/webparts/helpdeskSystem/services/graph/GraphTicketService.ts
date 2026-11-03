@@ -118,8 +118,13 @@ export class GraphTicketService implements ITicketDataSource {
     if (!input.title.trim() || input.title.trim().length > 255) throw new Error('Enter an issue title of 1–255 characters.');
     if(!ticketStatuses.includes(input.status))throw new Error('Select one of the five configured ticket statuses.');
     if (!schema.priorities.includes(input.priority)) throw new Error('This priority is not configured in the list.');
-    const status = workflow.choices.includes(input.status) ? input.status : input.status === 'Pending' && workflow.choices.includes('On Hold') ? 'On Hold' : input.status === 'Resolved' && workflow.choices.includes('Completed') ? 'Completed' : undefined;
-    if (!status) throw new Error(`Add ${input.status} to the list’s Status choices first.`);
+    let requestedStatus = input.assignedToId !== null && input.status === 'New' ? 'In Progress' : input.status;
+    if (input.assignedToId !== null && input.status !== 'New') {
+      const current = await this.graph.get<IGraphItem>(`${schema.path}/items/${id}?$expand=fields`);
+      if (Number(current.fields[`${workflow.assigned}LookupId`]) !== input.assignedToId) requestedStatus = 'In Progress';
+    }
+    const status = workflow.choices.includes(requestedStatus) ? requestedStatus : requestedStatus === 'Pending' && workflow.choices.includes('On Hold') ? 'On Hold' : requestedStatus === 'Resolved' && workflow.choices.includes('Completed') ? 'Completed' : undefined;
+    if (!status) throw new Error(`Add ${requestedStatus} to the list’s Status choices first.`);
     if (input.assignedToId !== null && (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0)) throw new Error('Select a valid SharePoint person.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.priority]: input.priority, [workflow.status]: status, [`${workflow.assigned}LookupId`]: input.assignedToId === null ? null : String(input.assignedToId) };
     let sourceEtag:string|undefined;
@@ -310,6 +315,10 @@ export class GraphTicketService implements ITicketDataSource {
     } else if (action.kind === 'assign') {
       if (action.userId !== null && (!Number.isSafeInteger(action.userId) || action.userId <= 0)) throw new Error('Select a valid SharePoint person.');
       fields[`${schema.assigned}LookupId`] = action.userId === null ? null : String(action.userId);
+      if (action.userId !== null) {
+        if (!schema.choices.includes('In Progress')) throw new Error('Add In Progress to the list Status choices before assigning tickets.');
+        fields[schema.status] = 'In Progress';
+      }
 
 
 
@@ -434,7 +443,9 @@ export class GraphTicketService implements ITicketDataSource {
       if (!Number.isSafeInteger(input.assignedToId) || input.assignedToId <= 0) throw new Error('Select a valid SharePoint person.');
 
       if(!this.updateSchema)throw new Error('Initialize workspace to configure ticket assignment.');
+      if (!this.updateSchema.choices.includes('In Progress')) throw new Error('Add In Progress to the list Status choices before assigning tickets.');
       fields[`${this.updateSchema.assigned}LookupId`] = String(input.assignedToId);
+      fields[schema.status] = 'In Progress';
 
     }
     if (input.attachments?.length) await this.attachments().ensureEnabled(this.context!.listId);

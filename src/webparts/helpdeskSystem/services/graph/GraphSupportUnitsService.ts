@@ -137,7 +137,7 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
     const columns = await this.graph.getAll<Column>(`${path}/columns`);
     const column = (name:string,aliases:string[]=[]):Column | undefined => columns.find(item => item.name===name) || columns.find(item => aliases.includes(item.displayName || ''));
     const assigned = column('AssignedTo',['Assigned To']), status = column('Status'), unitColumn = column('AssignedUnit',['Assigned Unit']);
-    if (!assigned?.personOrGroup || !status?.choice?.choices.includes('New') || !unitColumn?.lookup || unitColumn.lookup.allowMultipleValues || unitColumn.lookup.listId.toLowerCase()!==context.ids.units.toLowerCase()) throw new Error('Initialize workspace to configure Assigned Unit and ticket assignment fields.');
+    if (!assigned?.personOrGroup || !status?.choice?.choices.includes('New') || !status.choice.choices.includes('In Progress') || !unitColumn?.lookup || unitColumn.lookup.allowMultipleValues || unitColumn.lookup.listId.toLowerCase()!==context.ids.units.toLowerCase()) throw new Error('Initialize workspace to configure Assigned Unit and ticket assignment fields, including In Progress status.');
     const item = await this.graph.get<Item>(`${path}/items/${id}?$expand=fields`);
     if (number(item.fields[`${assigned.name}LookupId`])) return 'Already assigned; preserved existing assignee.';
     if (item.fields[status.name]!=='New') return 'Only new, unassigned tickets are routed automatically.';
@@ -165,7 +165,7 @@ export class GraphSupportUnitsService implements ISupportUnitsService {
     }
     if (unit.method==='Team lead' && unit.teamLeadMemberId) selected = data.members.find(member => member.id===unit.teamLeadMemberId && member.unitId===unit.id && member.available && positive(member.userId));
     if (!selected && existingUnit===unit.id) return `Ticket remains in ${unit.title}'s queue; no individual assignment made.`;
-    await this.graph.patch(`${path}/items/${id}/fields`,{[`${unitColumn.name}LookupId`]:String(unit.id),...(selected ? {[`${assigned.name}LookupId`]:String(selected.userId)} : {})},this.etag(item));
+    await this.graph.patch(`${path}/items/${id}/fields`,{[`${unitColumn.name}LookupId`]:String(unit.id),...(selected ? {[`${assigned.name}LookupId`]:String(selected.userId),[status.name]:'In Progress'} : {})},this.etag(item));
     return selected ? `Assigned to ${selected.name} in ${unit.title}.` : `Added to ${unit.title}'s queue; no configured assignee is available; administrator review required.`;
   }
 }

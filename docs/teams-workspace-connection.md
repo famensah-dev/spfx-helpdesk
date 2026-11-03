@@ -6,7 +6,7 @@ The Teams host URL is not the workspace. A personal app may run at the tenant ro
 
 Open DeskPilot in Teams. Enter the site containing the existing DeskPilot lists and the SharePoint page containing the web part. Select **Connect**. The app checks the site's identity, your actual permissions and the workspace configuration before allowing setup or normal use. No lists are created by Connect.
 
-The connection is remembered per tenant and signed-in account in this browser. Embedded clients that block local storage retain it for the current session only. Use the connection icon in the header to change it. Both URLs must be HTTPS and in the same tenant; the page must be inside the workspace site. SharePoint permission checks still apply to every user.
+The connection is remembered per tenant and signed-in account in this browser. Embedded clients that block local storage retain it for the current session only. Super Admins can change it under Settings > General > Change workspace connection. Both URLs must be HTTPS and in the same tenant; the page must be inside the workspace site. SharePoint permission checks still apply to every user.
 
 ## Optional organization-wide default
 
@@ -21,7 +21,7 @@ A tenant-root site owner can create the folder `DeskPilot` in the root site's **
 
 The file's address is `https://YOURTENANT.sharepoint.com/SiteAssets/DeskPilot/teams-connection.json`. Give intended staff Read access to the file; only trusted workspace administrators should be able to edit it. It contains no credentials. This pointer does not grant access to the target workspace. Existing target-site permissions and DeskPilot role groups determine access.
 
-On opening Teams, this default takes priority over the browser's saved connection. If absent or inaccessible (404/403), the app uses a saved connection or asks the user. An invalid readable default displays an error instead of silently selecting the tenant root. A temporary session change is possible with the connection icon; the shared default is reapplied on reopening. To move the workspace, migrate its data and permissions, then update these URLs. No source-code edits or tenant-specific build are required.
+On opening Teams, this default takes priority over the browser's saved connection. If absent or inaccessible (404/403), the app uses a saved connection or asks the user. An invalid readable default displays an error instead of silently selecting the tenant root. A temporary session change is possible under Settings > General > Change workspace connection; the shared default is reapplied on reopening. To move the workspace, migrate its data and permissions, then update these URLs. No source-code edits or tenant-specific build are required.
 
 ## Channel tabs / SharePoint web parts
 
