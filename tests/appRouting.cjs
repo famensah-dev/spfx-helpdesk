@@ -22,6 +22,7 @@ let data={tickets:[{Id:123,Title:'Printer offline'}],loading:false,error:null,wa
 const app=load(root+'components/HelpdeskApp.tsx',{
  'react-router-dom':Router,'@fluentui/react':fluent,'../utils/appRoutes':routes,'../services/appRoleRules':rules,'./HelpdeskSystem.module.scss':style,
  './NotificationCenter':{NotificationCenter:()=>null},
+ './SelfServiceGuide':{SelfServiceGuide:()=>null},
  './WorkspaceSetupPanel':{MissingWorkspaceNotice:()=>null},'../hooks/useHelpdeskDashboard':{useHelpdeskDashboard:()=>data},
  '../pages/DashboardPage':{DashboardPage:p=>h('div',null,'Dashboard content',button('Open dashboard ticket',()=>p.onOpenTicket(123)))},
  '../pages/TicketListPage':{TicketListPage:p=>h('div',null,p.creating?'New ticket form':'Tickets content '+p.view,button('Open list ticket',()=>p.onOpenTicket(123)),button('Show archive',()=>p.onViewChange('Archive')),button('Create ticket',()=>p.onCreatingChange(true)))},

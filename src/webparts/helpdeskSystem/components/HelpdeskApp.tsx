@@ -1,4 +1,5 @@
 import { NotificationCenter } from './NotificationCenter';
+import { SelfServiceGuide } from './SelfServiceGuide';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { pagePaths, adminPaths, resolveAppRoute } from '../utils/appRoutes';
 import { MissingWorkspaceNotice } from './WorkspaceSetupPanel';
@@ -104,6 +105,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         </>}
         </>}
       </main>
+      {!props.settingsContent && !route.creating && canUse(props.service, 'faqs') && <SelfServiceGuide service={props.service} canCreate={canUse(props.service, 'create') && Boolean(props.service.createTicket)} onCreate={draft => routerNavigate('/tickets/new', { state: { selfServiceDraft: draft } })} />}
     </ThemeProvider>
   );
 }

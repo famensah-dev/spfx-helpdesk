@@ -4,6 +4,7 @@ import { attachmentAccept, validateTicketAttachments } from '../utils/ticketAtta
 import { RichTextEditor } from './RichTextEditor';
 import { cancelButtonStyles } from './cancelButtonStyles';
 import * as React from 'react';
+import { useLocation } from 'react-router-dom';
 import { TextField, ChoiceGroup, DirectionalHint, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Label, Icon, IconButton } from '@fluentui/react';
 import type { INewTicketInput, ITicketDataSource, ITicketCreationOptions } from '../interfaces/ITicketDataSource';
 import type { IUserLookup } from '../interfaces/ITicket';
@@ -11,10 +12,12 @@ import { FormAssigneePicker } from './FormAssigneePicker';
 import styles from './HelpdeskSystem.module.scss';
 export type { INewTicketInput } from '../interfaces/ITicketDataSource';
 export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: () => void; onCreate: (input: INewTicketInput) => Promise<void> }): React.ReactElement {
+  const location = useLocation();
+  const selfServiceDraft = location.state?.selfServiceDraft as Partial<INewTicketInput> | undefined;
   const [files, setFiles] = React.useState<File[]>([]);
   const [createdTicketId, setCreatedTicketId] = React.useState<number | null>(null);
   const fileInput = React.useRef<HTMLInputElement>(null);
-  const [input, setInput] = React.useState<INewTicketInput>({ title: '', description: '', priority: 'Medium', ticketSource:'DeskPilot', requesterName:props.service?.access?.name || '', requesterEmail:props.service?.access?.email || '' });
+  const [input, setInput] = React.useState<INewTicketInput>({ title: selfServiceDraft?.title || '', description: selfServiceDraft?.description || '', category: selfServiceDraft?.category, subcategory: selfServiceDraft?.subcategory, priority: 'Medium', ticketSource:'DeskPilot', requesterName:props.service?.access?.name || '', requesterEmail:props.service?.access?.email || '' });
   const [options, setOptions] = React.useState<ITicketCreationOptions | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
