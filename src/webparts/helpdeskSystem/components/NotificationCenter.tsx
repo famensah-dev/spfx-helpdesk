@@ -21,7 +21,7 @@ export function NotificationCenter({service,onOpenTicket}:{service:ITicketDataSo
     {error&&<MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {items.map(item=>{
       const isUnread=!seen.includes(item.id);
-      const event={created:{name:'Ticket Created',icon:'PageAdd'},assigned:{name:'Ticket Assigned',icon:'AddFriend'},resolved:{name:'Ticket Resolved',icon:'CheckMark'},closed:{name:'Ticket Closed',icon:'Lock'},invited:{name:'User Invitation',icon:'Mail'}}[item.event];
+      const event={created:{name:'Ticket Created',icon:'PageAdd'},assigned:{name:'Ticket Assigned',icon:'AddFriend'},resolved:{name:'Ticket Resolved',icon:'CheckMark'},closed:{name:'Ticket Closed',icon:'Lock'},invited:{name:'User Invitation',icon:'Mail'},slaBreached:{name:'SLA Breach',icon:'Warning'}}[item.event];
       const heading=event?'[DeskPilot #'+item.ticketId+'] '+event.name:item.subject;
       const prefix=event?heading+': ':'';
       const detail=prefix&&item.subject.startsWith(prefix)?item.subject.slice(prefix.length):event&&item.subject!==heading?item.subject:'';

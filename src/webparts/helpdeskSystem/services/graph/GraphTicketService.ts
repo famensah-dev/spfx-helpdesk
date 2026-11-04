@@ -66,7 +66,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!etag) throw new Error('Unable to verify the ticket version. Refresh and try again.');
     await this.graph.patch(`${target.path}/items/${id}/fields`,{[target.summary]:answer,[target.comment]:commentId},etag);
   }
-  private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string };
+  private updateSchema?: { path: string; status: string; choices: string[]; assigned: string; archived?: string; resolved?: string; response?: string; pause?: string };
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
     private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>, private readonly routeNewTicket?: (id:number) => Promise<string>) {}
@@ -204,8 +204,23 @@ export class GraphTicketService implements ITicketDataSource {
     }
     const notificationBefore=await this.captureChange(id);
     await this.addResolutionTimestamp(id, status, fields);
-    await this.graph.patch(`${schema.path}/items/${id}/fields`, fields,sourceEtag);
+    const pauseEtag=await this.addPauseHistory(id,status,fields);
+    await this.graph.patch(`${schema.path}/items/${id}/fields`, fields,sourceEtag || pauseEtag);
     await this.notifyChange(id,notificationBefore);
+  }
+  private async addPauseHistory(id:number,next:string,fields:Record<string,unknown>):Promise<string|undefined>{
+    const schema=this.updateSchema!;if(!schema.pause)return undefined;
+    const current=await this.graph.get<IGraphItem>(`${schema.path}/items/${id}?$expand=fields`);
+    if(String(current.fields[schema.status])===next)return undefined;
+    let history:ITicket['SlaPauseIntervals'];try{const value=JSON.parse(String(current.fields[schema.pause]||'null'));if(Array.isArray(value))history=value;}catch{/* Historical pauses are unknown. */}
+    if(!history || history.some(value=>!value||typeof value.start!=='string'))return undefined;
+    const now=new Date().toISOString(),pending=['Pending','On Hold','Waiting on Third Party'];
+    const etag=current.eTag||current['@odata.etag'];if(!etag)throw new Error('Unable to verify Pending pause history. Refresh before changing status.');
+    if(pending.includes(String(current.fields[schema.status]))!==history.some(value=>!value.end)){fields[schema.pause]='null';return etag;}
+    if(pending.includes(next)&&!history.some(value=>!value.end))history.push({start:now});
+    if(!pending.includes(next))history=history.map(value=>value.end?value:{...value,end:now});
+    fields[schema.pause]=JSON.stringify(history);
+    return etag;
   }
   private async addResolutionTimestamp(id: number, next: string, fields: Record<string, unknown>): Promise<void> {
     const schema = this.updateSchema!;
@@ -337,7 +352,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!unique.length || unique.some(id => !Number.isSafeInteger(id) || id <= 0)) throw new Error('Select valid tickets first.');
     const result: ITicketBulkResult = { succeeded: [], failed: [] };
     for (const id of unique) {
-      try { const notificationBefore=action.kind==='status'||action.kind==='assign' ? await this.captureChange(id) : undefined; const update = {...fields}; if (fields[schema.status] !== undefined) await this.addResolutionTimestamp(id, String(fields[schema.status]), update); await this.graph.patch(`${schema.path}/items/${id}/fields`, update); result.succeeded.push(id); await this.notifyChange(id,notificationBefore); }
+      try { const notificationBefore=action.kind==='status'||action.kind==='assign' ? await this.captureChange(id) : undefined; const update = {...fields}; if (fields[schema.status] !== undefined) await this.addResolutionTimestamp(id, String(fields[schema.status]), update); const pauseEtag=fields[schema.status]!==undefined?await this.addPauseHistory(id,String(fields[schema.status]),update):undefined; await this.graph.patch(`${schema.path}/items/${id}/fields`, update,pauseEtag); result.succeeded.push(id); await this.notifyChange(id,notificationBefore); }
       catch (error) { result.failed.push({ id, message: error instanceof Error ? error.message : 'Update failed.' }); }
     }
     return result;
@@ -394,6 +409,7 @@ export class GraphTicketService implements ITicketDataSource {
     if (!schema.choices.includes(input.priority)) throw new Error('This priority is not configured in the SharePoint list.');
     if (input.description.trim() && !schema.description) throw new Error('Add an Issue description text column to the list to save a description.');
     const fields: Record<string, unknown> = { [schema.title]: input.title.trim(), [schema.status]: 'New', [schema.priority]: input.priority };
+    if(this.updateSchema?.pause)fields[this.updateSchema.pause]='[]';
     const requester = this.requesterFields;
     const requesterEmail=input.requesterEmail?.trim() || this.config.currentUserEmail || '';
     const requesterName=input.requesterName?.trim() || '';
@@ -508,7 +524,7 @@ export class GraphTicketService implements ITicketDataSource {
     const due = resolve('DueDate', 'dateTime', true);
     const escalated = resolve('Escalated', 'boolean', true);
     const archived = resolve('Archived', 'boolean', true);
-    this.updateSchema = { path: listPath, status: status.name, choices: status.choice?.choices || [], assigned: assigned.name, archived: archived?.name, resolved: resolved?.name, response: response?.name };
+    this.updateSchema = { path: listPath, status: status.name, choices: status.choice?.choices || [], assigned: assigned.name, archived: archived?.name, resolved: resolved?.name, response: response?.name, pause: columns.find(column=>column.name==='SlaPauseIntervals' && column.text && !column.readOnly)?.name };
     const optionalDisplay = (names: string[], types: Array<'text' | 'choice' | 'dateTime' | 'personOrGroup' | 'lookup'>): IGraphColumn | undefined => names.map(name => columns.find(column => normalize(column.displayName) === normalize(name) && types.some(type => Boolean(column[type]))) || columns.find(column => normalize(column.name) === normalize(name) && types.some(type => Boolean(column[type])))).find(Boolean);
     const subcategory = optionalDisplay(['Issue Subcategory', 'IssueSubcategory', 'Subcategory'], ['text', 'choice', 'lookup']);
     const issueType = optionalDisplay(['Issue Type', 'Issue / Request', 'IssueType'], ['text', 'choice', 'lookup']);
@@ -533,7 +549,7 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = ["AuthorLookupId", ...(requesterName ? [requesterName.name] : []), ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = [...(this.updateSchema.pause?[this.updateSchema.pause]:[]), "AuthorLookupId", ...(requesterName ? [requesterName.name] : []), ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -560,6 +576,7 @@ export class GraphTicketService implements ITicketDataSource {
       if (statuses.indexOf(state) < 0 || !priority.choice!.choices.includes(urgency)) throw new Error(`Ticket ${item.id} has an unsupported status or priority.`);
       const userId = Number(values[`${assigned.name}LookupId`]);
       return { ChangeVersion:item.eTag || item['@odata.etag'], AssignedUnitId:assignedUnit ? Number(values[assignedUnit.name+'LookupId']) || undefined : undefined, Id: Number(item.id), Title: text(values[title.name]) || 'Untitled ticket', Status: state, Priority: urgency,
+        SlaPauseIntervals: (()=>{try{const parsed=JSON.parse(String(this.updateSchema?.pause?values[this.updateSchema.pause]||'null':'null'));return Array.isArray(parsed)?parsed:undefined;}catch{return undefined;}})(),
         Description: description ? text(values[description.name]) : undefined, WebUrl: item.webUrl,
         Archived: archived ? values[archived.name] === true : false,
         Created: item.createdDateTime, Modified: item.lastModifiedDateTime,

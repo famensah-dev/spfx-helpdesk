@@ -82,6 +82,15 @@ export async function createSharePointService(context: WebPartContext, listName:
     const data=await supportUnits.load();return data.units.find(team=>team.id===id)?.email || '';
   });
   source.notifications={canManage:admin || superAdmin,getSettings:()=>mail.getSettings(),saveSettings:value=>mail.saveSettings(value),history:()=>mail.history(),inbox:()=>mail.inbox(),test:(value,event)=>mail.test(value,event),invite:(user,role,automatic)=>mail.invite(user,role,automatic)};
+  if(admin || superAdmin){
+    (source.sla as GraphSlaService).onBreach=async(ticket,kind)=>{
+      if(!ticket.AssignedUnitId)return;
+      const data=await supportUnits.load(),team=data.units.find(unit=>unit.id===ticket.AssignedUnitId),lead=data.members.find(member=>member.unitId===team?.id&&member.id===team?.teamLeadMemberId);
+      if(!lead)throw new Error(`Ticket #${ticket.Id}: choose a team lead in Support Teams for SLA alerts.`);
+      const response=await context.spHttpClient.get(`${siteUrl}/_api/web/siteusers/getbyid(${lead.userId})?$select=Email`,SPHttpClient.configurations.v1);
+      if(!response.ok)throw new Error('Unable to resolve the team lead for an SLA alert.');const user=await response.json();await mail.slaBreach(ticket,kind,String((user.d||user).Email||''));
+    };
+  }
   tickets.notificationEnabled=()=>mail.enabled();
   tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
   if (superAdmin) {

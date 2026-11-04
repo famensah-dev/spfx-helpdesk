@@ -9,6 +9,7 @@ export interface IUserLookup {
 }
 
 export interface ITicket {
+  SlaPauseIntervals?: Array<{ start: string; end?: string }>;
   ChangeVersion?: string;
   AssignedUnitId?: number;
   Id: number;

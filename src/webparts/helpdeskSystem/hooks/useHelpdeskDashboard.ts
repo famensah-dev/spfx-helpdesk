@@ -45,6 +45,7 @@ export function useHelpdeskDashboard(service: ITicketDataSource, assignedEmail?:
       setHasResolvedAt(result.hasResolvedAt);
       setCapabilities({ hasCategory: result.hasCategory, hasDueDate: result.hasDueDate, hasEscalated: result.hasEscalated, hasPending: result.hasPending });
       setLastUpdated(new Date());
+      if(service.sla?.checkBreaches)void service.sla.checkBreaches(result.tickets).catch(reason=>{if(request.current===id)setWarnings(current=>[...current,reason instanceof Error?reason.message:'Unable to check SLA breach alerts.']);});
     } catch (err) {
       if (request.current !== id) return;
       if(!quiet)setError(err instanceof Error ? err.message : 'Unable to load tickets. Check your connection and SharePoint permissions.');
@@ -54,6 +55,13 @@ export function useHelpdeskDashboard(service: ITicketDataSource, assignedEmail?:
     }
   }, [service,assignedEmail]);
   const refresh=React.useCallback(()=>fetchTickets(false),[fetchTickets]);
+  React.useEffect(()=>{
+    if(!service.sla?.checkBreaches || !(service.access?.admin || service.access?.superAdmin))return;
+    let active=true; const checks=new Set<symbol>();
+    const check=async():Promise<void>=>{if(checks.size||document.visibilityState==='hidden')return;const token=Symbol('sla-check');checks.add(token);try{const result=await service.getTickets();if(active)await service.sla?.checkBreaches?.(result.tickets);}catch(reason){if(active)setWarnings(current=>[...new Set([...current,reason instanceof Error?reason.message:'Unable to check SLA alerts.'])]);}finally{checks.delete(token);}};
+    const timer=window.setInterval(()=>{void check();},60000);
+    return()=>{active=false;window.clearInterval(timer);};
+  },[service]);
   React.useEffect(()=>{
     if(!autoRefresh)return;
     const check=():void=>{if(document.visibilityState==='hidden' || Date.now()-lastPoll.current<5000)return;lastPoll.current=Date.now();void fetchTickets(true);};

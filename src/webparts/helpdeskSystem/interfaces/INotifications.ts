@@ -1,6 +1,6 @@
-export const notificationEvents=['created','assigned','resolved','closed','invited'] as const;
+export const notificationEvents=['created','assigned','resolved','closed','invited','slaBreached'] as const;
 export type NotificationEvent=typeof notificationEvents[number];
-export const eventNames:Record<NotificationEvent,string>={created:'Ticket Created',assigned:'Ticket Assigned',resolved:'Ticket Resolved',closed:'Ticket Closed',invited:'User Invitation'};
+export const eventNames:Record<NotificationEvent,string>={created:'Ticket Created',assigned:'Ticket Assigned',resolved:'Ticket Resolved',closed:'Ticket Closed',invited:'User Invitation',slaBreached:'SLA Breach'};
 export const recipientNames={requester:'Requester',creator:'Created by',assignee:'Assigned agent',team:'Support team email',actor:'Person making the change'} as const;
 export type RecipientRole=keyof typeof recipientNames;
 export interface INotificationRule {email:boolean;inApp:boolean;subject:string;body:string;to:RecipientRole[];cc:RecipientRole[];extraTo:string[];extraCc:string[];}

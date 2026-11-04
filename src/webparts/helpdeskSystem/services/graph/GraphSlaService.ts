@@ -1,7 +1,11 @@
 import { workspaceLists } from '../../interfaces/IWorkspaceSetup';
 import type { GraphClient } from './GraphClient';
 import type { IAppConfig } from './IAppConfig';
-import type { ISlaService, ISlaSettings, ISlaPriority } from '../../interfaces/ISla';
+import type { ISlaService, ISlaSettings, ISlaPriority, ISlaClockRules } from '../../interfaces/ISla';
+import type { ITicket } from '../../interfaces/ITicket';
+import { defaultSlaClockRules, validateSlaClockRules } from '../../utils/slaClock';
+import { ticketSla } from '../../utils/sla';
+const clockTitle='__DeskPilotSlaClock';
 interface List { id: string; displayName: string; webUrl?: string; }
 interface Column { id: string; name: string; displayName: string; readOnly?: boolean; text?: object; number?: object; boolean?: object; dateTime?: object; choice?: {choices: string[]; [key: string]: unknown}; }
 const listName = workspaceLists.priorities;
@@ -11,6 +15,9 @@ const defaultTargets = (name: string): {ResponseMinutes: number; ResolutionMinut
   return {ResponseMinutes, ResolutionMinutes};
 };
 export class GraphSlaService implements ISlaService {
+  public onBreach?: (ticket:ITicket,kind:'response'|'resolution')=>Promise<void>;
+  private checking=false;
+  private checkedAt=0;
   public constructor(private graph: GraphClient, private schema: GraphClient, private config: IAppConfig, private token: () => Promise<string>, private changed: () => void) {}
   private async context() {
     const url = new URL(this.config.siteUrl);
@@ -47,9 +54,12 @@ export class GraphSlaService implements ISlaService {
     const path = `${context.site}/lists/${context.policies.id}`;
     const [policyColumns, items] = await Promise.all([this.graph.getAll<Column>(`${path}/columns`), this.graph.getAll<{id: string; fields: Record<string, unknown>}>(`${path}/items?$expand=fields&$top=200`)]);
     this.validate(policyColumns);
-    const policies = items.map(item => ({id: item.id, name: String(item.fields.Title || ''), active: item.fields.Active === true, responseMinutes: typeof item.fields.ResponseMinutes === 'number' ? item.fields.ResponseMinutes : undefined, resolutionMinutes: typeof item.fields.ResolutionMinutes === 'number' ? item.fields.ResolutionMinutes : undefined}));
+    const clockItems=items.filter(item=>item.fields.Title===clockTitle);
+    if(clockItems.length>1)throw new Error('Duplicate SLA clock settings. Ask an administrator to correct them.');
+    const clockRules=clockItems.length?JSON.parse(String(clockItems[0].fields.SlaClockRules || '{}')) as ISlaClockRules:defaultSlaClockRules();validateSlaClockRules(clockRules);
+    const policies = items.filter(item=>item.fields.Title!==clockTitle).map(item => ({id: item.id, name: String(item.fields.Title || ''), active: item.fields.Active === true, responseMinutes: typeof item.fields.ResponseMinutes === 'number' ? item.fields.ResponseMinutes : undefined, resolutionMinutes: typeof item.fields.ResolutionMinutes === 'number' ? item.fields.ResolutionMinutes : undefined,clockRules}));
     if (policies.some((policy, index) => !policy.name.trim() || policies.findIndex(other => other.name.toLowerCase() === policy.name.toLowerCase()) !== index)) throw new Error('SLA priorities must have unique, non-empty names. Correct duplicates in Ticket Priorities.');
-    return {configured: true, listUrl: context.policies.webUrl, trackingReady, priorities: [...choices.map(name => policies.find(policy => policy.name === name) || {name, active: true}), ...policies.filter(policy => !choices.includes(policy.name))]};
+    return {configured: true, listUrl: context.policies.webUrl, trackingReady, clockRules, priorities: [...choices.map(name => policies.find(policy => policy.name === name) || {name, active: true,clockRules}), ...policies.filter(policy => !choices.includes(policy.name))]};
   }
   public async setup(): Promise<void> {
     const context = await this.context(); await this.authorize(context.tickets.id);
@@ -66,6 +76,7 @@ export class GraphSlaService implements ISlaService {
     const items = await this.graph.getAll<{id: string; fields: {Title?: string; ResponseMinutes?: number | null; ResolutionMinutes?: number | null}}>(`${path}/items?$expand=fields&$top=200`);
     const existingNames = new Set(items.map(item => String(item.fields.Title || '').trim().toLowerCase()));
     for (const item of items) {
+      if(item.fields.Title===clockTitle)continue;
       const defaults = defaultTargets(item.fields.Title || '');
       const fields: Record<string, number> = {};
       if (item.fields.ResponseMinutes == null) fields.ResponseMinutes = Math.min(defaults.ResponseMinutes, item.fields.ResolutionMinutes && item.fields.ResolutionMinutes > 0 ? item.fields.ResolutionMinutes : defaults.ResponseMinutes);
@@ -97,9 +108,10 @@ export class GraphSlaService implements ISlaService {
     if (!navigation.ok) throw new Error(`SLA setup completed, but adding Ticket Priorities to SharePoint navigation failed (${navigation.status}). Check site permissions and run Sync priorities to retry.`);
   }
   public async savePriority(input: ISlaPriority): Promise<void> {
+    if(input.name.trim()===clockTitle)throw new Error('This priority name is reserved for SLA settings.');
     if (!input.name.trim() || input.name.trim().length > 255) throw new Error('Enter a priority name of 1–255 characters.');
-    for (const value of [input.responseMinutes, input.resolutionMinutes]) if (!Number.isSafeInteger(value) || value! <= 0) throw new Error('Response and resolution targets must be positive whole minutes.');
-    if (input.resolutionMinutes! < input.responseMinutes!) throw new Error('Resolution target must be at least the response target.');
+    for (const value of [input.responseMinutes, input.resolutionMinutes]) { if(value===undefined&&!input.active)continue; if (!Number.isSafeInteger(value) || value! <= 0) throw new Error('Response and resolution targets must be positive whole minutes.'); }
+    if (input.resolutionMinutes!==undefined && input.responseMinutes!==undefined && input.resolutionMinutes < input.responseMinutes) throw new Error('Resolution target must be at least the response target.');
     const context = await this.context(); await this.authorize(context.tickets.id);
     if (!context.policies) throw new Error('Set up SLA & Priorities first.');
     await this.authorize(context.policies.id);
@@ -120,5 +132,25 @@ export class GraphSlaService implements ISlaService {
     if (existing?.id) await this.graph.patch(`${policyPath}/${existing.id}/fields`, fields);
     else await this.graph.post(policyPath, {fields});
     this.changed();
+  }
+  public async saveClockRules(input:ISlaClockRules):Promise<void>{
+    validateSlaClockRules(input);
+    const context=await this.context();await this.authorize(context.tickets.id);
+    if(!context.policies)throw new Error('Set up SLA tracking first.');await this.authorize(context.policies.id);
+    const path=`${context.site}/lists/${context.policies.id}`,ticketsPath=`${context.site}/lists/${context.tickets.id}`;
+    const columns=await this.graph.getAll<Column>(path+'/columns');
+    const clockColumn=columns.find(column=>column.name==='SlaClockRules');if(clockColumn&&(!clockColumn.text||clockColumn.readOnly))throw new Error('SlaClockRules must be a writable plain text column.');
+    if(!columns.some(column=>column.name==='SlaClockRules'))await this.schema.post(path+'/columns',{name:'SlaClockRules',text:{allowMultipleLines:true,textType:'plain'}});
+    if(input.pausePending){const ticketColumns=await this.graph.getAll<Column>(ticketsPath+'/columns');const column=ticketColumns.find(value=>value.name==='SlaPauseIntervals');if(column&&(!column.text||column.readOnly))throw new Error('SlaPauseIntervals must be a writable plain text column.');if(!column)await this.schema.post(ticketsPath+'/columns',{name:'SlaPauseIntervals',text:{allowMultipleLines:true,textType:'plain'}});}
+    const items=await this.graph.getAll<{id:string;fields:{Title?:string}}>(path+'/items?$expand=fields&$top=200');const existing=items.filter(item=>item.fields.Title===clockTitle);
+    if(existing.length>1)throw new Error('Duplicate SLA clock settings.');
+    const fields={Title:clockTitle,Active:false,SlaClockRules:JSON.stringify(input)};
+    if(existing[0]){const item=await this.graph.get<{eTag?:string;'@odata.etag'?:string}>(path+'/items/'+existing[0].id+'?$expand=fields');const etag=item.eTag||item['@odata.etag'];if(!etag)throw new Error('Reload SLA settings before saving.');await this.graph.patch(path+'/items/'+existing[0].id+'/fields',fields,etag);}else await this.graph.post(path+'/items',{fields});
+    this.changed();
+  }
+  public async checkBreaches(tickets:ITicket[]):Promise<void>{
+    if(!this.onBreach||this.checking||Date.now()-this.checkedAt<60000)return;
+    this.checking=true;this.checkedAt=Date.now();
+    try{const settings=await this.getSettings();if(!settings.clockRules?.notifyTeamLead)return;for(const ticket of tickets.filter(value=>!value.Archived&&!['Resolved','Closed','Completed'].includes(value.Status)))for(const kind of ['response','resolution'] as const)if(ticketSla(ticket,settings.priorities,kind)==='Breached')await this.onBreach(ticket,kind);}finally{this.checking=false;}
   }
 }

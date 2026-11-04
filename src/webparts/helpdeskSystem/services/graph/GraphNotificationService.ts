@@ -34,6 +34,7 @@ export class GraphNotificationService {
     if (/\/_layouts\/15\/(?:teams|teamstask)hostedapp\.aspx/i.test(value.appUrl || '') && /\/(?:SitePages|Pages)\//i.test(this.appUrl)) value.appUrl=this.appUrl;
     value.autoInvite=value.autoInvite??false;
     value.rules.invited=value.rules.invited||defaultEmailSettings(this.appUrl).rules.invited;
+    value.rules.slaBreached=value.rules.slaBreached||defaultEmailSettings(this.appUrl).rules.slaBreached;
     validateEmailSettings(value);this.cache={expires:Date.now()+30000,value};return value;
   }
   public async enabled():Promise<boolean>{return (await this.getSettings(true)).enabled;}
@@ -92,6 +93,20 @@ export class GraphNotificationService {
     try{await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:error?'Failed or unconfirmed':'Accepted',Error:error});}catch{throw new Error('Invitation status could not be saved. Check email history and Exchange before sending again.');}
     if(error)throw new Error(error+' Check email history before sending again.');
     return true;
+  }
+  public async slaBreach(ticket:ITicket,kind:'response'|'resolution',email:string):Promise<void>{
+    const settings=await this.getSettings(true);if(!settings.enabled)return;
+    const rule=settings.rules.slaBreached;if(!rule.email&&!rule.inApp)return;
+    if(!isEmail(email))throw new Error('SLA breach: configure a team lead with a valid email address.');
+    const context=(await this.context())!,key=`${ticket.Id}:slaBreached:${kind}:${ticket.Created}`;
+    const filter=encodeURIComponent("fields/NotificationKey eq '"+key.replace(/'/g,"''")+"'");
+    if((await this.graph.getAll<Item>(context.log+'/items?$expand=fields&$filter='+filter+'&$top=1')).length)return;
+    const rendered=renderEmail(rule,ticketEmailValues(ticket,settings.appUrl,this.workspace,this.actor.name,'slaBreached'));
+    let claim:Item;
+    try{claim=await this.graph.post<Item>(context.log+'/items',{fields:{Title:'SLA Breach',NotificationKey:key,TicketId:ticket.Id,Event:'slaBreached',Subject:rendered.subject,Audience:JSON.stringify([email]),InApp:rule.inApp,DeliveryStatus:rule.email?'Pending':'In-app only',Error:''}});}catch(reason){if((await this.graph.getAll<Item>(context.log+'/items?$expand=fields&$filter='+filter+'&$top=1')).length)return;throw reason;}
+    if(!rule.email)return;
+    try{await this.send(settings,rendered.subject,rendered.html,[email],[]);await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:'Accepted',Error:''});}
+    catch(reason){await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:'Failed or unconfirmed',Error:reason instanceof Error?reason.message:'Email submission failed.'});throw reason;}
   }
   public async changed(ticket:ITicket,before?:IChangeSnapshot,created=false):Promise<void>{
     const settings=await this.getSettings(true);if(!settings.enabled)return;

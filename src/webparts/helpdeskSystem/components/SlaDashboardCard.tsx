@@ -24,17 +24,18 @@ export function SlaDashboardCard(props: {service: ISlaService; tickets: ITicket[
     props.service.getSettings().then(settings => { if (active) {setPolicies(settings.priorities); setConfigured(settings.configured); setNow(new Date());} }).catch(reason => {if (active) setError(reason instanceof Error ? reason.message : 'Unable to load SLA targets.');}).finally(() => {if (active) setLoading(false);});
     return () => {active = false;};
   }, [props.service, props.lastUpdated, reload]);
-  const states: SlaState[] = ['Met', 'Breached', 'Within target', 'Unknown', 'Not configured'];
+  const states: SlaState[] = ['Met', 'Breached', 'At risk', 'Within target', 'Unknown', 'Not configured'];
   const rows = props.tickets.filter(ticket => !ticket.Archived).map(ticket => ({ticket, response: ticketSla(ticket, policies, 'response', now), resolution: ticketSla(ticket, policies, 'resolution', now)}));
   const breached = rows.filter(row => row.response === 'Breached' || row.resolution === 'Breached');
   const explanations: Record<SlaState, string> = {
     Met: 'The response or resolution was recorded on or before its deadline.',
     Breached: 'The event happened after its deadline, or the open ticket is still awaiting it after the deadline.',
+    'At risk': 'The ticket has used the configured percentage of its SLA target and needs attention before a breach.',
     'Within target': 'The ticket is open and still awaiting a response or resolution. Its deadline has not passed; SLA is not met yet.',
     Unknown: 'An SLA target exists, but reliable tracking data is missing or invalid; for example, a resolved ticket has no resolution timestamp.',
     'Not configured': 'No enabled SLA target exists for the priority of this ticket. Set a target and enable tracking in Administration.'
   };
-  const colors = ['#28b47d', '#ed4c60', '#e8a500', '#a6b1c2', '#dce3ee'];
+  const colors = ['#28b47d', '#ed4c60', '#e8a500', '#5b91d0', '#a6b1c2', '#dce3ee'];
   const chart = {
     labels: ['First response', 'Resolution'],
     datasets: states.map((state, index) => ({label: state, data: (['response', 'resolution'] as const).map(kind => rows.filter(row => row[kind] === state).length), backgroundColor: colors[index], hidden: hiddenStates.includes(state), borderWidth: 0, maxBarThickness: 22}))
@@ -46,7 +47,7 @@ export function SlaDashboardCard(props: {service: ISlaService; tickets: ITicket[
       <div className={styles.dashboardCardHeading}><h3>SLA Performance</h3>{refresh}</div>
       {rows.length ? <div className={styles.slaChart}><Bar role="img" aria-label={chart.labels.map((label, index) => label + ': ' + chart.datasets.map(dataset => dataset.label + ' ' + dataset.data[index]).join(', ')).join('; ')} data={chart} options={{indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: {x: {stacked: true, beginAtZero: true, ticks: {precision: 0}, grid: {color: '#edf1f7'}}, y: {stacked: true, grid: {display: false}}}, plugins: {legend: {display: false}}}} /></div> : <div className={styles.dashboardChartEmpty}>No tickets in this view.</div>}
       <div className={styles.slaLegend} aria-label="SLA status explanations">{states.map((state, index) => <TooltipHost key={state} content={explanations[state]}><button type="button" aria-label={state + ': ' + explanations[state]} aria-pressed={!hiddenStates.includes(state)} onClick={() => setHiddenStates(current => current.includes(state) ? current.filter(value => value !== state) : [...current, state])} style={{opacity: hiddenStates.includes(state) ? 0.5 : 1}}><span aria-hidden="true" style={{background: colors[index]}} />{state}</button></TooltipHost>)}</div>
-      <p className={styles.dashboardChartNote}>Uses current priority targets and dashboard filters. Timing runs 24/7. Hover or focus a key for its meaning.</p>
+      <p className={styles.dashboardChartNote}>Uses current priority targets and dashboard filters. Timing follows the configured business-hours and Pending-pause rules. Hover or focus a key for its meaning.</p>
     </section>
     <section className={styles.dashboardChartCard} aria-label="Tickets that missed SLA">
       <div className={styles.dashboardCardHeading}><h3>Tickets That Missed SLA ({breached.length})</h3>{breached.length > 0 && <button type="button" className={styles.adminAvailabilityLink} onClick={() => {setExportError(''); setAllOpen(true);}}>View All</button>}</div>
