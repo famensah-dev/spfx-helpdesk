@@ -32,7 +32,7 @@ export function TeamMemberPicker({service,users,onChange,disabled,existingUserId
     <SearchBox ariaLabel="Search team candidates" placeholder="Search DeskPilot or organization users" value={query} disabled={disabled} onChange={(_,value)=>setQuery(value||'')} />
     <div className={styles.teamMemberPickerHeading}><span>{term?'Matching users':'DeskPilot agents & helpdesk admins'}</span><span>{users.length} selected</span></div>
     {loading&&<Spinner label="Loading DeskPilot users..." />}
-    {searching&&<Spinner label="Searching organization..." />}
+    {searching&&<Spinner label="Searching Organization..." />}
     {rosterError&&<MessageBar messageBarType={MessageBarType.warning}>{rosterError}</MessageBar>}
     {searchError&&<MessageBar messageBarType={MessageBarType.error}>{searchError}</MessageBar>}
     <div className={styles.teamMemberChecklist}>{visible.map(user=>{

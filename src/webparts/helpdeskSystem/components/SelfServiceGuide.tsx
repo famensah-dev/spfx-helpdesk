@@ -33,8 +33,8 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
   }, [open, props.service]);
   const categories = Array.from(new Set(articles.map(item => item.category || 'General'))).sort();
   const matching = articles.filter(item => (item.category || 'General') === category);
-  const subcategories = Array.from(new Set(matching.map(item => item.subcategory || 'General questions'))).sort();
-  const questions = matching.filter(item => (item.subcategory || 'General questions') === subcategory);
+  const subcategories = Array.from(new Set(matching.map(item => item.subcategory || 'General Articles'))).sort();
+  const questions = matching.filter(item => (item.subcategory || 'General Articles') === subcategory);
   const choose = (item: IFaq): void => { setArticle(item); setAttempted(current => current.some(value => value.id === item.id) ? current : [...current, item]); };
   const back = (): void => {
     if (solved) setSolved(false);
@@ -56,27 +56,27 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
     finally { setLoading(false); }
   };
   return <>
-    <button type="button" className={styles.launcher} onClick={() => setOpen(true)} aria-label="Open self-service help"><Icon iconName="Chat" />Need help?</button>
+    <button type="button" className={styles.launcher} onClick={() => setOpen(true)} aria-label="Open self-service help"><Icon iconName="Chat" />Need Help?</button>
     <Panel isOpen={open} onDismiss={() => { if (!loading) setOpen(false); }} type={PanelType.custom} customWidth="440px" headerText="Quick Help" closeButtonAriaLabel="Close Quick Help" isLightDismiss={!loading} styles={{ main: { maxWidth: '100vw' }, content: { padding: 20 }, commands: { paddingTop: 0 }, navigation: { alignItems: 'center', minHeight: 64, padding: '12px 20px', boxSizing: 'border-box' }, header: { padding: 0, alignSelf: 'center', minWidth: 0 }, headerText: { margin: 0, lineHeight: '32px' }, closeButton: { margin: 0, width: 32, height: 32, background: 'transparent', border: 0, color: '#52647a' } }}>
       <div className={styles.guide}>
-        <p className={styles.intro}>Find an answer or let us help you create a support ticket.</p>
-        <div className={styles.utilityNavigation}><button type="button" disabled={loading || (category === undefined && !escalating && !solved)} onClick={back}><Icon iconName="Back" />Back</button><button type="button" disabled={loading} onClick={reset}>Start again</button></div>
+        <p className={styles.intro}>Find a helpful article or let us help you create a support ticket.</p>
+        <div className={styles.utilityNavigation}><button type="button" disabled={loading || (category === undefined && !escalating && !solved)} onClick={back}><Icon iconName="Back" />Back</button><button type="button" disabled={loading} onClick={reset}>Start Again</button></div>
         {category && <p className={styles.path}>{[category, subcategory].filter(Boolean).join(' / ')}</p>}
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-        {loading ? <Spinner label="Loading help..." /> : solved ? <div role="status"><h3>Glad that helped!</h3><p>You can come back here whenever you need help.</p><PrimaryButton text="Done" onClick={() => { setOpen(false); reset(); }} /></div> : escalating ? <>
-          <h3>Tell us a little more</h3><p>We will include the guides you reviewed so you do not have to repeat yourself.</p>
-          <TextField label="What do you need help with?" multiline rows={4} maxLength={4000} value={details} onChange={(_, value) => setDetails(value || '')} />
-          <PrimaryButton text="Continue to ticket form" iconProps={{ iconName: 'Forward' }} onClick={() => { void create(); }} />
+        {loading ? <Spinner label="Loading help..." /> : solved ? <div role="status"><h3>Glad That Helped!</h3><p>You can come back here whenever you need help.</p><PrimaryButton text="Done" onClick={() => { setOpen(false); reset(); }} /></div> : escalating ? <>
+          <h3>Tell Us a Little More</h3><p>We will include the guides you reviewed so you do not have to repeat yourself.</p>
+          <TextField label="What Do You Need Help With?" multiline rows={4} maxLength={4000} value={details} onChange={(_, value) => setDetails(value || '')} />
+          <PrimaryButton text="Continue to Ticket Form" iconProps={{ iconName: 'Forward' }} onClick={() => { void create(); }} />
         </> : article ? <>
           <h3>{article.question}</h3><div className={styles.answer}><RichTextContent value={article.answer} /></div>
-          <h4>Did this solve your issue?</h4><div className={styles.navigation}><PrimaryButton text="Yes, it helped" onClick={() => setSolved(true)} /><DefaultButton text="No, I still need help" onClick={() => props.canCreate ? setEscalating(true) : setArticle(undefined)} /></div>
+          <h4>Did This Solve Your Issue?</h4><div className={styles.navigation}><PrimaryButton text="Yes, It Helped" onClick={() => setSolved(true)} /><DefaultButton text="No, I Still Need Help" onClick={() => props.canCreate ? setEscalating(true) : setArticle(undefined)} /></div>
         </> : <>
-          <h3>{category === undefined ? 'What do you need help with?' : subcategory === undefined ? 'Which area best matches your issue?' : 'Choose the question closest to yours'}</h3>
+          <h3>{category === undefined ? 'What Do You Need Help With?' : subcategory === undefined ? 'Which Area Best Matches Your Issue?' : 'Choose an Article That Matches Your Issue'}</h3>
           <div className={styles.choices}>
             {category === undefined ? categories.map(value => <button type="button" key={value} onClick={() => setCategory(value)}>{value}<Icon iconName="ChevronRight" /></button>) : subcategory === undefined ? subcategories.map(value => <button type="button" key={value} onClick={() => setSubcategory(value)}>{value}<Icon iconName="ChevronRight" /></button>) : questions.map(item => <button type="button" key={item.id} onClick={() => choose(item)}>{item.question}<Icon iconName="ChevronRight" /></button>)}
           </div>
           {!articles.length && <p>No published guides are available yet.</p>}
-          {subcategory !== undefined && <DefaultButton text="Nothing matches my issue" onClick={() => props.canCreate ? setEscalating(true) : setSubcategory(undefined)} />}
+          {subcategory !== undefined && <DefaultButton text="Nothing Matches My Issue" onClick={() => props.canCreate ? setEscalating(true) : setSubcategory(undefined)} />}
         </>}
         {props.canCreate && !escalating && !solved && <div className={styles.footer}><p>Still need help, or prefer to contact support directly? Create a ticket and our team will help you.</p><button type="button" className={styles.issueLink} disabled={loading} onClick={() => setEscalating(true)}>Create a Ticket</button></div>}
       </div>

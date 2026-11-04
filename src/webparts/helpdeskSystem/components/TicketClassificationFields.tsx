@@ -28,7 +28,7 @@ export function TicketClassificationFields(props: { service?: ITicketDataSource;
     if (!field) return null;
     const entries = key === 'category' ? taxonomy.categories : key === 'subcategory' ? taxonomy.subcategories.filter(item => item.parentId === values.category) : taxonomy.issueTypes;
     const legacy = key === 'category' ? props.ticket.Category : key === 'subcategory' ? props.ticket.Subcategory : props.ticket.IssueType;
-    return <SearchableSelect key={key} label={field.label} required={field.required} value={values[key]} placeholder={legacy ? `${legacy} (current)` : 'Select an option'} disabled={props.disabled || (key === 'subcategory' && !values.category)} options={[{ key: '', text: 'Not specified' }, ...entries.map(item => ({ key: item.id, text: item.name }))]} onChange={value => {
+    return <SearchableSelect key={key} label={field.label} required={field.required} value={values[key]} placeholder={legacy ? `${legacy} (current)` : 'Select an option'} disabled={props.disabled || (key === 'subcategory' && !values.category)} options={[{ key: '', text: 'Not Specified' }, ...entries.map(item => ({ key: item.id, text: item.name }))]} onChange={value => {
       const next = { ...values, [key]: value, ...(key === 'category' ? { subcategory: '' } : {}) };
       setValues(next);
       // Preserve untouched legacy fields; changing a parent explicitly clears its children.

@@ -7,16 +7,16 @@ import { defaultRoleConfiguration, validateRoleConfiguration } from '../interfac
 import type { IDeskPilotRole, IRoleConfiguration, RoleAction } from '../interfaces/IRoleManagement';
 import styles from '../components/HelpdeskSystem.module.scss';
 
-const labels: Record<RoleAction, string> = { dashboard: 'Dashboard page', tickets: 'Tickets page', faqs: 'FAQs page', create: 'Create tickets', edit: 'Edit ticket details and attachments', status: 'Change status / record response', assign: 'Assign tickets', priority: 'Change priority', archive: 'Archive tickets', comment: 'Add comments', manageFaqs: 'Manage FAQs', classifications: 'Manage categories and issue types', sla: 'Manage SLA priorities' };
+const labels: Record<RoleAction, string> = { dashboard: 'Dashboard Page', tickets: 'Tickets Page', faqs: 'Knowledge Base', create: 'Create Tickets', edit: 'Edit Ticket Details and Attachments', status: 'Change Status / Record Response', assign: 'Assign Tickets', priority: 'Change Priority', archive: 'Archive Tickets', comment: 'Add Comments', manageFaqs: 'Manage Knowledge Base', classifications: 'Manage Categories and Issue Types', sla: 'Manage SLA Priorities' };
 const permissionGroups: Array<{ name: string; description: string; actions: RoleAction[] }> = [
   { name: 'Page access', description: 'Choose which pages appear in the navigation.', actions: ['dashboard', 'tickets', 'faqs'] },
   { name: 'Ticket permissions', description: 'Choose what users can do with tickets in their ticket view.', actions: ['create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment'] },
   { name: 'Administration permissions', description: 'Choose which helpdesk settings users can manage.', actions: ['manageFaqs', 'classifications', 'sla'] }
 ];
-const scopeOptions = [{ key: 'assigned', text: 'Assigned to the user' }, { key: 'own', text: 'Requested by the user' }, { key: 'all', text: 'All accessible tickets' }];
-const descriptions: Record<RoleAction, string> = { dashboard: 'Access the dashboard and summary statistics.', tickets: 'Access the ticket list and ticket details.', faqs: 'Read helpdesk FAQs and knowledge articles.', create: 'Submit a new support request.', edit: 'Update ticket details and upload attachments.', status: 'Update ticket status and record the first response.', assign: 'Assign or reassign tickets to support agents.', priority: 'Change the priority of a ticket.', archive: 'Move tickets into the archive.', comment: 'Add a comment to a ticket.', manageFaqs: 'Create, edit and manage helpdesk knowledge articles.', classifications: 'Manage categories, subcategories and issue types.', sla: 'Manage response and resolution targets.' };
+const scopeOptions = [{ key: 'assigned', text: 'Assigned to the User' }, { key: 'own', text: 'Requested by the User' }, { key: 'all', text: 'All Accessible Tickets' }];
+const descriptions: Record<RoleAction, string> = { dashboard: 'Access the dashboard and summary statistics.', tickets: 'Access the ticket list and ticket details.', faqs: 'Read published knowledge base articles.', create: 'Submit a new support request.', edit: 'Update ticket details and upload attachments.', status: 'Update ticket status and record the first response.', assign: 'Assign or reassign tickets to support agents.', priority: 'Change the priority of a ticket.', archive: 'Move tickets into the archive.', comment: 'Add a comment to a ticket.', manageFaqs: 'Create, edit and manage helpdesk knowledge articles.', classifications: 'Manage categories, subcategories and issue types.', sla: 'Manage response and resolution targets.' };
 
-export function SharePointRolesPage(props: { service: ITicketDataSource }): React.ReactElement {
+export function SharePointRolesPage(props: { service: ITicketDataSource; hideHeading?: boolean }): React.ReactElement {
   const [tab, setTab] = React.useState<'users' | 'roles'>('users');
   const [config, setConfig] = React.useState<IRoleConfiguration>();
   const [busy, setBusy] = React.useState(false);
@@ -63,7 +63,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
   ] : [];
   return <section className={`${styles.pageContent} ${styles.ticketPage}`}>
     <nav className={styles.ticketTabs} aria-label="Users and roles pages">
-      <h2 className={styles.toolbarTitle}>Users &amp; roles</h2>
+      {!props.hideHeading && <h2 className={styles.toolbarTitle}>Users &amp; Roles</h2>}
       <button type="button" aria-current={tab === 'users' ? 'page' : undefined} className={tab === 'users' ? styles.activeNav : undefined} disabled={busy || Boolean(draft)} onClick={() => setTab('users')}><Icon iconName="People" />Users</button>
       <button type="button" aria-current={tab === 'roles' ? 'page' : undefined} className={tab === 'roles' ? styles.activeNav : undefined} disabled={busy} onClick={() => setTab('roles')}><Icon iconName="Shield" />Roles &amp; Permissions</button>
     </nav>
@@ -82,9 +82,9 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
       <div className={styles.rolePermissionToolbar}>
         <Dropdown label="Role" selectedKey={selectedRoleId} disabled={busy || Boolean(draft)} options={config.roles.map(role => ({ key: role.id, text: role.name }))} onChange={(_, option) => { if (option) { setSelectedRoleId(String(option.key)); setMessage(''); setError(''); } }} />
         <div className={styles.ticketActions}>
-        {currentRole && <DefaultButton text="Edit permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
-        <DefaultButton text="Reload permissions" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />
-        {currentRole && <DefaultButton text="Restore defaults" iconProps={{ iconName: 'Undo' }} disabled={busy} onClick={() => { const role = defaultRoleConfiguration().roles.find(item => item.id === selectedRoleId); if (role) setConfirmation({ role, restore: true }); }} />}
+        {currentRole && <DefaultButton text="Edit Permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
+        <DefaultButton text="Reload Permissions" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />
+        {currentRole && <DefaultButton text="Restore Defaults" iconProps={{ iconName: 'Undo' }} disabled={busy} onClick={() => { const role = defaultRoleConfiguration().roles.find(item => item.id === selectedRoleId); if (role) setConfirmation({ role, restore: true }); }} />}
         </div>
       </div>
       {draft && <MessageBar>Editing {draft.name}. Changes take effect only after you apply and confirm them.</MessageBar>}
@@ -92,7 +92,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
         <table className={`${styles.ticketTable} ${styles.rolePermissionsTable}`} aria-label={`${displayedRole.name} permissions`}>
           <thead><tr><th scope="col">Permission</th><th scope="col">Description</th><th scope="col">Access</th></tr></thead>
           <tbody>
-            <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>Ticket visibility<span>Choose one ticket view for this role.</span></th></tr>
+            <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>Ticket Visibility<span>Choose one ticket view for this role.</span></th></tr>
             {scopeOptions.map(option => <tr key={option.key}>
               <td>{option.text}</td><td>{option.key === 'assigned' ? 'View tickets assigned to this user.' : option.key === 'own' ? 'View tickets created by this user.' : 'View all tickets their SharePoint access allows.'}</td>
               <td><button type="button" role="radio" aria-checked={displayedRole.scope === option.key} aria-label={option.text} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'] }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span><span>{displayedRole.scope === option.key ? 'Allowed' : 'Not allowed'}</span></button></td>
@@ -114,7 +114,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
           </tbody>)}
         </table>
       </div>}
-      <div className={styles.rolePermissionsFooter}><DefaultButton styles={cancelButtonStyles} text="Cancel editing" disabled={busy || !draft} onClick={() => { setDraft(undefined); setError(''); }} /><PrimaryButton text="Apply changes" iconProps={{ iconName: 'Save' }} disabled={busy || !draft} onClick={prepareApply} /></div>
+      <div className={styles.rolePermissionsFooter}><DefaultButton styles={cancelButtonStyles} text="Cancel Editing" disabled={busy || !draft} onClick={() => { setDraft(undefined); setError(''); }} /><PrimaryButton text="Apply Changes" iconProps={{ iconName: 'Save' }} disabled={busy || !draft} onClick={prepareApply} /></div>
       </>}
       {tab === 'users' && <SharePointUsersPage service={props.service} configuration={config} busy={busy} onReload={load} onNotice={setUserNotice} onSave={async assignments => {
         if (!saved.current || lock.current) throw new Error('Settings are busy. Please try again.');
@@ -127,11 +127,11 @@ export function SharePointRolesPage(props: { service: ITicketDataSource }): Reac
       }} />}
     </>}
   </div>
-    <Dialog hidden={!confirmation} onDismiss={busy ? undefined : () => setConfirmation(undefined)} dialogContentProps={{ title: confirmation?.restore ? 'Restore default permissions?' : 'Apply role permissions?' }} modalProps={{ isBlocking: true }}>
+    <Dialog hidden={!confirmation} onDismiss={busy ? undefined : () => setConfirmation(undefined)} dialogContentProps={{ title: confirmation?.restore ? 'Restore Default Permissions?' : 'Apply Role Permissions?' }} modalProps={{ isBlocking: true }}>
       <p>{confirmation?.restore ? `Restore the default permissions for ${confirmation.role.name}? This replaces this role's custom permissions and ticket view.` : `Apply these permission changes to ${confirmation?.role.name}?`}</p>
       {permissionChanges.length ? <ul>{permissionChanges.map(value => <li key={value}>{value}</li>)}</ul> : <p>No permission differences from the saved role.</p>}
       <p>User assignments and other roles will stay unchanged. Affected users must refresh DeskPilot.</p>
-      <DialogFooter><PrimaryButton text={busy ? 'Applying...' : confirmation?.restore ? 'Confirm restore' : 'Confirm apply'} disabled={busy} onClick={() => { applyPermissions().catch(() => undefined); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setConfirmation(undefined)} /></DialogFooter>
+      <DialogFooter><PrimaryButton text={busy ? 'Applying...' : confirmation?.restore ? 'Confirm Restore' : 'Confirm Apply'} disabled={busy} onClick={() => { applyPermissions().catch(() => undefined); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setConfirmation(undefined)} /></DialogFooter>
     </Dialog>
   </section>;
 }

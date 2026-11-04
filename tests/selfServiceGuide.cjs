@@ -21,16 +21,16 @@ const service = { getFaqs: async manage => { assert.equal(manage, false); return
 async function click(text) { const button = [...host.querySelectorAll('button')].find(item => item.textContent === text); assert(button, 'Missing button: ' + text); await act(async () => { button.click(); }); }
 async function render(canCreate = true) { await act(async () => { ReactDOM.render(h(Guide, { service, canCreate, onCreate: value => { draft = value; } }), host); }); }
 (async () => {
-  await render(); await click('Need help?');
+  await render(); await click('Need Help?');
   assert(!host.textContent.includes('SECRET DRAFT')); assert(!host.textContent.includes('Secret'));
   await click('Email'); await click('Access'); await click('Cannot sign in');
   assert(host.textContent.includes('Reset your password'));
-  await click('Yes, it helped'); assert(host.textContent.includes('Glad that helped!'));
-  await click('Back'); await click('No, I still need help'); await click('Continue to ticket form');
+  await click('Yes, It Helped'); assert(host.textContent.includes('Glad That Helped!'));
+  await click('Back'); await click('No, I Still Need Help'); await click('Continue to Ticket Form');
   assert.equal(draft.category, '10'); assert.equal(draft.subcategory, '11'); assert.equal(draft.title, 'Cannot sign in');
   assert.match(draft.description, /Email > Access > Cannot sign in/); assert.match(draft.description, /Guides reviewed/);
-  assert(!host.textContent.includes('Continue to ticket form'));
-  await render(false); await click('Need help?'); assert(!host.textContent.includes('Create a Ticket'));
+  assert(!host.textContent.includes('Continue to Ticket Form'));
+  await render(false); await click('Need Help?'); assert(!host.textContent.includes('Create a Ticket'));
   await act(async () => ReactDOM.unmountComponentAtNode(host));
   console.log('Self-service guide: published visibility, navigation, solved state, escalation and classification handoff passed.');
   dom.window.close(); process.exit(0);

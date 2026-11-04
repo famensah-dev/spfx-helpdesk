@@ -67,9 +67,9 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
     ...Object.entries(workspace?.resourceIds || {}).filter(([key,id]) => key !== 'tickets' || id.toLowerCase() !== workspace?.listId?.toLowerCase()).map(([key,id]) => ({name:bindingLabels[key] || key.replace(/([a-z])([A-Z])/g,'$1 $2').replace(/\b\w/g,letter => letter.toUpperCase()),id}))
   ];
   return <details className={styles.maintenance} onToggle={event => {if (event.currentTarget.open && available === undefined) void checkAvailability();}}>
-    <summary>Advanced workspace maintenance</summary>
+    <summary>Advanced Workspace Maintenance</summary>
     {!action && <div style={{marginTop:16}}>
-      {busy && <Spinner label="Checking application lists..." />}
+      {busy && <Spinner label="Checking Application Lists..." />}
       {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {available === 0 && <MessageBar>No operational application lists found. Clear and Delete are unavailable until lists exist.</MessageBar>}
     </div>}
@@ -80,14 +80,14 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
       <div className={styles.body}>
         {finished ? <MessageBar messageBarType={MessageBarType.success}>{action === 'clear' ? 'Clearing completed. All selected lists were checked and contain no remaining items.' : 'Maintenance completed. Reload DeskPilot to use the updated configuration.'}</MessageBar> : <MessageBar>{information}</MessageBar>}
         {action === 'reset' ? <><h4>Saved Bindings to Be Reset</h4><div className={`${styles.tableScroll} ${styles.bindings}`}><table><thead><tr><th>List Name</th><th>List ID</th></tr></thead><tbody>{bindings.map((binding,index) => <tr key={index}><td>{binding.name}</td><td>{binding.id}</td></tr>)}</tbody></table></div>{!bindings.length && <p>No saved list IDs.</p>}</> : <>
-          {!reviewed && <div className={styles.toolbar}><SearchBox placeholder="Search lists..." ariaLabel="Search application lists" value={query} disabled={busy} onChange={(_,value) => setQuery(value || '')} /><Checkbox label="Select all" ariaLabel="Select all matching lists" checked={allSelected} indeterminate={!allSelected && shown.some(list => selected.includes(list.Id))} disabled={busy || !shown.length} onChange={(_,checked) => selectShown(Boolean(checked))} /><span>{selected.length} of {lists.length} selected</span></div>}
-          {reviewed && <h4>Lists that will be affected</h4>}
-          <div className={styles.tableScroll}><table><thead><tr>{!reviewed && <th aria-label="Selection" />}<th aria-label="List icon" /><th>List name</th><th>Description</th><th>{reviewed ? 'Items at review' : 'Items'}</th><th>Type</th></tr></thead><tbody>{shown.map(list => <tr key={list.Id} data-selected={reviewed || selected.includes(list.Id)}>{!reviewed && <td><Checkbox ariaLabel={`Select ${list.Title}`} checked={selected.includes(list.Id)} disabled={busy} onChange={(_,checked) => setSelected(current => checked ? [...current,list.Id] : current.filter(id => id !== list.Id))} /></td>}<td><Icon iconName="BulletedList" aria-hidden="true" /></td><td>{list.Title}</td><td>{list.Description || 'No description'}</td><td>{list.ItemCount}</td><td><span className={styles.badge}>Custom</span></td></tr>)}</tbody></table></div>
+          {!reviewed && <div className={styles.toolbar}><SearchBox placeholder="Search lists..." ariaLabel="Search application lists" value={query} disabled={busy} onChange={(_,value) => setQuery(value || '')} /><Checkbox label="Select All" ariaLabel="Select all matching lists" checked={allSelected} indeterminate={!allSelected && shown.some(list => selected.includes(list.Id))} disabled={busy || !shown.length} onChange={(_,checked) => selectShown(Boolean(checked))} /><span>{selected.length} of {lists.length} selected</span></div>}
+          {reviewed && <h4>Lists That Will Be Affected</h4>}
+          <div className={styles.tableScroll}><table><thead><tr>{!reviewed && <th aria-label="Selection" />}<th aria-label="List icon" /><th>List Name</th><th>Description</th><th>{reviewed ? 'Items at Review' : 'Items'}</th><th>Type</th></tr></thead><tbody>{shown.map(list => <tr key={list.Id} data-selected={reviewed || selected.includes(list.Id)}>{!reviewed && <td><Checkbox ariaLabel={`Select ${list.Title}`} checked={selected.includes(list.Id)} disabled={busy} onChange={(_,checked) => setSelected(current => checked ? [...current,list.Id] : current.filter(id => id !== list.Id))} /></td>}<td><Icon iconName="BulletedList" aria-hidden="true" /></td><td>{list.Title}</td><td>{list.Description || 'No description'}</td><td>{list.ItemCount}</td><td><span className={styles.badge}>Custom</span></td></tr>)}</tbody></table></div>
           {!busy && !shown.length && <MessageBar>No matching operational lists found. Use Reset saved list bindings if this workspace has stale IDs.</MessageBar>}
           {reviewed && <MessageBar messageBarType={MessageBarType.severeWarning}>{action === 'drop' ? 'The lists above, including their columns and records, will be deleted and their saved bindings cleared.' : 'All items and attachments in the lists above will be cleared; columns and bindings will remain.'} Connected forms, lookups and flows may be affected. Recovery depends on SharePoint retention and permissions.</MessageBar>}
         </>}
         {action && reviewed && !attempted && <TextField label={`Type ${maintenancePhrase(action)} to confirm`} value={phrase} disabled={busy} autoComplete="off" onChange={(_,value) => setPhrase(value || '')} />}
-        {busy && <Spinner label={attempted ? 'Working with SharePoint resources...' : 'Checking application lists...'} />}
+        {busy && <Spinner label={attempted ? 'Working with SharePoint Resources...' : 'Checking Application Lists...'} />}
         {Object.values(progress).map(value => <div key={value.listId} role="status" aria-live="polite"><ProgressIndicator label={`${value.title}: ${value.cleared.toLocaleString()} items cleared`} description={value.complete ? 'Complete — verified no items remain.' : busy ? `Clearing in progress. ${value.initialCount.toLocaleString()} items were listed at review; keep this page open.` : 'Stopped — completion was not verified. Refresh the SharePoint list to check what remains.'} percentComplete={value.complete ? 1 : value.initialCount > 0 ? Math.min(value.cleared/value.initialCount,.99) : undefined} /><span>{value.complete && <Icon iconName="CompletedSolid" styles={{root:{color:'#13794e'}}} />}</span></div>)}
         {messages.length > 0 && <div role="log" aria-live="polite" className={styles.log}>{messages.map((message,index) => <p key={index}>{message}</p>)}</div>}
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
@@ -95,8 +95,8 @@ export function WorkspaceMaintenancePanel(props: {service:ITicketDataSource}): R
       <DialogFooter styles={{actions:{borderTop:'1px solid #e0e7f1',paddingTop:20,marginTop:20}}}>
         {!busy && <DefaultButton text={finished ? 'Close' : 'Cancel'} styles={cancelButtonStyles} onClick={() => setAction(undefined)} />}
         {!busy && attempted ? <PrimaryButton text="Reload DeskPilot" onClick={() => window.location.reload()} />
-          : action && reviewed ? <PrimaryButton text={action === 'reset' ? 'Reset bindings' : action === 'clear' ? 'Clear selected lists' : 'Delete selected lists'} iconProps={{iconName:icons[action]}} disabled={busy || phrase !== maintenancePhrase(action)} styles={action === 'drop' ? {root:{background:'#b42318',borderColor:'#b42318'}} : undefined} onClick={() => {void run();}} />
-          : <PrimaryButton text="Review selected lists" disabled={busy || !selected.length} onClick={() => {void review();}} />}
+          : action && reviewed ? <PrimaryButton text={action === 'reset' ? 'Reset Bindings' : action === 'clear' ? 'Clear Selected Lists' : 'Delete Selected Lists'} iconProps={{iconName:icons[action]}} disabled={busy || phrase !== maintenancePhrase(action)} styles={action === 'drop' ? {root:{background:'#b42318',borderColor:'#b42318'}} : undefined} onClick={() => {void run();}} />
+          : <PrimaryButton text="Review Selected Lists" disabled={busy || !selected.length} onClick={() => {void review();}} />}
       </DialogFooter>
     </Dialog>
   </details>;

@@ -104,7 +104,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     { label: 'In Progress', value: countStatus(visible, 'In Progress'), previous: previous ? countStatus(previous, 'In Progress') : null, icon: 'Clock', color: '#8054c7' },
     { label: 'Pending', value: countStatus(visible, 'Pending'), previous: previous ? countStatus(previous, 'Pending') : null, icon: 'Pause', color: '#ffbf00' },
     { label: 'Overdue', value: hasDueDate ? summary.overdue : null, previous: hasDueDate ? previousSummary?.overdue : null, icon: 'Warning', color: '#ed4c60' },
-    { label: 'Avg. Resolution (days)', value: average, previous: hasResolvedAt && previous ? averageResolutionDays(previous) : null, icon: 'Group', color: '#72829c' }
+    { label: 'Avg. Resolution (Days)', value: average, previous: hasResolvedAt && previous ? averageResolutionDays(previous) : null, icon: 'Group', color: '#72829c' }
   ];
   const displayedStatuses = ticketStatuses;
   const statusData = { labels: displayedStatuses, datasets: [{ data: displayedStatuses.map(status => countStatus(visible, status)), backgroundColor: displayedStatuses.map(status => statusColors[status]), borderWidth: 1, borderColor: '#ffffff' }] };
@@ -164,12 +164,12 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
       </div>
     </div>
     {filtersOpen && <div className={styles.dashboardAdvancedFilters}>
-      <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created from" placeholder="Start date" value={filters.startDate || undefined} maxDate={filters.endDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, startDate: date || null }))} />
-      <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created to" placeholder="End date" value={filters.endDate || undefined} minDate={filters.startDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, endDate: date || null }))} />
+      <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created From" placeholder="Start date" value={filters.startDate || undefined} maxDate={filters.endDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, startDate: date || null }))} />
+      <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created To" placeholder="End date" value={filters.endDate || undefined} minDate={filters.startDate || undefined} onSelectDate={date => setFilters(current => ({ ...current, endDate: date || null }))} />
       <Dropdown label="Status" selectedKey={filters.status || ''} options={options(displayedStatuses, 'All statuses')} onChange={(_, option) => setFilters(current => ({ ...current, status: String(option?.key || '') }))} />
       <Dropdown label="Priority" selectedKey={filters.priority || ''} options={options(priorities, 'All priorities')} onChange={(_, option) => setFilters(current => ({ ...current, priority: String(option?.key || '') }))} />
     </div>}
-    {(filters.status || filters.priority) && !filtersOpen && <button className={styles.dashboardFilterSummary} onClick={() => setFiltersOpen(true)}><Icon iconName="Filter" /> Filtered by {[filters.status, filters.priority].filter(Boolean).join(' · ')}</button>}
+    {(filters.status || filters.priority) && !filtersOpen && <button className={styles.dashboardFilterSummary} onClick={() => setFiltersOpen(true)}><Icon iconName="Filter" /> Filtered By {[filters.status, filters.priority].filter(Boolean).join(' · ')}</button>}
     {loading ? <div className={styles.loadingState}><Spinner label="Loading dashboard…" /></div> : !lastUpdated ? <div className={styles.emptyState}><Icon iconName="PlugDisconnected" /><strong>Connect your Tickets list</strong><span>Check your list configuration and permissions, then refresh.</span></div> : <>
       <div className={styles.dashboardSummaryCards}>{cards.map((card, index) => {
         const change = card.value !== null && card.previous != null && card.previous > 0 ? (card.value - card.previous) / card.previous * 100 : null;
@@ -201,7 +201,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <ChartCard title="Average Resolution Time by Category" className={styles.dashboardResolutionCard} note="Days from creation to recorded resolution."><Breakdown rows={hasResolvedAt ? getResolutionByCategory(visible) : []} unit="days" colors={['#9a75f2', '#f45663', '#ff962e', '#28b47d', '#2d88ff', '#ffc329', '#a6b1c2', '#62a0f9']} empty="No recorded resolution dates in this view." /></ChartCard>
         <ChartCard title="Open Tickets by Aging" className={styles.dashboardAgingCard} note="Elapsed time since creation, as of today."><Breakdown rows={getOpenTicketAging(visible, now)} colors={['#28b47d', '#2d88ff', '#ffc329', '#ff962e', '#f45663']} /></ChartCard>
         <div className={styles.dashboardTicketsRow}>
-        <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.adminAvailabilityLink} onClick={props.onViewTickets}>View all</button>}>
+        <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.adminAvailabilityLink} onClick={props.onViewTickets}>View All</button>}>
           <div className={styles.dashboardRecentScroll}><table className={styles.dashboardRecentTable}><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>{recent.map(ticket => <tr key={ticket.Id}>
             <td>#{ticket.Id}</td><td>{props.onOpenTicket ? <button title={ticket.Title} onClick={() => props.onOpenTicket!(ticket.Id)}>{ticket.Title}</button> : ticket.Title}</td><td title={ticket.Category}>{ticket.Category || '—'}</td><td><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></td><td><span className={styles.dashboardPriorityBadge} data-priority={ticket.Priority}>{ticket.Priority}</span></td><td>{formatDate(new Date(ticket.Created))}</td>
           </tr>)}</tbody></table>{!recent.length && <div className={styles.dashboardChartEmpty}>No recent tickets in this view.</div>}</div>

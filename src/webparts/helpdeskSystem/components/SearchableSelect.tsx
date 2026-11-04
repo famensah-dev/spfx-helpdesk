@@ -11,7 +11,7 @@ export function SearchableSelect(props: { label: string; required?: boolean; dis
     onClick={event => { if (event.target instanceof HTMLElement && event.target.tagName === 'INPUT') combo.current?.focus(true); }}
     text={query === null ? props.options.find(option => option.key === props.value)?.text || '' : query}
     placeholder={props.placeholder || 'Search or select an option'} allowFreeform autoComplete="off"
-    options={filtered.length ? filtered : [{ key: '__no_results__', text: 'No matching options', disabled: true }]}
+    options={filtered.length ? filtered : [{ key: '__no_results__', text: 'No Matching Options', disabled: true }]}
     onInputValueChange={value => { setQuery(value); combo.current?.focus(true); }} onMenuDismissed={() => setQuery(null)}
     onBlur={() => setQuery(null)} onChange={(_, option) => { if (option && !option.disabled) { props.onChange(String(option.key)); setQuery(null); } }}
     onRenderOption={option => <span style={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}>{option?.text}</span>}

@@ -35,10 +35,10 @@ export function SharePointAccountMenu(props: { context: WebPartContext }): React
       styles={{ root: { background: 'transparent', border: '1px solid #c6d8f3', borderRadius: '50%', width: 36, height: 36, minWidth: 36, padding: 0, color: '#fff' }, rootHovered: { background: 'transparent', color: '#fff', borderColor: '#fff' }, rootPressed: { background: 'transparent', color: '#fff' }, rootExpanded: { background: 'transparent', color: '#fff' }, label: { margin: 0 }, menuIcon: { display: 'none' } }}
       menuProps={{ calloutProps: { calloutWidth: 270 }, styles: { root: { width: 270, maxWidth: 'calc(100vw - 24px)' }, subComponentStyles: { menuItem: { label: { whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: '18px' }, root: { height: 'auto', minHeight: 30 }, linkContent: { height: 'auto', minHeight: 30, boxSizing: 'border-box', padding: '4px 18px' } } } }, items: [
         { key: 'identity', text: user.email || user.loginName, onRender: () => <div className={styles.accountEmail}>{user.email || user.loginName}</div> },
-        { key: 'account', text: 'View account', iconProps: { iconName: 'Contact' }, href: 'https://myaccount.microsoft.com/', target: '_blank', rel: 'noopener noreferrer' },
-        { key: 'profile', text: 'My profile', iconProps: { iconName: 'ContactInfo' }, href: `${siteUrl}/_layouts/15/me.aspx`, target: '_blank', rel: 'noopener noreferrer' },
-        { key: 'switch', text: 'Sign in with another account', iconProps: { iconName: 'AddFriend' }, href: switchUrl },
-        { key: 'out', text: 'Sign out', iconProps: { iconName: 'SignOut' }, href: `${siteUrl}/_layouts/15/SignOut.aspx` }
+        { key: 'account', text: 'View Account', iconProps: { iconName: 'Contact' }, href: 'https://myaccount.microsoft.com/', target: '_blank', rel: 'noopener noreferrer' },
+        { key: 'profile', text: 'My Profile', iconProps: { iconName: 'ContactInfo' }, href: `${siteUrl}/_layouts/15/me.aspx`, target: '_blank', rel: 'noopener noreferrer' },
+        { key: 'switch', text: 'Sign in with Another Account', iconProps: { iconName: 'AddFriend' }, href: switchUrl },
+        { key: 'out', text: 'Sign Out', iconProps: { iconName: 'SignOut' }, href: `${siteUrl}/_layouts/15/SignOut.aspx` }
       ] }}>
       <span className={styles.accountDesktopAvatar}>{photo ? <img className={styles.accountPhoto} src={photo} alt="" onError={() => setPhoto(undefined)} /> : <span aria-hidden="true">{initials}</span>}</span>
       <span className={styles.accountMobileInitials} aria-hidden="true">{initials}</span>

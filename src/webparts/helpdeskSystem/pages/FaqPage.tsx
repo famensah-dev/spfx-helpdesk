@@ -9,7 +9,7 @@ import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import styles from '../components/HelpdeskSystem.module.scss';
 
 const blank: IFaqInput = { question: '', answer: '', category: '', keywords: '', published: false, sortOrder: 0 };
-export function FaqPage(props: { service: ITicketDataSource; manage?: boolean }): React.ReactElement {
+export function FaqPage(props: { service: ITicketDataSource; manage?: boolean; hideHeading?: boolean }): React.ReactElement {
   const [faqs, setFaqs] = React.useState<IFaq[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [allowed, setAllowed] = React.useState(false);
@@ -34,7 +34,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
     const version = ++generation.current;
     setLoading(true); setError('');
     try {
-      if (!props.service.getFaqs) throw new Error('Knowledge Base are not available with this connection. Use the Azure app and configure its Knowledge Base list.');
+      if (!props.service.getFaqs) throw new Error('The knowledge base is not available with this connection. Ask an administrator to check its list configuration.');
       let canManage = false;
       try {
         const access = await props.service.getFaqAccess?.();
@@ -51,10 +51,10 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
   const save = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
     if (!draft || !props.service.saveFaq || lock.current) return;
-    if (!new DOMParser().parseFromString(draft.answer, 'text/html').body.textContent?.trim()) { setError('Enter an answer.'); return; }
+    if (!new DOMParser().parseFromString(draft.answer, 'text/html').body.textContent?.trim()) { setError('Enter article content.'); return; }
     lock.current = true; setBusy(true); setError(''); setMessage('');
-    try { await props.service.saveFaq(draft, editId); setDraft(null); setMessage(editId ? 'KB updated.' : 'KB created.'); await load(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save the KB.'); }
+    try { await props.service.saveFaq(draft, editId); setDraft(null); setMessage(editId ? 'Article updated.' : 'Article created.'); await load(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to save the article.'); }
     finally { lock.current = false; setBusy(false); }
   };
   const bulk = async (ids: number[], action: FaqBulkAction): Promise<void> => {
@@ -65,7 +65,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
       setDeleting(null); setSortRows(null);
       await load();
       if (result.failed.length) setError(`${result.succeeded.length} updated; ${result.failed.length} failed. ${result.failed.map(item => '#' + item.id + ': ' + item.message).join('; ')}`);
-      else setMessage(action.kind === 'sort' ? 'KB order saved.' : action.kind === 'delete' ? 'Selected Knowledge Base deleted.' : action.published ? 'Selected Knowledge Base are active (published).' : 'Selected Knowledge Base are inactive (unpublished).');
+      else setMessage(action.kind === 'sort' ? 'Article order saved.' : action.kind === 'delete' ? 'Selected articles deleted.' : action.published ? 'Selected articles are published.' : 'Selected articles are unpublished.');
     } catch (reason) { setDeleting(null); setError(reason instanceof Error ? reason.message : 'Unable to update Knowledge Base.'); }
     finally { lock.current = false; setBusy(false); }
   };
@@ -82,10 +82,10 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
   });
   const change = (value: Partial<IFaqInput>): void => setDraft(current => current ? { ...current, ...value } : current);
   return <section className={styles.secondaryPage}>
-    <div className={`${styles.secondaryPageHeader} ${styles.faqTitleRow}`}><h2 className={styles.toolbarTitle}>{props.manage ? 'Administration — Knowledge Base' : 'Knowledge Base'}</h2>
+    <div className={`${styles.secondaryPageHeader} ${styles.faqTitleRow}`}>{!props.hideHeading && <h2 className={styles.toolbarTitle}>{props.manage ? 'Administration — Knowledge Base' : 'Knowledge Base'}</h2>}
     <div className={styles.faqCategoryTabs}>
-      <Pivot aria-label="KB categories" overflowBehavior="menu" overflowAriaLabel="All categories" selectedKey={category || '__all'} onLinkClick={item => { if (!busy && !sortRows) setCategory(item?.props.itemKey === '__all' ? '' : item?.props.itemKey || ''); }}>
-        <PivotItem headerText="All categories" itemKey="__all" headerButtonProps={{disabled: busy || Boolean(sortRows)}} />
+      <Pivot aria-label="Article categories" overflowBehavior="menu" overflowAriaLabel="All categories" selectedKey={category || '__all'} onLinkClick={item => { if (!busy && !sortRows) setCategory(item?.props.itemKey === '__all' ? '' : item?.props.itemKey || ''); }}>
+        <PivotItem headerText="All Categories" itemKey="__all" headerButtonProps={{disabled: busy || Boolean(sortRows)}} />
         {categories.map(value => <PivotItem key={value} headerText={value} itemKey={value} headerButtonProps={{disabled: busy || Boolean(sortRows)}} />)}
       </Pivot>
     </div>
@@ -99,24 +99,24 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
           <div className={styles.ticketControls}>
             <SearchBox ariaLabel="Search Knowledge Base" placeholder="Search" disabled={Boolean(sortRows) || busy} value={query} onChange={(_, value) => setQuery(value || '')} />
 
-            {allowed && <div className={styles.ticketCounts} role="group" aria-label="Filter Knowledge Base by status">
+            {allowed && <div className={styles.ticketCounts} role="group" aria-label="Filter articles by status">
               {[{ key: 'all', text: 'Total' }, { key: 'published', text: 'Active' }, { key: 'draft', text: 'Inactive' }].map(item => <button key={item.key} type="button" disabled={busy || Boolean(sortRows)} aria-pressed={visibility === item.key} data-active={visibility === item.key} onClick={() => setVisibility(item.key)}>{item.text}<strong style={{ color: item.key === 'published' ? '#13794e' : item.key === 'draft' ? '#596371' : undefined }}>{item.key === 'all' ? faqs.length : faqs.filter(faq => faq.published === (item.key === 'published')).length}</strong></button>)}
             </div>}
             <IconButton iconProps={{ iconName: 'Refresh' }} ariaLabel="Refresh Knowledge Base" title="Refresh Knowledge Base" disabled={busy || Boolean(sortRows)} onClick={() => { void load(); }} />
           </div>
           {allowed && <div className={styles.ticketActions}>
-            <DefaultButton text="New" iconProps={{ iconName: 'Add' }} disabled={busy || Boolean(sortRows)} onClick={() => { setDraft({ ...blank }); setEditId(undefined); setError(''); setMessage(''); }} />
+            <DefaultButton text="New Article" iconProps={{ iconName: 'Add' }} disabled={busy || Boolean(sortRows)} onClick={() => { setDraft({ ...blank }); setEditId(undefined); setError(''); setMessage(''); }} />
             {!sortRows && <DefaultButton text="Sort" iconProps={{ iconName: 'SortLines' }} disabled={busy || faqs.length < 2} onClick={() => { setSortRows([...faqs]); setSelected(new Set()); }} />}
           </div>}
         </div>
-        {!error && !filtered.length && <p>{faqs.length ? 'No Knowledge Base match your search or filters.' : props.manage ? 'No Knowledge Base yet. Create your first entry.' : 'No published Knowledge Base are available yet.'}</p>}
-        {sortRows && <div className={styles.faqSortActions}><span>Drag rows to reorder all Knowledge Base, then save. Keyboard: Alt + Up/Down.</span><PrimaryButton text={busy ? 'Saving...' : 'Save'} disabled={busy} onClick={() => { void bulk(sortRows.map(item => item.id), { kind: 'sort' }); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setSortRows(null)} /></div>}
+        {!error && !filtered.length && <p>{faqs.length ? 'No articles match your search or filters.' : props.manage ? 'No articles yet. Create your first article.' : 'No published articles are available yet.'}</p>}
+        {sortRows && <div className={styles.faqSortActions}><span>Drag rows to reorder all articles, then save. Keyboard: Alt + Up/Down.</span><PrimaryButton text={busy ? 'Saving...' : 'Save'} disabled={busy} onClick={() => { void bulk(sortRows.map(item => item.id), { kind: 'sort' }); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setSortRows(null)} /></div>}
         <div className={styles.tableContainer}><table className={styles.ticketTable}><caption className={styles.ticketCountRow}><div className={styles.ticketCountContent}>        {allowed && !sortRows && selected.size > 0 && <div className={styles.bulkActions}>
-          {selected.size > 0 && <><strong aria-live="polite">{selected.size} selected</strong><DefaultButton text="Make active" disabled={busy} onClick={() => { void bulk(Array.from(selected), { kind: 'publish', published: true }); }} /><DefaultButton text="Make inactive" disabled={busy} onClick={() => { void bulk(Array.from(selected), { kind: 'publish', published: false }); }} /><DefaultButton text="Delete" disabled={busy} onClick={() => setDeleting(faqs.filter(item => selected.has(item.id)))} /></>}
+          {selected.size > 0 && <><strong aria-live="polite">{selected.size} selected</strong><DefaultButton text="Make Active" disabled={busy} onClick={() => { void bulk(Array.from(selected), { kind: 'publish', published: true }); }} /><DefaultButton text="Make Inactive" disabled={busy} onClick={() => { void bulk(Array.from(selected), { kind: 'publish', published: false }); }} /><DefaultButton text="Delete" disabled={busy} onClick={() => setDeleting(faqs.filter(item => selected.has(item.id)))} /></>}
         </div>}
-{!selected.size && <span>{(sortRows || filtered).length} Knowledge Base in this view</span>}</div></caption><thead><tr>
-          {allowed && <th className={styles.selectionCell}>{!sortRows && <input ref={selectAll} type="checkbox" aria-label="Select all matching Knowledge Base" checked={allSelected} disabled={busy || !filtered.length} onChange={event => setSelected(event.target.checked ? new Set(filtered.map(item => item.id)) : new Set())} />}</th>}
-          <th scope="col">Question</th><th scope="col">Answer</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Status</th>
+{!selected.size && <span>{(sortRows || filtered).length} articles in this view</span>}</div></caption><thead><tr>
+          {allowed && <th className={styles.selectionCell}>{!sortRows && <input ref={selectAll} type="checkbox" aria-label="Select all matching articles" checked={allSelected} disabled={busy || !filtered.length} onChange={event => setSelected(event.target.checked ? new Set(filtered.map(item => item.id)) : new Set())} />}</th>}
+          <th scope="col">Title</th><th scope="col">Content</th><th scope="col">Category</th><th scope="col">Subcategory</th><th scope="col">Status</th>
         </tr></thead><tbody>{(sortRows || filtered).map((faq, index) => <tr key={faq.id} data-selected={selected.has(faq.id)} tabIndex={sortRows ? 0 : undefined} aria-label={sortRows ? `${faq.question}. Use Alt and arrow keys to reorder.` : undefined} onKeyDown={event => { if (!sortRows || busy || !event.altKey) return; const target = event.key === 'ArrowUp' ? index - 1 : event.key === 'ArrowDown' ? index + 1 : -1; if (target >= 0 && target < sortRows.length) { event.preventDefault(); move(faq.id, sortRows[target].id); } }} draggable={Boolean(sortRows) && !busy} onDragStart={event => { dragging.current = faq.id; event.dataTransfer.setData('text/plain', String(faq.id)); event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { if (sortRows && !busy) event.preventDefault(); }} onDrop={event => { event.preventDefault(); if (sortRows && !busy && dragging.current !== null) move(dragging.current, faq.id); dragging.current = null; }} onDragEnd={() => { dragging.current = null; }}>
           {allowed && <td className={styles.selectionCell}>{sortRows ? <Icon iconName="GripperDotsVertical" /> : <input type="checkbox" aria-label={`Select ${faq.question}`} checked={selected.has(faq.id)} disabled={busy} onChange={event => setSelected(current => { const next = new Set(current); if (event.target.checked) next.add(faq.id); else next.delete(faq.id); return next; })} />}</td>}
           <td className={styles.faqQuestionCell}>{allowed && !sortRows ? <button type="button" className={styles.ticketSubjectLink} disabled={busy} onClick={() => { setEditId(faq.id); setDraft({ ...faq }); setError(''); setMessage(''); }}>{faq.question}</button> : faq.question}
@@ -125,21 +125,21 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean })
         </tr>)}</tbody></table></div>
       </>}
     </div>
-    <Dialog hidden={!draft} onDismiss={busy ? undefined : () => { setDraft(null); setError(''); }} minWidth={320} maxWidth={840} dialogContentProps={{ type: DialogType.close, title: editId ? 'Edit KB' : 'New KB', showCloseButton: !busy, styles: { header: { borderBottom: '1px solid #e5ebf3', marginBottom: 18 } } }} modalProps={{ isBlocking: true, styles: { main: { width: 'min(840px, calc(100vw - 32px))', minWidth: 0, maxWidth: 840, borderRadius: 6, overflow: 'hidden', selectors: { '@media (min-width: 480px)': { width: 'min(840px, calc(100vw - 32px))', minWidth: 0, maxWidth: 840 } } } } }}>
+    <Dialog hidden={!draft} onDismiss={busy ? undefined : () => { setDraft(null); setError(''); }} minWidth={320} maxWidth={840} dialogContentProps={{ type: DialogType.close, title: editId ? 'Edit Article' : 'New Article', showCloseButton: !busy, styles: { header: { borderBottom: '1px solid #e5ebf3', marginBottom: 18 } } }} modalProps={{ isBlocking: true, styles: { main: { width: 'min(840px, calc(100vw - 32px))', minWidth: 0, maxWidth: 840, borderRadius: 6, overflow: 'hidden', selectors: { '@media (min-width: 480px)': { width: 'min(840px, calc(100vw - 32px))', minWidth: 0, maxWidth: 840 } } } } }}>
       {draft && <form className={styles.faqEditor} onSubmit={event => { void save(event); }}>
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-        <TextField label="Question" required maxLength={255} value={draft.question} disabled={busy} onChange={(_, value) => change({ question: value || '' })} />
-        <RichTextEditor key={editId || 'new'} label="Answer" required value={draft.answer} disabled={busy} onChange={answer => change({ answer })} />
+        <TextField label="Title" required maxLength={255} value={draft.question} disabled={busy} onChange={(_, value) => change({ question: value || '' })} />
+        <RichTextEditor key={editId || 'new'} label="Content" required value={draft.answer} disabled={busy} onChange={answer => change({ answer })} />
         <div className={styles.faqClassificationRow}>
           {lookupChoices.categoryOptions ? <SearchableSelect label="Category" value={draft.categoryId || ''} disabled={busy} options={[{ key: '', text: 'Uncategorized' }, ...lookupChoices.categoryOptions.filter(item => item.active || item.id === draft.categoryId).map(item => ({ key: item.id, text: item.name }))]} onChange={value => change({ categoryId: value, category: lookupChoices.categoryOptions?.find(item => item.id === value)?.name || '', subcategoryId: '', subcategory: '' })} /> : choices ? <SearchableSelect label="Category" value={draft.category} disabled={busy} options={[{ key: '', text: 'Uncategorized' }, ...choices.map(value => ({ key: value, text: value }))]} onChange={value => change({ category: value })} /> : <TextField label="Category" value={draft.category} maxLength={255} disabled={busy} onChange={(_, value) => change({ category: value || '' })} />}
-          {lookupChoices.subcategoryOptions && <SearchableSelect label="Subcategory" value={draft.subcategoryId || ''} disabled={busy || !draft.categoryId} options={[{ key: '', text: 'Not specified' }, ...lookupChoices.subcategoryOptions.filter(item => item.parentId === draft.categoryId && (item.active || item.id === draft.subcategoryId)).map(item => ({ key: item.id, text: item.name }))]} onChange={value => change({ subcategoryId: value, subcategory: lookupChoices.subcategoryOptions?.find(item => item.id === value)?.name || '' })} />}
+          {lookupChoices.subcategoryOptions && <SearchableSelect label="Subcategory" value={draft.subcategoryId || ''} disabled={busy || !draft.categoryId} options={[{ key: '', text: 'Not Specified' }, ...lookupChoices.subcategoryOptions.filter(item => item.parentId === draft.categoryId && (item.active || item.id === draft.subcategoryId)).map(item => ({ key: item.id, text: item.name }))]} onChange={value => change({ subcategoryId: value, subcategory: lookupChoices.subcategoryOptions?.find(item => item.id === value)?.name || '' })} />}
         </div>
           <TextField label="Keywords" description="Words people may search for." value={draft.keywords} maxLength={255} disabled={busy} onChange={(_, value) => change({ keywords: value || '' })} />
-          <Checkbox className={styles.faqPublishCheckbox} label="Publish this KB" checked={draft.published} disabled={busy} onChange={(_, checked) => change({ published: Boolean(checked) })} />
-        <div className={styles.faqModalFooter}><PrimaryButton onRenderIcon={busy ? () => <Spinner size={SpinnerSize.xSmall} ariaLabel="Saving KB" styles={{ root: { marginRight: 6 } }} /> : undefined} type="submit" text={busy ? 'Saving…' : 'Save KB'} disabled={busy || !draft.question.trim() || !draft.answer.trim()} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => { setDraft(null); setError(''); }} /></div>
+          <Checkbox className={styles.faqPublishCheckbox} label="Publish This Article" checked={draft.published} disabled={busy} onChange={(_, checked) => change({ published: Boolean(checked) })} />
+        <div className={styles.faqModalFooter}><PrimaryButton onRenderIcon={busy ? () => <Spinner size={SpinnerSize.xSmall} ariaLabel="Saving article" styles={{ root: { marginRight: 6 } }} /> : undefined} type="submit" text={busy ? 'Saving…' : 'Save Article'} disabled={busy || !draft.question.trim() || !draft.answer.trim()} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => { setDraft(null); setError(''); }} /></div>
       </form>}
     </Dialog>
-    <Dialog hidden={!deleting} onDismiss={busy ? undefined : () => setDeleting(null)} dialogContentProps={{ type: DialogType.normal, title: 'Delete KB?', subText: `Delete ${deleting?.length || 0} selected KB(s)? This removes the entries from the list.` }} modalProps={{ isBlocking: busy }}>
+    <Dialog hidden={!deleting} onDismiss={busy ? undefined : () => setDeleting(null)} dialogContentProps={{ type: DialogType.normal, title: 'Delete Articles?', subText: `Delete ${deleting?.length || 0} selected article(s)? This removes the articles from the list.` }} modalProps={{ isBlocking: busy }}>
       <DialogFooter><PrimaryButton text={busy ? 'Deleting…' : 'Delete'} disabled={busy} onClick={() => { if (deleting) void bulk(deleting.map(item => item.id), { kind: 'delete' }); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setDeleting(null)} /></DialogFooter>
     </Dialog>
   </section>;

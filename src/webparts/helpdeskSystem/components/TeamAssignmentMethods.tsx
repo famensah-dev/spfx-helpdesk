@@ -34,7 +34,7 @@ export function TeamAssignmentMethods({service}:{service:ITicketDataSource}):Rea
   };
   const methods=new Set(data?.units.map(team=>team.method));
   return <div className="settings-team-methods">
-    <ChoiceGroup className={styles.ticketPriorityChoices} aria-label="Assignment method for all support teams" selectedKey={methods.size===1?Array.from(methods)[0]:null} disabled={busy||!data?.units.length} options={[{key:'Round robin',text:'Round robin'},{key:'Team lead',text:'Team lead'}]} onChange={(_,option)=>{if(option)void update(option.key as AssignmentMethod);}} />
+    <ChoiceGroup className={styles.ticketPriorityChoices} aria-label="Assignment method for all support teams" selectedKey={methods.size===1?Array.from(methods)[0]:null} disabled={busy||!data?.units.length} options={[{key:'Round robin',text:'Round Robin'},{key:'Team lead',text:'Team Lead'}]} onChange={(_,option)=>{if(option)void update(option.key as AssignmentMethod);}} />
     {busy&&<Spinner ariaLabel="Updating assignment method" />}
     <MissingWorkspaceNotice service={service} error={error} />
     {error&&<MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
