@@ -7,6 +7,38 @@ import styles from './SelfServiceGuide.module.scss';
 
 export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate: boolean; onCreate: (draft: Partial<INewTicketInput>) => void }): React.ReactElement {
   const [open, setOpen] = React.useState(false);
+  const launcherRef = React.useRef<HTMLButtonElement>(null);
+  const [position, setPosition] = React.useState<{ left: number; top: number }>();
+  const [dragging, setDragging] = React.useState(false);
+  const drag = React.useRef<{ id: number; x: number; y: number; left: number; top: number; moved: boolean }>();
+  const suppressClick = React.useRef(false);
+  const fitLauncher = (left: number, top: number, snap: boolean): { left: number; top: number } => {
+    const rect = launcherRef.current?.getBoundingClientRect();
+    const width = rect?.width || 150;
+    const height = rect?.height || 48;
+    const margin = 14;
+    const right = Math.max(margin, window.innerWidth - width - margin);
+    return {
+      left: snap ? (left + width / 2 < window.innerWidth / 2 ? margin : right) : Math.max(margin, Math.min(right, left)),
+      top: Math.max(margin, Math.min(Math.max(margin, window.innerHeight - height - margin), top))
+    };
+  };
+  React.useEffect(() => {
+    const resize = (): void => { setPosition(current => current ? fitLauncher(current.left, current.top, true) : current); };
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, []);
+  const finishDrag = (event: React.PointerEvent<HTMLButtonElement>): void => {
+    const current = drag.current;
+    if (!current || current.id !== event.pointerId) return;
+    if (current.moved) {
+      setPosition(fitLauncher(current.left + event.clientX - current.x, current.top + event.clientY - current.y, true));
+      suppressClick.current = true;
+    }
+    drag.current = undefined;
+    setDragging(false);
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   const [articles, setArticles] = React.useState<IFaq[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
@@ -56,7 +88,28 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
     finally { setLoading(false); }
   };
   return <>
-    <button type="button" className={styles.launcher} onClick={() => setOpen(true)} aria-label="Open self-service help"><Icon iconName="Chat" />Need Help?</button>
+    <button ref={launcherRef} type="button" className={styles.launcher}
+      style={{ ...(position ? { left: position.left, top: position.top, right: 'auto', bottom: 'auto' } : {}), cursor: dragging ? 'grabbing' : 'pointer' }}
+      title="Click for Help or Drag to Either Side"
+      onPointerDown={event => {
+        if (!event.isPrimary || event.button !== 0) return;
+        suppressClick.current = false;
+        const rect = event.currentTarget.getBoundingClientRect();
+        drag.current = { id: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false };
+        event.currentTarget.setPointerCapture(event.pointerId);
+      }}
+      onPointerMove={event => {
+        const current = drag.current;
+        if (!current || current.id !== event.pointerId) return;
+        if (!current.moved && Math.hypot(event.clientX - current.x, event.clientY - current.y) < 6) return;
+        current.moved = true;
+        setDragging(true);
+        setPosition(fitLauncher(current.left + event.clientX - current.x, current.top + event.clientY - current.y, false));
+      }}
+      onPointerUp={finishDrag} onPointerCancel={finishDrag}
+      onLostPointerCapture={() => { drag.current = undefined; setDragging(false); }}
+      onClick={event => { if (suppressClick.current && event.detail !== 0) { suppressClick.current = false; return; } setOpen(true); }}
+      aria-label="Open self-service help"><Icon iconName="Chat" />Need Help?</button>
     <Panel isOpen={open} onDismiss={() => { if (!loading) setOpen(false); }} type={PanelType.custom} customWidth="440px" headerText="Quick Help" closeButtonAriaLabel="Close Quick Help" isLightDismiss={!loading} styles={{ main: { maxWidth: '100vw' }, content: { padding: 20 }, commands: { paddingTop: 0 }, navigation: { alignItems: 'center', minHeight: 64, padding: '12px 20px', boxSizing: 'border-box' }, header: { padding: 0, alignSelf: 'center', minWidth: 0 }, headerText: { margin: 0, lineHeight: '32px' }, closeButton: { margin: 0, width: 32, height: 32, background: 'transparent', border: 0, color: '#52647a' } }}>
       <div className={styles.guide}>
         <p className={styles.intro}>Find a helpful article or let us help you create a support ticket.</p>

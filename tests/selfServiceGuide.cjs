@@ -21,7 +21,28 @@ const service = { getFaqs: async manage => { assert.equal(manage, false); return
 async function click(text) { const button = [...host.querySelectorAll('button')].find(item => item.textContent === text); assert(button, 'Missing button: ' + text); await act(async () => { button.click(); }); }
 async function render(canCreate = true) { await act(async () => { ReactDOM.render(h(Guide, { service, canCreate, onCreate: value => { draft = value; } }), host); }); }
 (async () => {
-  await render(); await click('Need Help?');
+  await render();
+  const launcher = host.querySelector('button');
+  launcher.getBoundingClientRect = () => ({ left: 850, top: 650, width: 150, height: 48 });
+  launcher.setPointerCapture = () => {};
+  const { Simulate } = require('react-dom/test-utils');
+  const pointer = (x, y) => ({ pointerId: 1, isPrimary: true, button: 0, clientX: x, clientY: y });
+  act(() => Simulate.pointerDown(launcher, pointer(900, 670)));
+  act(() => Simulate.pointerMove(launcher, pointer(80, 300)));
+  act(() => Simulate.pointerUp(launcher, pointer(80, 300)));
+  assert.equal(launcher.style.left, '14px', 'Dragging left snaps to left edge');
+  act(() => Simulate.click(launcher, { detail: 1 }));
+  assert(!host.querySelector('section'), 'Dragging must not open help');
+  launcher.getBoundingClientRect = () => ({ left: 14, top: 280, width: 150, height: 48 });
+  act(() => Simulate.pointerDown(launcher, pointer(50, 300)));
+  act(() => Simulate.pointerMove(launcher, pointer(2000, 2000)));
+  act(() => Simulate.pointerUp(launcher, pointer(2000, 2000)));
+  assert.equal(launcher.style.left, `${window.innerWidth - 164}px`);
+  assert.equal(launcher.style.top, `${window.innerHeight - 62}px`, 'Keep button within viewport');
+  Object.defineProperty(window, 'innerWidth', { value: 400, configurable: true });
+  act(() => { window.dispatchEvent(new window.Event('resize')); });
+  assert.equal(launcher.style.left, '236px', 'Reposition on viewport resize');
+  await click('Need Help?');
   assert(!host.textContent.includes('SECRET DRAFT')); assert(!host.textContent.includes('Secret'));
   await click('Email'); await click('Access'); await click('Cannot sign in');
   assert(host.textContent.includes('Reset your password'));

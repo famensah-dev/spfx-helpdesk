@@ -9,3 +9,5 @@
 .answer { border: 1px solid #e3eaf3; border-radius: 10px; padding: 16px; background: #fbfcfe; img { max-width: 100%; height: auto; } }
 .footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e3eaf3; p { margin: 0 0 8px; color: #52647a; font-size: 13px; line-height: 1.5; } }
 @media (max-width: 600px) { .launcher { right: 14px; bottom: 14px; padding: 12px 16px; } }
+
+.launcher { touch-action: none; user-select: none; }

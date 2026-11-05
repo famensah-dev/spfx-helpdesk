@@ -1,7 +1,7 @@
 .helpdeskSystemShell {
   --hd-surface: #ffffff; --hd-canvas: #f5f5f9; --hd-ink: #252939; --hd-line: #e9eaf1;
   --hd-header: #101e32; --hd-blue: #219dcd; --hd-green: #008959; --hd-amber: #e8a500;
-  --hd-closed: #337fe5; --hd-pink: #df5d85; --hd-overdue: #d9512b;
+  --hd-closed: #718096; --hd-pink: #df5d85; --hd-overdue: #d9512b;
   container: deskpilot / inline-size;
   width: 100%; min-width: 0; min-height: 100vh; background: var(--hd-canvas);
   font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: var(--hd-ink); line-height: 1.45;
@@ -111,7 +111,7 @@
 .ticketToolbar .ticketControls { order: 1; margin-left: 0; }
 .ticketActions { gap: 0; > button { border: 0; background: transparent; font-size: 12px; padding: 0 8px; min-width: 0; } }
 .ticketControls { margin-left: auto; select { border: 1px solid var(--hd-line); border-radius: 3px; padding: 6px; background: white; font-size: 12px; } :global(.ms-SearchBox) { width: 230px; max-width: 100%; } }
-.ticketCounts { gap: 2px; button { border: 0; background: transparent; padding: 7px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; display: flex; gap: 7px; &[data-active='true'] { background: #eef2f3; box-shadow: inset 0 -2px #1b385c; } } strong { color: #279bac; &[data-status='Open'] { color: #008959; } &[data-status='Closed'] { color: #337fe5; } &[data-status='Pending'] { color: #b77900; } &[data-status='Escalated'] { color: #c64d75; } } }
+.ticketCounts { gap: 2px; button { border: 0; background: transparent; padding: 7px 8px; border-radius: 3px; cursor: pointer; font-size: 12px; display: flex; gap: 7px; &[data-active='true'] { background: #eef2f3; box-shadow: inset 0 -2px #1b385c; } } strong { color: #279bac; &[data-status='Open'] { color: #008959; } &[data-status='Closed'] { color: #637084; } &[data-status='Pending'] { color: #b77900; } &[data-status='Escalated'] { color: #c64d75; } } }
 @media (max-width: 900px) { .ticketControls { margin-left: 0; width: 100%; } }
 
 // Soft surfaces and royal blue controls across dashboard and ticket views.
@@ -128,7 +128,7 @@
   &[data-tone='total'] { background: #eef1ff; color: #4d58a7; }
   &[data-tone='open'] { background: #e8f7f1; color: #16775b; }
   &[data-tone='pending'] { background: #fff6e4; color: #906517; }
-  &[data-tone='closed'] { background: #eaf3fe; color: #326bad; }
+  &[data-tone='closed'] { background: #edf0f4; color: #536176; }
   &[data-tone='escalated'] { background: #f8ebf3; color: #a1457c; }
   &[data-tone='overdue'] { background: #fff0ec; color: #b2523d; }
 }
@@ -658,14 +658,14 @@
 .statusPill[data-status='On Hold'] { background: #edf0f3; color: #596371; }
 .statusPill[data-status='Waiting on Third Party'] { background: #fff4d6; color: #946200; }
 .statusPill[data-status='Resolved'] { background: #e0f5e9; color: #13794e; }
-.statusPill[data-status='Closed'] { background: #fde7ec; color: #b53650; }
+.statusPill[data-status='Closed'] { background: #edf0f4; color: #536176; }
 .ticketCounts { flex-wrap: wrap;
   strong[data-status='New'] { color: #1686b1; }
   strong[data-status='Assigned'] { color: #8054c7; }
   strong[data-status='In Progress'] { color: #8054c7; }
   strong[data-status='On Hold'] { color: #596371; }
   strong[data-status='Resolved'] { color: #159663; }
-  strong[data-status='Closed'] { color: #c43f59; }
+  strong[data-status='Closed'] { color: #637084; }
 }
 .lifecycleCards .kpiCard {
   &[data-tone='new'] { background: #e9f5fb; color: #167ea8; }
@@ -673,7 +673,7 @@
   &[data-tone='in-progress'] { background: #fff0bb; color: #815900; }
   &[data-tone='on-hold'] { background: #edf0f3; color: #596371; }
   &[data-tone='resolved'] { background: #e0f5e9; color: #13794e; }
-  &[data-tone='closed'] { background: #fde7ec; color: #b53650; }
+  &[data-tone='closed'] { background: #edf0f4; color: #536176; }
 }
 .ticketDescriptionPreview { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; overflow-wrap: anywhere; min-width: 180px; max-width: 320px; line-height: 1.5; }
 @media (min-width: 1024px) { .lifecycleCards { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; } }
