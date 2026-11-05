@@ -7,7 +7,7 @@ import { DatePicker, DefaultButton, Dropdown, Icon, IconButton, MessageBar, Mess
 import type { IDashboardStats, IChartDataset } from '../interfaces/IDashboard';
 import type { ITicket, ITicketFilters } from '../interfaces/ITicket';
 import { getGlobalSummary } from '../utils/globalDashboardUtils';
-import { ticketStatuses, countStatus, normalizeStatus, statusColors } from '../utils/ticketStatuses';
+import { ticketStatuses, countStatus, isResolved, normalizeStatus, statusColors } from '../utils/ticketStatuses';
 import { filterTickets } from '../utils/dashboardUtils';
 import { averageResolutionDays, DashboardBar, getTicketTrend, getOpenTicketAging, getPreviousPeriod, getResolutionByCategory, groupTicketCounts } from '../utils/dashboardAnalytics';
 import styles from '../components/HelpdeskSystem.module.scss';
@@ -100,7 +100,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
   const average = hasResolvedAt ? averageResolutionDays(visible) : null;
   const cards = [
     { label: 'Total Tickets', value: visible.length, previous: previous?.length, icon: 'Page', color: '#2d88ff' },
-    { label: 'Resolved', value: countStatus(visible, 'Resolved'), previous: previous ? countStatus(previous, 'Resolved') : null, icon: 'Completed', color: '#28b47d' },
+    { label: 'Resolved', value: visible.filter(ticket => isResolved(ticket.Status)).length, previous: previous ? previous.filter(ticket => isResolved(ticket.Status)).length : null, icon: 'Completed', color: '#28b47d' },
     { label: 'In Progress', value: countStatus(visible, 'In Progress'), previous: previous ? countStatus(previous, 'In Progress') : null, icon: 'Clock', color: '#8054c7' },
     { label: 'Pending', value: countStatus(visible, 'Pending'), previous: previous ? countStatus(previous, 'Pending') : null, icon: 'Pause', color: '#ffbf00' },
     { label: 'Overdue', value: hasDueDate ? summary.overdue : null, previous: hasDueDate ? previousSummary?.overdue : null, icon: 'Warning', color: '#ed4c60' },
@@ -187,7 +187,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: '#2d88ff' }} />Created</span>{hasResolvedAt && <span><i style={{ background: '#28b47d' }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
           <div className={styles.dashboardChartCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={trendOptions} /></div>
         </ChartCard>
-        <ChartCard title="Tickets by Status">
+        <ChartCard title="Tickets by Status" note="Current statuses shown separately. The Resolved total above also includes Closed tickets.">
           <div className={styles.dashboardStatusChart}>
       <div className={styles.dashboardDonut}><Doughnut role="img" aria-label={displayedStatuses.map(status => `${status}: ${countStatus(visible, status)}`).join(', ')} data={statusData} options={{ responsive: true, maintainAspectRatio: false, cutout: '62%', plugins: { legend: { display: false } } }} /><div><strong>{visible.length}</strong><span>Total Tickets</span></div></div>
             <ul className={styles.dashboardStatusLegend}>{displayedStatuses.map(status => { const count = countStatus(visible, status); return <li key={status}><span style={{ background: statusColors[status] }} /><span>{status}</span><strong>{count} <small>({visible.length ? Math.round(count / visible.length * 100) : 0}%)</small></strong></li>; })}</ul>

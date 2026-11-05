@@ -5,3 +5,6 @@ export const statusColors: Record<string, string> = { New: '#219dcd', Pending:'#
 export const normalizeStatus = (value: string): TicketStatus => ({Completed:'Resolved',Assigned:'New','On Hold':'Pending','Waiting on Third Party':'Pending',Escalated:'In Progress'}[value] || value) as TicketStatus;
 export const isResolved = (value: string): boolean => ['Resolved', 'Completed', 'Closed'].includes(value);
 export const countStatus = (tickets: import('../interfaces/ITicket').ITicket[], status: string): number => tickets.filter(ticket => normalizeStatus(ticket.Status) === status).length;
+
+// Resolved views include tickets that have progressed to Closed.
+export const matchesStatusFilter = (value: string, filter: string): boolean => normalizeStatus(filter) === 'Resolved' ? isResolved(value) : normalizeStatus(value) === normalizeStatus(filter);

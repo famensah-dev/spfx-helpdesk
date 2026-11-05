@@ -11,7 +11,7 @@ import { NewTicketForm, type INewTicketInput } from '../components/NewTicketForm
 import type { ITicketDataSource, TicketBulkAction, ITicketBulkResult } from '../interfaces/ITicketDataSource';
 import type { ITicket, TicketPriority } from '../interfaces/ITicket';
 
-import { ticketStatuses, normalizeStatus, countStatus } from '../utils/ticketStatuses';
+import { ticketStatuses, normalizeStatus, countStatus, matchesStatusFilter } from '../utils/ticketStatuses';
 import { getTicketDateRange } from '../utils/ticketDateRanges';
 import { isTicketCreatedBy } from '../utils/ticketRequester';
 import styles from '../components/HelpdeskSystem.module.scss';
@@ -114,7 +114,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   });
 
   const statusFilters = ['Total', ...ticketStatuses];
-  const matching = scoped.filter(ticket => status === 'Total' || normalizeStatus(ticket.Status) === status);
+  const matching = scoped.filter(ticket => status === 'Total' || matchesStatusFilter(ticket.Status, status));
   const pageCount = Math.max(1, Math.ceil(matching.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const firstVisiblePage = Math.max(0, Math.min(currentPage - 2, pageCount - 5));
@@ -231,7 +231,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
       </div>
       <div className={styles.ticketControls}>
         <div className={styles.ticketCounts} role="group" aria-label="Filter tickets by status">
-          {statusFilters.map(label => <button key={label} type="button" aria-pressed={status === label} data-active={status === label} onClick={() => { setStatus(label); setPage(0); }}>{label}<strong data-status={label}>{loading || error ? '—' : label === 'Total' ? scoped.length : countStatus(scoped, label)}</strong></button>)}
+          {statusFilters.map(label => <button key={label} type="button" aria-pressed={status === label} data-active={status === label} onClick={() => { setStatus(label); setPage(0); }}>{label}<strong data-status={label}>{loading || error ? '—' : label === 'Total' ? scoped.length : label === 'Resolved' ? scoped.filter(ticket => matchesStatusFilter(ticket.Status, label)).length : countStatus(scoped, label)}</strong></button>)}
         </div>
         <Dialog hidden={!rangeOpen} onDismiss={() => setRangeOpen(false)} dialogContentProps={{title: 'Custom Date Range'}}>
           <DatePicker calendarProps={calendarAppearance} firstDayOfWeek={1} label="Created From" value={customStart} maxDate={customEnd} onSelectDate={date => setCustomStart(date || undefined)} />

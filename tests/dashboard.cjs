@@ -10,6 +10,11 @@ const compiled = ts.transpileModule(source, {compilerOptions: {module: ts.Module
 const loaded = {exports: {}};
 new Function('exports', 'require', 'module', compiled.outputText)(loaded.exports, dashboardRequire, loaded);
 const {filterTickets, getDashboardStats, getStatusChartData, getPriorityChartData} = loaded.exports;
+const completedTickets = [{Id:101,Status:'Resolved'}, {Id:102,Status:'Closed'}, {Id:103,Status:'Completed'}, {Id:104,Status:'In Progress'}];
+assert.deepEqual(filterTickets(completedTickets,{status:'Resolved'}).map(ticket=>ticket.Id),[101,102,103]);
+assert.deepEqual(filterTickets(completedTickets,{status:'Closed'}).map(ticket=>ticket.Id),[102]);
+assert.equal(statusesModule.exports.countStatus(completedTickets,'Resolved'),2,'Status charts retain exclusive current-status buckets');
+assert.equal(completedTickets.filter(ticket=>statusesModule.exports.matchesStatusFilter(ticket.Status,'Resolved')).length,3);
 assert.deepEqual(statusesModule.exports.ticketStatuses,['New','In Progress','Pending','Resolved','Closed']);assert.equal(statusesModule.exports.normalizeStatus('Assigned'),'New');assert.equal(statusesModule.exports.normalizeStatus('Waiting on Third Party'),'Pending');assert.equal(statusesModule.exports.normalizeStatus('Escalated'),'In Progress');
 assert.equal(statusesModule.exports.isResolved('Waiting on Third Party'),false);
 const now = new Date();
@@ -69,7 +74,7 @@ assert.deepEqual(getStatusChartData(lifecycleTickets).labels, ['New','In Progres
 assert.deepEqual(getStatusChartData(lifecycleTickets).datasets[0].data, [2,1,2,1,1]);
 assert.equal(getDashboardStats(lifecycleTickets).totalOpenTickets, 5);
 assert.equal(filterTickets(extended, {status: 'On Hold'}).length, 1);
-assert.equal(filterTickets(tickets, {status: 'Resolved'}).length, 2);
+assert.equal(filterTickets(tickets, {status: 'Resolved'}).length, 3);
 assert.equal(getStatusChartData(lifecycleTickets).datasets[0].backgroundColor.length, 5);
 console.log('Lifecycle checks passed: five statuses, legacy aliases, unresolved totals, filters and chart colors.');
 const dateRangeModule = {exports: {}};

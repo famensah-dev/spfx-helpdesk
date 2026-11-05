@@ -1,6 +1,6 @@
 import type { IDashboardStats, IChartDataset } from '../interfaces/IDashboard';
 import type { ITicket, TicketPriority, TicketStatus } from '../interfaces/ITicket';
-import { ticketStatuses, normalizeStatus, isResolved, statusColors } from './ticketStatuses';
+import { ticketStatuses, normalizeStatus, isResolved, statusColors, matchesStatusFilter } from './ticketStatuses';
 
 const statusOrder: TicketStatus[] = ticketStatuses;
 const priorityOrder: TicketPriority[] = ['Critical', 'High', 'Medium', 'Low'];
@@ -23,7 +23,7 @@ export function filterTickets(tickets: ITicket[], filters: { startDate?: Date | 
       return false;
     }
 
-    if (filters.status && normalizeStatus(ticket.Status) !== normalizeStatus(filters.status)) {
+    if (filters.status && !matchesStatusFilter(ticket.Status, filters.status)) {
       return false;
     }
 
