@@ -42,7 +42,7 @@ export interface IDashboardPageProps {
   lastUpdated: Date | null;
 }
 const palette = ['#2d88ff', '#9a75f2', '#21abb6', '#ff962e', '#ffc329', '#f45663', '#a6b1c2', '#62a0f9', '#c2cad7'];
-const priorityColors: Record<string, string> = { Low: '#28b47d', Medium: '#2d88ff', High: '#ff841b', Critical: '#f14f5c' };
+const priorityColors: Record<string, string> = { Low: '#00899b', Medium: '#2d88ff', High: '#ff841b', Critical: '#f14f5c' };
 const priorityValueLabels: Plugin<'bar'> = {
   id: 'dashboardPriorityValues',
   afterDatasetsDraw(chart) {

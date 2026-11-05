@@ -141,9 +141,14 @@ export class GraphTicketService implements ITicketDataSource {
         fields[requester.source]=input.ticketSource;
       }
     }
-    if(input.requesterName!==undefined||input.requesterEmail!==undefined){
+    if(input.requestedById!==undefined||input.requesterName!==undefined||input.requesterEmail!==undefined){
       const requester=this.requesterFields;
       if(!requester?.name||!requester.email)throw new Error('Run Initialize workspace to add requester fields before editing them.');
+      if(input.requestedById!==undefined){
+        if(!requester.requestedBy)throw new Error('Run Initialize workspace to add the Requested By person field.');
+        if(input.requestedById!==null&&(!Number.isSafeInteger(input.requestedById)||input.requestedById<=0))throw new Error('Select a valid SharePoint requester.');
+        fields[`${requester.requestedBy}LookupId`]=input.requestedById===null?null:String(input.requestedById);
+      }
       const current=(await this.getTickets()).tickets.find(ticket=>ticket.Id===id);
       if(!current)throw new Error('This ticket is no longer available.');
       const name=(input.requesterName ?? current.Requester?.Title ?? '').trim();
@@ -151,7 +156,7 @@ export class GraphTicketService implements ITicketDataSource {
       if(name.length>255||email.length>254||(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)))throw new Error('Enter a requester name of up to 255 characters and a valid email.');
       if(name&&!email)throw new Error('Enter an email for the requester.');
       fields[requester.name]=name;fields[requester.email]=email;
-      if(requester.requestedBy&&(name!==(current.Requester?.Title || '')||email.toLowerCase()!==(current.RequesterEmail || current.Requester?.Email || '').toLowerCase()))fields[`${requester.requestedBy}LookupId`]=null;
+      if(input.requestedById===undefined&&requester.requestedBy&&(name!==(current.Requester?.Title || '')||email.toLowerCase()!==(current.RequesterEmail || current.Requester?.Email || '').toLowerCase()))fields[`${requester.requestedBy}LookupId`]=null;
     }
     for(const key of ['department','dueDate'] as const){
       if(input[key]===undefined)continue;

@@ -129,7 +129,7 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
             {category === undefined ? categories.map(value => <button type="button" key={value} onClick={() => setCategory(value)}>{value}<Icon iconName="ChevronRight" /></button>) : subcategory === undefined ? subcategories.map(value => <button type="button" key={value} onClick={() => setSubcategory(value)}>{value}<Icon iconName="ChevronRight" /></button>) : questions.map(item => <button type="button" key={item.id} onClick={() => choose(item)}>{item.question}<Icon iconName="ChevronRight" /></button>)}
           </div>
           {!articles.length && <p>No published guides are available yet.</p>}
-          {subcategory !== undefined && <DefaultButton text="Nothing Matches My Issue" onClick={() => props.canCreate ? setEscalating(true) : setSubcategory(undefined)} />}
+          {subcategory !== undefined && <button type="button" className={styles.noMatchLink} onClick={() => props.canCreate ? setEscalating(true) : setSubcategory(undefined)}>Nothing Matches My Issue</button>}
         </>}
         {props.canCreate && !escalating && !solved && <div className={styles.footer}><p>Still need help, or prefer to contact support directly? Create a ticket and our team will help you.</p><button type="button" className={styles.issueLink} disabled={loading} onClick={() => setEscalating(true)}>Create a Ticket</button></div>}
       </div>

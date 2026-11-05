@@ -77,7 +77,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   React.useEffect(()=>{window.requestAnimationFrame(()=>heading.current?.focus());},[location.pathname]);
   if(location.pathname==='/' || location.pathname==='')return <Navigate to={pagePaths[initialPage]} replace />;
   return (
-    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && route.ticketId ? ` ${styles.ticketDetailsCanvas}` : ''}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
+    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && route.ticketId ? ` ${styles.ticketDetailsCanvas}` : ''}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard' || page === 'Administration') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
       {dashboard.newTicketNotice>0 && <div key={dashboard.newTicketNotice} className={styles.newTicketToast} role="status"><Icon iconName="Ticket" aria-hidden="true" />New ticket created</div>}
       <header className={styles.appHeader}>
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
