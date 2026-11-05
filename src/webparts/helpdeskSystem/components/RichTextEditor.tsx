@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { IconButton, Label, Dropdown } from '@fluentui/react';
 import styles from './HelpdeskSystem.module.scss';
+import { decodeHtmlEntities } from '../utils/decodeHtmlEntities';
 
 export function safeDescriptionHtml(value: string): string {
   const doc = new DOMParser().parseFromString(value, 'text/html');
@@ -31,7 +32,7 @@ export function RichTextEditor(props: { value: string; label?: string; required?
   React.useEffect(() => {
     if (host.current && document.activeElement !== host.current) {
       if (/<\/?(?:p|div|br|strong|b|em|ul|ol|h[234])\b/i.test(props.value)) host.current.innerHTML = safeDescriptionHtml(props.value);
-      else host.current.textContent = props.value;
+      else host.current.textContent = decodeHtmlEntities(props.value);
     }
   }, [props.value]);
   const remember = (): void => { const current = window.getSelection(); if (current?.rangeCount && host.current?.contains(current.anchorNode)) selection.current = current.getRangeAt(0).cloneRange(); };

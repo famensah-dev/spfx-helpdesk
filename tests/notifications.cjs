@@ -4,7 +4,14 @@ function load(file,deps={}){const m={exports:{}};new Function('require','module'
 const base='src/webparts/helpdeskSystem/';
 const contracts=load(base+'interfaces/INotifications.ts');const lists=load(base+'interfaces/IWorkspaceSetup.ts');
 const routes=load(base+'utils/appRoutes.ts');
-const rich=load(base+'components/RichTextEditor.tsx',{'@fluentui/react':{},'./HelpdeskSystem.module.scss':{default:{}}});
+const entities=load(base+'utils/decodeHtmlEntities.ts');
+const rich=load(base+'components/RichTextEditor.tsx',{'@fluentui/react':{},'./HelpdeskSystem.module.scss':{default:{}},'../utils/decodeHtmlEntities':entities});
+const markdown=load(base+'components/MarkdownEditor.tsx',{'@fluentui/react':{},'./HelpdeskSystem.module.scss':{default:{}},'../utils/decodeHtmlEntities':entities});
+assert.equal(entities.decodeHtmlEntities('7&#58;00am &amp; 6&#x3a;00pm'), '7:00am & 6:00pm');
+assert.equal(entities.decodeHtmlEntities('Use <name> &unknown;'), 'Use <name> &unknown;');
+const rendered=require('react-dom/server').renderToStaticMarkup(require('react').createElement(markdown.MarkdownContent,{value:'Display as follows&#58;\n* November&#58; First batch\n&lt;img src=x onerror=alert(1)&gt;\n[Unsafe](javascript&#58;alert)'}));
+assert(rendered.includes('Display as follows:'));assert(rendered.includes('November: First batch'));
+assert(!rendered.includes('<img'));assert(!rendered.includes('href="javascript:'));
 const templates=load(base+'utils/emailTemplates.ts',{'../interfaces/INotifications':contracts,'../components/RichTextEditor':rich,'./appRoutes':routes});
 const {GraphNotificationService}=load(base+'services/graph/GraphNotificationService.ts',{'../../interfaces/INotifications':contracts,'../../utils/emailTemplates':templates,'../../interfaces/IWorkspaceSetup':lists});
 const {GraphClient}=load(base+'services/graph/GraphClient.ts');
