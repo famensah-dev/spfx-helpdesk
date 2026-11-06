@@ -54,11 +54,31 @@ function fixture() {
 }
 test('Agent view and comment/history calls reject tickets outside its scope', async () => {
   const { service, writes } = fixture();
-  assert.deepEqual((await service.getTickets()).tickets.map(item => item.Id), [1]);
+  assert.deepEqual((await service.getTickets()).tickets.map(item => item.Id), [1, 3]);
   await assert.rejects(service.addComment(2, 'hidden'), /outside/);
   await assert.rejects(service.getHistory(2), /outside/);
   await service.addComment(1, 'allowed');
   assert.equal(writes.length, 1);
+});
+test('agents retain submitted requests after another agent receives them without taking over management', async () => {
+  const { source, writes } = fixture();
+  const submitted = { Id: 4, Title: 'Logged for colleague', Status: 'In Progress', Priority: 'Low', CreatedBy: { Id: 7 }, Requester: { Id: 9 }, AssignedTo: { Id: 8 } };
+  source.getTickets = async () => ({ ...data, tickets: [...tickets, submitted] });
+  const role = roles.defaultRoleConfiguration().roles[0];
+  const service = applyAppRoleRules(source, role, 7, 'agent@example.com');
+  assert.deepEqual((await service.getTickets()).tickets.map(ticket => ticket.Id), [1,3,4]);
+  await service.getHistory(4); await service.addComment(4, 'Following up');
+  await service.updateTicket(4, { title: submitted.Title, status: 'Resolved', priority: 'Low', assignedToId: 8, resolutionSummary: 'My request has been fulfilled.' });
+  await service.updateTickets([4], { kind: 'status', status: 'Closed' });
+  await service.updateTickets([4], { kind: 'status', status: 'In Progress' });
+  await service.updateTickets([3], { kind: 'status', status: 'Pending' });
+  await assert.rejects(service.updateTicket(4, { title: 'Changed content', status: 'Resolved', priority: 'Low', assignedToId: 8 }), /Only tickets assigned/);
+  await assert.rejects(service.updateTickets([2], { kind: 'status', status: 'Resolved' }), /outside/);
+  await assert.rejects(service.updateTickets([1], { kind: 'status', status: 'Closed' }), /submitted the request/);
+  assert.equal(writes.length, 5);
+  assert.equal(ticketInScope({ ...submitted, CreatedBy: { AadId: 'creator-guid' } }, role, 0, '', 'CREATOR-GUID'), true);
+  assert.equal(ticketInScope({ ...submitted, CreatedBy: { Email: 'AGENT@example.com' } }, role, 0, 'agent@example.com'), true);
+  assert.equal(ticketInScope(tickets[1], role, 7, 'agent@example.com'), false);
 });
 test('Agent cannot assign, reprioritize or archive through normal app calls', async () => {
   const { service, writes } = fixture();

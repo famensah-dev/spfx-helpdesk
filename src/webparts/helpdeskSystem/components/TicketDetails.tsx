@@ -1,7 +1,7 @@
 import { TicketActivity } from './TicketActivity';
 import { CommentComposer } from './CommentComposer';
 import { TicketDueDatePicker } from './TicketDueDatePicker';
-import { canUse } from '../services/appRoleRules';
+import { canUse, isTicketSubmittedBy } from '../services/appRoleRules';
 import type { IFaqInput } from '../interfaces/IFaq';
 import { TicketClassificationFields } from './TicketClassificationFields';
 import { RichTextEditor, RichTextContent } from './RichTextEditor';
@@ -21,7 +21,11 @@ import styles from './HelpdeskSystem.module.scss';
 export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; service?: ITicketDataSource; refresh: () => Promise<void>; onBack: () => void; backLabel?: string }): React.ReactElement {
   const { ticket, service } = props;
   const agent = !service?.roleRules && service?.access?.agent === true;
-  const canManage = !agent || ticket.AssignedTo?.Email?.toLowerCase() === service?.access?.email.toLowerCase();
+  const handlingAgent = agent || (service?.roleRules?.id === 'agent' && service.roleRules.scope === 'assigned');
+  const canManage = !handlingAgent || ticket.AssignedTo?.Email?.toLowerCase() === service?.access?.email.toLowerCase();
+  const ownAgentRequest = Boolean((agent || service?.roleRules?.id === 'agent') && isTicketSubmittedBy(ticket, 0, service?.access?.email || '', service?.access?.oid));
+  const canChangeStatus = canManage || ownAgentRequest;
+  const canCloseTicket = Boolean(service?.access?.admin || service?.access?.superAdmin || ownAgentRequest);
   const heading = React.useRef<HTMLHeadingElement>(null);
   const [viewTrackingError,setViewTrackingError]=React.useState('');
   React.useEffect(()=>{let active=true;setViewTrackingError('');service?.ticketViews?.markOpened(ticket.Id).catch(()=>{if(active)setViewTrackingError('The ticket is open, but its opened indicator could not be saved.');});return()=>{active=false;};},[service?.ticketViews,ticket.Id]);
@@ -199,7 +203,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const [priorityOptions, setPriorityOptions] = React.useState<string[]>([]);
   React.useEffect(() => { let active = true; if (service?.getPriorities) service.getPriorities().then(values => {if (active) setPriorityOptions(values);}).catch(reason => {if (active) setError(reason instanceof Error ? reason.message : 'Unable to load priorities.');}); return () => {active = false;}; }, [service]);
   const openStatus = (next:TicketStatus):void => {
-    if (next === 'Closed' && !canSelectSolution) {setError('Only Helpdesk Admins can close tickets.');return;}
+    if (next === 'Closed' && !canCloseTicket) {setError('Only Helpdesk Admins or an agent who submitted the request can close tickets.');return;}
     setResolutionDraft('');setStatusError('');setStatusTarget(next);
   };
   const confirmStatus = async ():Promise<void> => {
@@ -235,7 +239,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
         <div className={styles.detailSummary}>
           <header className={styles.conversationHeader}>
             <button className={styles.conversationBack} type="button" disabled={saving || posting} onClick={props.onBack}><Icon iconName="Back" />{props.backLabel || 'Tickets'}</button>
-            <div className={styles.conversationActions}><span className={styles.conversationResolve}><PrimaryButton styles={{root:{height:26,minWidth:0,padding:'0 9px',border:0,borderRadius:0,background:'#00899b',color:'#fff'},rootHovered:{background:'#00798a',color:'#fff'},rootPressed:{background:'#006d7d',color:'#fff'},label:{fontSize:12,fontWeight:500},icon:{fontSize:12}}} text={['Resolved','Completed','Closed'].includes(ticket.Status) ? 'Close' : 'Resolve'}  disabled={!service?.updateTicket || !canManage || !canUse(service,'status') || saving || ticket.Status==='Closed' || (['Resolved','Completed'].includes(ticket.Status) && !canSelectSolution)} onClick={()=>openStatus(['Resolved','Completed'].includes(ticket.Status) ? 'Closed' : 'Resolved')} /><IconButton ariaLabel="Change ticket status" title="Change ticket status" menuIconProps={{iconName:'ChevronDown'}} disabled={!service?.updateTicket || !canManage || !canUse(service,'status') || saving} menuProps={{items:ticketStatuses.filter(value=>value!==normalizeStatus(ticket.Status) && (value!=='Closed' || canSelectSolution)).map(value=>({key:value,text:value,onClick:()=>openStatus(value)}))}} /></span><DefaultButton text="Edit" iconProps={{iconName:'Edit'}} ariaLabel="Edit ticket" title="Edit ticket" styles={{root:{background:'#f0f2f5',border:0,borderRadius:4,color:'#172536',padding:'0 10px'},rootHovered:{background:'#e5e9ef',border:0,color:'#172536'},rootPressed:{background:'#dce2e9',border:0,color:'#172536'},label:{fontWeight:400,fontSize:12},icon:{color:'#172536',fontSize:12}}} disabled={!service?.updateTicket || !canManage || saving} onClick={beginEdit} /></div>
+            <div className={styles.conversationActions}><span className={styles.conversationResolve}><PrimaryButton styles={{root:{height:26,minWidth:0,padding:'0 9px',border:0,borderRadius:0,background:'#00899b',color:'#fff'},rootHovered:{background:'#00798a',color:'#fff'},rootPressed:{background:'#006d7d',color:'#fff'},label:{fontSize:12,fontWeight:500},icon:{fontSize:12}}} text={['Resolved','Completed','Closed'].includes(ticket.Status) ? 'Close' : 'Resolve'}  disabled={!service?.updateTicket || !canChangeStatus || !canUse(service,'status') || saving || ticket.Status==='Closed' || (['Resolved','Completed'].includes(ticket.Status) && !canCloseTicket)} onClick={()=>openStatus(['Resolved','Completed'].includes(ticket.Status) ? 'Closed' : 'Resolved')} /><IconButton ariaLabel="Change ticket status" title="Change ticket status" menuIconProps={{iconName:'ChevronDown'}} disabled={!service?.updateTicket || !canChangeStatus || !canUse(service,'status') || saving} menuProps={{items:ticketStatuses.filter(value=>value!==normalizeStatus(ticket.Status) && (value!=='Closed' || canCloseTicket)).map(value=>({key:value,text:value,onClick:()=>openStatus(value)}))}} /></span><DefaultButton text="Edit" iconProps={{iconName:'Edit'}} ariaLabel="Edit ticket" title="Edit ticket" styles={{root:{background:'#f0f2f5',border:0,borderRadius:4,color:'#172536',padding:'0 10px'},rootHovered:{background:'#e5e9ef',border:0,color:'#172536'},rootPressed:{background:'#dce2e9',border:0,color:'#172536'},label:{fontWeight:400,fontSize:12},icon:{color:'#172536',fontSize:12}}} disabled={!service?.updateTicket || !canManage || saving} onClick={beginEdit} /></div>
             <h3 className={styles.detailSubject}>#{ticket.Id} {"\u00b7"} {ticket.Title}</h3><p className={styles.detailSubmitted}>Submitted by {ticket.CreatedBy?.Title || ticket.CreatedBy?.Email || 'Not available'} {"\u00b7"} {date(ticket.Created)} <span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></p>
           </header>
           <section className={styles.ticketDescriptionBox} aria-label="Description"><div className={styles.ticketDescription}>{/<\/?(?:p|div|br|strong|b|em|ul|ol|h[234])\b/i.test(ticket.Description || '') ? <RichTextContent value={ticket.Description!} /> : ticket.Description?.trim() ? <MarkdownContent value={ticket.Description} /> : <p className={styles.conversationEmpty}>No description added.</p>}</div></section>

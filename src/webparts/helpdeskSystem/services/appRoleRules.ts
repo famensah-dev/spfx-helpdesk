@@ -1,14 +1,20 @@
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
-import type { ITicket } from '../interfaces/ITicket';
+import type { ITicket, IUserLookup } from '../interfaces/ITicket';
 import type { IDeskPilotRole, RoleAction } from '../interfaces/IRoleManagement';
 
 export function canUse(service: ITicketDataSource | undefined, action: RoleAction): boolean {
   return !service?.roleRules || service.roleRules.actions.includes(action);
 }
+function matchesUser(person: IUserLookup | undefined, userId: number, email: string, aadId?: string): boolean {
+  return Boolean(userId > 0 && person?.Id === userId) || Boolean(email && person?.Email?.toLowerCase() === email.toLowerCase()) || Boolean(aadId && person?.AadId?.toLowerCase() === aadId.toLowerCase());
+}
+export function isTicketSubmittedBy(ticket: ITicket, userId: number, email: string, aadId?: string): boolean {
+  return matchesUser(ticket.Requester, userId, email, aadId) || matchesUser(ticket.CreatedBy, userId, email, aadId);
+}
 export function ticketInScope(ticket: ITicket, role: IDeskPilotRole, userId: number, email: string, aadId?: string): boolean {
   if (role.scope === 'all') return true;
-  const person = role.scope === 'own' ? ticket.Requester : ticket.AssignedTo;
-  return person?.Id === userId || Boolean(email && person?.Email?.toLowerCase() === email.toLowerCase()) || Boolean(aadId && person?.AadId?.toLowerCase() === aadId.toLowerCase());
+  const people = role.scope === 'own' ? [ticket.Requester] : role.id === 'agent' ? [ticket.AssignedTo, ticket.Requester, ticket.CreatedBy] : [ticket.AssignedTo];
+  return people.some(person => matchesUser(person, userId, email, aadId));
 }
 
 /** Guards normal app calls; delegated SharePoint permissions enforce data access outside this client. */
@@ -22,6 +28,12 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
     if(!role.actions.includes('tickets') && !role.actions.includes('dashboard'))throw new Error('Your DeskPilot role does not allow viewing tickets.');
     const ticket = (await source.getTickets()).tickets.find(item => item.Id === id);
     if (!ticket || !visible(ticket)) throw new Error('This ticket is outside your DeskPilot role’s view.');
+    return ticket;
+  };
+  const requireManagedTicket = async (id: number): Promise<ITicket> => {
+    const ticket = await requireTicket(id);
+    // Seeing a submitted request does not make its creator the handling agent.
+    if (role.id === 'agent' && role.scope === 'assigned' && !matchesUser(ticket.AssignedTo, userId, email, aadId)) throw new Error('Only tickets assigned to you can be managed. You can still view and comment on your submitted requests.');
     return ticket;
   };
   result.getTickets = async () => {
@@ -38,12 +50,16 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   };
   if (source.updateTicket) result.updateTicket = role.actions.some(action => action === 'edit' || action === 'status') ? async (id, input) => {
     const ticket = await requireTicket(id);
+    const contentChanged = input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined || input.requestedById !== undefined || input.requesterName !== undefined || input.requesterEmail !== undefined || input.dueDate !== undefined || input.department !== undefined || input.ticketSource !== undefined;
+    const submittedAgent = role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId);
+    const statusSummary = submittedAgent && input.status !== ticket.Status && ['Resolved','Completed','Closed'].includes(input.status) && Boolean(input.resolutionSummary?.trim());
+    if (contentChanged || (input.resolutionSummary !== undefined && !statusSummary) || input.priority !== ticket.Priority || input.assignedToId !== (ticket.AssignedTo?.Id || null)) await requireManagedTicket(id);
     if (input.resolutionSummary !== undefined) {
       requireAction('edit');
       if (!input.resolutionSummary.trim() && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can clear the resolution summary.');
     }
-    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
-    if (input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined || input.requestedById !== undefined || input.requesterName !== undefined || input.requesterEmail !== undefined || input.dueDate !== undefined || input.department !== undefined || input.ticketSource !== undefined) requireAction('edit');
+    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin && !(role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId))) throw new Error('Only Helpdesk Admins or an agent who submitted the request can close tickets.');
+    if (contentChanged) requireAction('edit');
     if (input.status !== ticket.Status) requireAction('status');
     if (input.priority !== ticket.Priority) requireAction('priority');
     if (input.assignedToId !== (ticket.AssignedTo?.Id || null)) requireAction('assign');
@@ -51,7 +67,10 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   } : undefined;
   if (source.updateTickets) result.updateTickets = role.actions.some(action => ['status', 'priority', 'assign', 'archive'].includes(action)) ? async (ids, action) => {
     requireAction(action.kind);
-    for (const id of ids) await requireTicket(id);
+    for (const id of ids) {
+      const ticket = action.kind === 'status' ? await requireTicket(id) : await requireManagedTicket(id);
+      if (action.kind === 'status' && action.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin && !(role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId))) throw new Error('Only Helpdesk Admins or an agent who submitted the request can close tickets.');
+    }
     return source.updateTickets!(ids, action);
   } : undefined;
   if (source.getComments) result.getComments = async id => { await requireTicket(id); return source.getComments!(id); };
@@ -60,8 +79,8 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.addComment) result.addComment = role.actions.includes('comment') ? async (id, text, options) => { requireAction('comment'); await requireTicket(id); await source.addComment!(id, text, options); } : undefined;
   if (source.uploadCommentAttachments) result.uploadCommentAttachments = role.actions.includes('comment') ? async (id, commentId, files, progress) => {requireAction('comment'); await requireTicket(id); await source.uploadCommentAttachments!(id,commentId,files,progress);} : undefined;
   if (source.getAttachments) result.getAttachments = async id => {await requireTicket(id); return source.getAttachments!(id);};
-  if (source.uploadAttachments) result.uploadAttachments = role.actions.includes('edit') ? async (id, files, progress) => { requireAction('edit'); await requireTicket(id); await source.uploadAttachments!(id, files, progress); } : undefined;
-  if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireTicket(id); await source.recordFirstResponse!(id); } : undefined;
+  if (source.uploadAttachments) result.uploadAttachments = role.actions.includes('edit') ? async (id, files, progress) => { requireAction('edit'); await requireManagedTicket(id); await source.uploadAttachments!(id, files, progress); } : undefined;
+  if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireManagedTicket(id); await source.recordFirstResponse!(id); } : undefined;
   if(source.ticketViews)result.ticketViews=role.actions.includes('tickets') || role.actions.includes('dashboard') ? {getOpened:ids=>source.ticketViews!.getOpened(ids),markOpened:async id=>{await requireTicket(id);await source.ticketViews!.markOpened(id);},subscribe:source.ticketViews.subscribe?.bind(source.ticketViews)} : undefined;
   if (!role.actions.includes('classifications')) result.administration = undefined;
   if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canSubmitDraft: false }; };
