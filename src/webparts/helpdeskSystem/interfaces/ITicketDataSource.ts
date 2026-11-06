@@ -17,6 +17,8 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  readWorkspaceResource?(url: string): Promise<unknown>;
+  getProfilePhoto?(): Promise<string | undefined>;
   workspaceConnection?: import('../utils/workspaceConnection').IWorkspaceConnection;
   ticketViews?:import('./ITicketViews').ITicketViews;
   notifications?: import('./INotifications').INotificationService;

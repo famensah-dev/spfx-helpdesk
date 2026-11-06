@@ -13,6 +13,8 @@ import HelpdeskSystem from './components/HelpdeskSystem';
 import { IHelpdeskSystemProps } from './components/IHelpdeskSystemProps';
 
 export interface IHelpdeskSystemWebPartProps {
+  azureApiUrl?: string;
+  azureApiResource?: string;
   workspaceSiteUrl?: string;
   workspacePageUrl?: string;
   portalTitle?: string;
@@ -31,6 +33,8 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
       HelpdeskSystem,
       {
         description: this.properties.description,
+        azureApiUrl: this.properties.azureApiUrl,
+        azureApiResource: this.properties.azureApiResource,
         portalTitle: this.properties.portalTitle,
         listName: this.properties.listName || 'Tickets',
         listId: this.properties.listId,
@@ -120,11 +124,9 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
             {
               groupName: strings.BasicGroupName,
               groupFields: [
-                PropertyPaneTextField('workspaceSiteUrl', { label: 'Workspace SharePoint site URL (optional)', description: 'Connect to an existing DeskPilot workspace instead of the hosting site.' }),
-                PropertyPaneTextField('workspacePageUrl', { label: 'Workspace DeskPilot page URL', description: 'Required with a workspace site URL. Used for ticket and invitation links.' }),
+                PropertyPaneTextField('azureApiUrl', { label: 'Azure Backend API URL', description: 'Required on this branch. Example: https://deskpilot-api.azurewebsites.net' }),
+                PropertyPaneTextField('azureApiResource', { label: 'Azure API Application ID URI', description: 'Example: api://YOUR-API-APPLICATION-CLIENT-ID. Grant access_as_user in SharePoint API access.' }),
                 PropertyPaneTextField('portalTitle', { label: 'Workspace title (beside DeskPilot)', placeholder: 'IT Helpdesk', description: 'Set the title for this department’s DeskPilot page.' }),
-                PropertyPaneTextField('listName', { label: 'Tickets list name (on this site)' }),
-                PropertyPaneTextField('listId', { label: 'Tickets list ID (optional; takes precedence over name)' }),
                 PropertyPaneTextField('description', {
                   label: strings.DescriptionFieldLabel
                 })

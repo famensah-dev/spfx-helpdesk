@@ -1,6 +1,8 @@
 ﻿# DeskPilot support portal
 
-The primary deployment is now a SharePoint Framework (SPFx) full-page application. See [SharePoint deployment instructions](SHAREPOINT-DEPLOYMENT.md) for package installation, API approvals, page conversion, navigation settings and security requirements.
+This branch requires the **Azure Functions backend**, while retaining the SPFx/Teams interface and SharePoint data. Start with [Azure backend setup](azure-backend/README.md). Configure the API URL and API application URI before connecting. No Azure resources have been deployed during local preparation.
+
+See [SharePoint deployment instructions](SHAREPOINT-DEPLOYMENT.md) for the frontend package and page setup. Follow the backend guide for this branch's API permissions and workspace connection; the old direct-Graph setup does not apply.
 
 ## Run and build
 

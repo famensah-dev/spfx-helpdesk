@@ -1,0 +1,8 @@
+.env*
+local.settings*
+tests/
+scripts/
+infra/
+README.md
+*.zip
+node_modules/typescript/

@@ -3,7 +3,7 @@ import { DefaultButton } from '@fluentui/react';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import styles from './HelpdeskSystem.module.scss';
 
-export function SharePointAccountMenu(props: { context: WebPartContext }): React.ReactElement {
+export function SharePointAccountMenu(props: { context: WebPartContext; backendOnly?: boolean; getPhoto?: () => Promise<string | undefined> }): React.ReactElement {
   const user = props.context.pageContext.user;
   const [photo, setPhoto] = React.useState<string>();
   const initials = (user.displayName || user.email || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
@@ -14,6 +14,7 @@ export function SharePointAccountMenu(props: { context: WebPartContext }): React
     setPhoto(undefined);
     const load = async (): Promise<void> => {
       try {
+        if (props.backendOnly) { const value = await props.getPhoto?.(); if (active && value?.startsWith('data:image/')) setPhoto(value); return; }
         const provider = await props.context.aadTokenProviderFactory.getTokenProvider();
         const token = await provider.getToken('https://graph.microsoft.com');
         const response = await fetch('https://graph.microsoft.com/v1.0/me/photo/$value', { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal });
@@ -26,7 +27,7 @@ export function SharePointAccountMenu(props: { context: WebPartContext }): React
     };
     load().catch(() => undefined);
     return () => { active = false; controller.abort(); if (photoUrl) URL.revokeObjectURL(photoUrl); };
-  }, [props.context, user.loginName]);
+  }, [props.context, user.loginName, props.backendOnly, props.getPhoto]);
   const siteUrl = props.context.pageContext.web.absoluteUrl;
   const switchUrl = `${siteUrl}/_layouts/15/closeConnection.aspx?loginasanotheruser=true&Source=${encodeURIComponent(window.location.href)}`;
   return <div className={styles.accountIdentity}>

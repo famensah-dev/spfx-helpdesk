@@ -12,7 +12,7 @@ export class SharePointRoleManagement implements IRoleManagement {
   private itemId?: number;
   private etag?: string;
   private identity?: { user: number; owners: number; read: number; full: number };
-  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>;initialize?():Promise<Array<{Id:number}>>},private groupRole?:'agent'|'admin'|'requester',siteUrl=context.pageContext.web.absoluteUrl) {
+  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>;initialize?():Promise<Array<{Id:number}>>},private groupRole?:'agent'|'admin'|'requester',siteUrl=context.pageContext.web.absoluteUrl,private readOnlyLoad=false) {
     this.web = `${siteUrl.replace(/\/$/, '')}/_api/web`;
     this.root = `${this.web}/lists/getbytitle('DeskPilot Access')`;
     this.users = this.root;
@@ -162,9 +162,11 @@ export class SharePointRoleManagement implements IRoleManagement {
     const item = await this.configurationItem(data.value[0].Id);
     const config = upgradeRoleConfiguration(JSON.parse(item.Rules) as IRoleConfiguration);
     this.itemId = item.Id; this.etag = item.etag;
-    await this.ensureList(this.root, 'DeskPilot Access');
-    await this.secure(`${this.root}/items(${item.Id})`);
-    await this.sync(config);
+    if(!this.readOnlyLoad){
+      await this.ensureList(this.root, 'DeskPilot Access');
+      await this.secure(`${this.root}/items(${item.Id})`);
+      await this.sync(config);
+    }
     return config;
   }
   public async save(configuration: IRoleConfiguration): Promise<void> {

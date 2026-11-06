@@ -37,6 +37,7 @@ export function SettingsPage(props: {context: WebPartContext; service: ITicketDa
   const read = async <T,>(url: string): Promise<T> => {
     const address = new URL(url, site + '/');
     if (address.origin !== new URL(site).origin) throw new Error('Unexpected SharePoint address.');
+    if (props.service.readWorkspaceResource) return await props.service.readWorkspaceResource(address.href) as T;
     const response = await props.context.spHttpClient.get(address.href, SPHttpClient.configurations.v1, {headers: {Accept: 'application/json;odata=nometadata', 'odata-version': ''}});
     if (!response.ok) throw new Error(`SharePoint request failed (${response.status}). Check your permissions and try again.`);
     return response.json();

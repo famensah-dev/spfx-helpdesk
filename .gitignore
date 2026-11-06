@@ -42,3 +42,9 @@ azure-app/server/compiled/
 azure-app/server/data/
 azure-app/server/.env.local
 .env.local
+
+# Azure Functions build output and local credentials
+azure-backend/compiled/
+azure-backend/.env.local
+azure-backend/local.settings.json
+azure-backend/*.zip

@@ -24,7 +24,7 @@ import { WorkspaceMaintenanceService } from './WorkspaceMaintenanceService';
 import { GraphSupportUnitsService } from './graph/GraphSupportUnitsService';
 
 /** SharePoint enforces access for every delegated request; UI roles are not a security boundary. */
-export async function createSharePointService(context: WebPartContext, listName: string, listId?: string, connection?: IWorkspaceConnection): Promise<ITicketDataSource> {
+export async function createSharePointService(context: WebPartContext, listName: string, listId?: string, connection?: IWorkspaceConnection, serverMode=false): Promise<ITicketDataSource> {
   const selected = connection ? validateWorkspaceConnection(connection, context.pageContext.web.absoluteUrl) : undefined;
   if (context.sdks?.microsoftTeams && !selected) throw new Error('Connect Teams to a DeskPilot workspace before loading or initializing lists.');
   const siteUrl = selected?.siteUrl || context.pageContext.web.absoluteUrl.replace(/\/$/, '');
@@ -43,7 +43,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const superAdmin = (low & 1073741824) !== 0 && (low & 33554432) !== 0; // ManageWeb and ManagePermissions
   const groupAccess=new SharePointGroupAccess(context,siteUrl);
   const groupRole=superAdmin ? undefined : await groupAccess.currentRole();
-  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess,groupRole,siteUrl);
+  const roles = new SharePointRoleManagement(context, superAdmin,groupAccess,groupRole,siteUrl,serverMode);
   const configuration = await roles.load();
   const currentUserResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/currentuser`, SPHttpClient.configurations.v1);
   if (!currentUserResponse.ok) throw new Error('Unable to identify your SharePoint user.');

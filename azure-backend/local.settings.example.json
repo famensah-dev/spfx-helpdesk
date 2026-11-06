@@ -1,0 +1,19 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "node",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "DESKPILOT_TENANT_ID": "",
+    "DESKPILOT_CLIENT_ID": "",
+    "DESKPILOT_CLIENT_SECRET": "",
+    "DESKPILOT_ALLOWED_CLIENT_IDS": "",
+    "DESKPILOT_ALLOWED_ORIGINS": "https://yourtenant.sharepoint.com",
+    "DESKPILOT_SITE_URL": "https://yourtenant.sharepoint.com/sites/helpdesk",
+    "DESKPILOT_PAGE_URL": "https://yourtenant.sharepoint.com/sites/helpdesk/SitePages/DeskPilot.aspx",
+    "DESKPILOT_TICKETS_LIST_NAME": "Tickets",
+    "DESKPILOT_WORKER_ENABLED": "false",
+    "DESKPILOT_WORKER_MAILBOX": "",
+    "DESKPILOT_AUTOMATION_SCHEDULE": "0 */1 * * * *",
+    "AzureWebJobs.Automation.Disabled": "true"
+  }
+}
