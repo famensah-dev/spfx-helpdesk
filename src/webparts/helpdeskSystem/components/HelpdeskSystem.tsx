@@ -48,7 +48,7 @@ function RoutedHelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
         <section className={styles.workspaceGatePanel} aria-label="DeskPilot workspace access">
           <div className={styles.workspaceGateBrand}><span className={styles.lightLogo} role="img" aria-label="DeskPilot" /></div>
           <h1>{error ? accessDenied ? 'Access Required' : 'We Couldn’T Connect to Your Workspace' : 'Connecting to your workspace'}</h1>
-          {error ? <p role="alert">{accessDenied ? 'You don’t have access to this DeskPilot workspace. Contact your helpdesk administrator to request access.' : error}</p> : <Spinner label="Please wait while we connect to your Support Workspace." styles={{label: {fontSize: 14, lineHeight: 21, color: '#172536'}}} />}
+          {error ? <p role="alert">{accessDenied ? 'You don’t have access to this DeskPilot workspace. Contact your helpdesk administrator to request access.' : error}</p> : <Spinner label="Please wait while we connect to your Support Workspace." styles={{label: {fontSize: 14, lineHeight: 21, color: "var(--dp-fg-172536, #172536)"}}} />}
         </section>
       </main>
     </div>;

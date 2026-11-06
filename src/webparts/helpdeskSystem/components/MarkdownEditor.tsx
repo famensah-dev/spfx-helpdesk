@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { DefaultButton, IconButton, Label } from '@fluentui/react';
 import styles from './HelpdeskSystem.module.scss';
+import { decodeHtmlEntities } from '../utils/decodeHtmlEntities';
 
 function inline(text: string): React.ReactNode[] {
   return text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g).map((part, index) => {
@@ -13,7 +14,7 @@ function inline(text: string): React.ReactNode[] {
   });
 }
 export function MarkdownContent(props: { value: string }): React.ReactElement {
-  const lines = props.value.replace(/\r\n/g, '\n').split('\n');
+  const lines = decodeHtmlEntities(props.value).replace(/\r\n/g, '\n').split('\n');
   const blocks: React.ReactNode[] = [];
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
