@@ -1,6 +1,7 @@
 import { calendarAppearance } from '../components/calendarAppearance';
 import { SlaDashboardCard } from '../components/SlaDashboardCard';
 import * as React from 'react';
+import { DeskPilotAppearanceContext } from '../hooks/useDeskPilotAppearance';
 import { Bar, Doughnut, Line, Pie } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, BarElement, CategoryScale, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip } from 'chart.js';
 import { DatePicker, DefaultButton, Dropdown, Icon, IconButton, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
@@ -47,7 +48,7 @@ const priorityValueLabels: Plugin<'bar'> = {
   id: 'dashboardPriorityValues',
   afterDatasetsDraw(chart) {
     const { ctx } = chart;
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = '#243958'; ctx.font = '600 12px Segoe UI, sans-serif';
+    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = String(chart.options.color || '#243958'); ctx.font = '600 12px Segoe UI, sans-serif';
     chart.getDatasetMeta(0).data.forEach((bar, index) => ctx.fillText(String(chart.data.datasets[0].data[index]), bar.x, bar.y - 5));
     ctx.restore();
   }
@@ -74,6 +75,7 @@ function ChartCard(props: { title: string; children: React.ReactNode; action?: R
 }
 
 export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
+  const dark = React.useContext(DeskPilotAppearanceContext);
   const { tickets, filteredTickets, loading, error, refresh, filters, setFilters, assignedUsers, hasResolvedAt, hasCategory, hasDueDate, lastUpdated } = props;
   const [department, setDepartment] = React.useState('');
   const [filtersOpen, setFiltersOpen] = React.useState(false);
@@ -107,7 +109,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     { label: 'Avg. Resolution (Days)', value: average, previous: hasResolvedAt && previous ? averageResolutionDays(previous) : null, icon: 'Group', color: '#72829c' }
   ];
   const displayedStatuses = ticketStatuses;
-  const statusData = { labels: displayedStatuses, datasets: [{ data: displayedStatuses.map(status => countStatus(visible, status)), backgroundColor: displayedStatuses.map(status => statusColors[status]), borderWidth: 1, borderColor: '#ffffff' }] };
+  const statusData = { labels: displayedStatuses, datasets: [{ data: displayedStatuses.map(status => countStatus(visible, status)), backgroundColor: displayedStatuses.map(status => statusColors[status]), borderWidth: 1, borderColor: dark ? '#1a2c43' : '#ffffff' }] };
   const priorities = Array.from(new Set(['Low', 'Medium', 'High', 'Critical', ...tickets.map(ticket => ticket.Priority)]));
   const priorityData = { labels: priorities, datasets: [{ label: 'Tickets', data: priorities.map(priority => visible.filter(ticket => ticket.Priority === priority).length), backgroundColor: priorities.map(priority => priorityColors[priority] || '#87909d'), borderRadius: 0, maxBarThickness: 44 }] };
   const trend = getTicketTrend(visible, filters.endDate && filters.endDate < now ? filters.endDate : now, filters.startDate);
@@ -115,9 +117,9 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     { label: 'Created', data: trend.created, borderColor: '#2d88ff', backgroundColor: '#2d88ff16', fill: true, pointRadius: 3, borderWidth: 2, tension: .18 },
     ...(hasResolvedAt ? [{ label: 'Resolved', data: trend.resolved, borderColor: '#28b47d', backgroundColor: '#28b47d16', fill: true, pointRadius: 3, borderWidth: 2, tension: .18 }] : [])
   ] };
-  const chartDefaults = { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: {
-    y: { beginAtZero: true, ticks: { precision: 0, color: '#718099', font: { size: 12 } }, border: { display: false }, grid: { color: '#edf2f8' } },
-    x: { ticks: { color: '#526580', font: { size: 12 } }, border: { display: false }, grid: { display: false } }
+  const chartDefaults = { color: dark ? '#e0e3e8' : '#243958', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: {
+    y: { beginAtZero: true, ticks: { precision: 0, color: dark ? '#c3c9d1' : '#718099', font: { size: 12 } }, border: { display: false }, grid: { color: dark ? '#2a3d55' : '#edf2f8' } },
+    x: { ticks: { color: dark ? '#c3c9d1' : '#526580', font: { size: 12 } }, border: { display: false }, grid: { display: false } }
   } };
   const trendOptions = { ...chartDefaults, scales: { ...chartDefaults.scales, x: { ...chartDefaults.scales.x, ticks: { ...chartDefaults.scales.x.ticks, font: { size: 10 } } } } };
   const assignedCounts = new Map<string, { name: string; count: number }>();
@@ -184,7 +186,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         </article>;
       })}</div>
       <div className={styles.dashboardChartsGrid}>
-        <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: '#2d88ff' }} />Created</span>{hasResolvedAt && <span><i style={{ background: '#28b47d' }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
+        <ChartCard title={trend.title} className={styles.dashboardTrendCard} action={<div className={styles.dashboardTrendLegend}><span><i style={{ background: "var(--dp-bg-2d88ff, #2d88ff)" }} />Created</span>{hasResolvedAt && <span><i style={{ background: "var(--dp-bg-28b47d, #28b47d)" }} />Resolved</span>}</div>} note="Tickets created in the selected range. Resolved uses the recorded resolution date.">
           <div className={styles.dashboardChartCanvas}><Line role="img" aria-label={trend.labels.map((label, index) => `${label}: ${trend.created[index]} created${hasResolvedAt ? `, ${trend.resolved[index]} resolved` : ''}`).join('; ')} data={trendData} options={trendOptions} /></div>
         </ChartCard>
         <ChartCard title="Tickets by Status" note="Current statuses shown separately. The Resolved total above also includes Closed tickets.">
@@ -208,7 +210,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         </ChartCard>
         <ChartCard title="Tickets by Assignee" note="Top 10 users by assigned tickets; remaining users are grouped as Other assignees, with a separate Unassigned slice. Follows the current filters.">
           {assigneeSlices.length ? <div className={styles.dashboardAssigneeDistribution}>
-            <div><div className={styles.dashboardAssigneePie}><Pie role="img" aria-label={assigneeSlices.map(user => `${user.name}: ${user.count} tickets`).join(', ')} data={{ labels: assigneeSlices.map(user => user.name), datasets: [{ data: assigneeSlices.map(user => user.count), backgroundColor: sliceColors, borderColor: '#fff', borderWidth: 1.5 }] }} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => `${context.label}: ${context.parsed} tickets (${(context.parsed / assigneeTotal * 100).toFixed(1)}%)` } } } }} /></div><div className={styles.dashboardAssigneeTotal}>Total: {assigneeTotal.toLocaleString()}</div></div>
+            <div><div className={styles.dashboardAssigneePie}><Pie role="img" aria-label={assigneeSlices.map(user => `${user.name}: ${user.count} tickets`).join(', ')} data={{ labels: assigneeSlices.map(user => user.name), datasets: [{ data: assigneeSlices.map(user => user.count), backgroundColor: sliceColors, borderColor: dark ? '#1a2c43' : '#fff', borderWidth: 1.5 }] }} options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { callbacks: { label: context => `${context.label}: ${context.parsed} tickets (${(context.parsed / assigneeTotal * 100).toFixed(1)}%)` } } } }} /></div><div className={styles.dashboardAssigneeTotal}>Total: {assigneeTotal.toLocaleString()}</div></div>
             <ul className={styles.dashboardAssigneeLegend}>{assigneeSlices.map((user, index) => <li key={user.id}><i style={{ background: sliceColors[index] }} aria-hidden="true" /><span>{user.name}: <strong>{user.count.toLocaleString()}</strong></span></li>)}</ul>
           </div> : <div className={styles.dashboardChartEmpty}>No tickets in this view.</div>}
         </ChartCard>

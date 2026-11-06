@@ -7,7 +7,10 @@ import { AdministrationPage } from '../pages/AdministrationPage';
 import { FaqPage } from '../pages/FaqPage';
 
 import * as React from 'react';
-import { DefaultButton, Icon, ThemeProvider, createTheme, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
+import { DefaultButton, Icon, IconButton, ThemeProvider, createTheme, mergeStyles, MessageBar, MessageBarType, Spinner } from '@fluentui/react';
+import { useDeskPilotAppearance, DeskPilotAppearanceContext } from '../hooks/useDeskPilotAppearance';
+import { darkenStyles } from '../utils/themeColors';
+import { darkControlSelectors } from './darkControlStyles';
 import { DashboardPage } from '../pages/DashboardPage';
 import { TicketListPage } from '../pages/TicketListPage';
 import { TicketDetails } from './TicketDetails';
@@ -52,7 +55,21 @@ const appTheme = createTheme({
   }
 });
 
+const darkControlsClass = mergeStyles({selectors:darkControlSelectors});
+const darkAppTheme = createTheme({
+  isInverted: true,
+  defaultFontStyle: { fontFamily: "'Segoe UI', sans-serif" },
+  effects: appTheme.effects,
+  palette: { themePrimary:'#79aaff', themeDarkAlt:'#8ab5ff', themeDark:'#a2c4ff', themeDarker:'#c4daff', themeSecondary:'#6da0f5', themeTertiary:'#4477c7', themeLight:'#294a76', themeLighter:'#1f354f', themeLighterAlt:'#172739', white:'#1a2c43', black:'#ffffff', neutralLighterAlt:'#132238', neutralLighter:'#1e3048', neutralLight:'#263a53', neutralQuaternaryAlt:'#30465f', neutralQuaternary:'#405872', neutralTertiaryAlt:'#69727f', neutralTertiary:'#a7afb9', neutralSecondary:'#c3c9d1', neutralPrimaryAlt:'#e0e3e8', neutralPrimary:'#f1f3f5', neutralDark:'#f7f8fa' },
+  semanticColors: { bodyBackground:'#132238', bodyText:'#f1f3f5', inputBackground:'#1a2c43', inputText:'#f1f3f5', inputBorder:'#405872', infoBackground:'#1c3551', infoIcon:'#91baff', warningBackground:'#3c311a', warningIcon:'#f6c75f', successBackground:'#143c32', successIcon:'#79d8b0', errorBackground:'#482832', errorIcon:'#ff9faf' },
+  components: {
+    ...darkenStyles(appTheme.components) as typeof appTheme.components,
+    Layer: { styles: { root: { selectors: darkControlSelectors } } }
+  }
+});
+
 export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElement {
+  const appearance = useDeskPilotAppearance();
   const rules = props.service.roleRules;
   const administrationAllowed = rules ? props.service.supportUnits || props.service.access?.superAdmin || ['classifications', 'manageFaqs', 'sla'].some(action => rules.actions.includes(action as 'classifications' | 'manageFaqs' | 'sla')) : !props.service.access?.agent;
   const permittedPage = (value: Page): boolean => value === 'Users & Roles' ? Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
@@ -77,11 +94,12 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   React.useEffect(()=>{window.requestAnimationFrame(()=>heading.current?.focus());},[location.pathname]);
   if(location.pathname==='/' || location.pathname==='')return <Navigate to={pagePaths[initialPage]} replace />;
   return (
-    <ThemeProvider theme={appTheme} className={`${styles.helpdeskSystemShell}${!props.settingsContent && route.ticketId ? ` ${styles.ticketDetailsCanvas}` : ''}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard' || page === 'Administration') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
+    <DeskPilotAppearanceContext.Provider value={appearance.dark}>
+    <ThemeProvider theme={appearance.dark ? darkAppTheme : appTheme} style={{colorScheme:appearance.dark ? 'dark' : 'light'}} className={`${styles.helpdeskSystemShell}${appearance.dark ? ' ' + darkControlsClass : ''}${!props.settingsContent && route.ticketId ? ` ${styles.ticketDetailsCanvas}` : ''}${!props.settingsContent && (page === 'Dashboard' || page === 'My Dashboard' || page === 'Administration') && !route.ticketId ? ` ${styles.dashboardCanvas}` : ''}`}>
       {dashboard.newTicketNotice>0 && <div key={dashboard.newTicketNotice} className={styles.newTicketToast} role="status"><Icon iconName="Ticket" aria-hidden="true" />New ticket created</div>}
       <header className={styles.appHeader}>
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
-        <div className={styles.headerActions}>{canUse(props.service,'tickets') && <NotificationCenter service={props.service} onOpenTicket={id=>routerNavigate('/tickets/'+id)} />}{props.accountActions}</div>
+        <div className={styles.headerActions}><IconButton iconProps={{iconName:appearance.dark ? 'Sunny' : 'ClearNight'}} ariaLabel={appearance.dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'} title={appearance.dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'} toggle checked={appearance.dark} onClick={appearance.toggle} styles={{root:{background:'transparent',color:"var(--dp-fg-ffffff, #ffffff)",width:34,height:34},rootHovered:{background:'rgba(255,255,255,.12)',color:"var(--dp-fg-ffffff, #ffffff)"},rootChecked:{background:'transparent',color:"var(--dp-fg-ffffff, #ffffff)"},rootCheckedHovered:{background:'rgba(255,255,255,.12)',color:"var(--dp-fg-ffffff, #ffffff)"},icon:{fontSize:17}}} />{canUse(props.service,'tickets') && <NotificationCenter service={props.service} onOpenTicket={id=>routerNavigate('/tickets/'+id)} />}{props.accountActions}</div>
       </header>
       {!props.settingsContent && <nav className={styles.navigation} aria-label="DeskPilot navigation">
         {canUse(props.service, 'dashboard') && (rules ? <button type="button" aria-current={dashboardActive ? 'page' : undefined} className={[styles.dashboardNav, dashboardActive ? styles.activeNav : ''].join(' ')} onClick={() => navigate('Dashboard')}>Dashboard</button> : <div className={[styles.dashboardSplit, styles.dashboardNav].join(' ')} data-active={dashboardActive}><DefaultButton text="Dashboard" split onClick={() => navigate(props.service.access?.agent ? 'My Dashboard' : 'Dashboard')} splitButtonAriaLabel="Choose dashboard view" className={dashboardActive ? styles.activeNav : undefined} menuProps={{ items: [
@@ -107,6 +125,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
       </main>
       {!props.settingsContent && !route.creating && canUse(props.service, 'faqs') && <SelfServiceGuide service={props.service} canCreate={canUse(props.service, 'create') && Boolean(props.service.createTicket)} onCreate={draft => routerNavigate('/tickets/new', { state: { selfServiceDraft: draft } })} />}
     </ThemeProvider>
+    </DeskPilotAppearanceContext.Provider>
   );
 }
 
