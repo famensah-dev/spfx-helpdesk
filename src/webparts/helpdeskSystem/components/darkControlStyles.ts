@@ -17,7 +17,7 @@ export const darkControlSelectors: Record<string, IStyle> = {
   '.ms-Button--primary:disabled': { backgroundColor: '#2c3d53 !important', borderColor: '#405872 !important', color: '#a7b5c8 !important' },
   '.ms-Checkbox-checkbox': { backgroundColor: '#17283e !important', borderColor: darkActionColors.outline+' !important' },
   '.ms-Checkbox.is-checked .ms-Checkbox-checkbox, .ms-Checkbox.is-indeterminate .ms-Checkbox-checkbox': { backgroundColor: darkActionColors.nativeChecked+' !important', borderColor: darkActionColors.fill+' !important' },
-  '.ms-Checkbox.is-checked .ms-Checkbox-checkmark': { color: '#ffffff !important' },
+  '.ms-Checkbox.is-checked .ms-Checkbox-checkmark': { color: '#ffffff !important', fontWeight: 700 },
   '.ms-Checkbox.is-indeterminate .ms-Checkbox-checkbox:after': { backgroundColor: '#ffffff !important' },
   'input[type="checkbox"]': { borderColor: darkActionColors.outline+' !important', accentColor: darkActionColors.fill },
   'input[type="checkbox"]:checked, input[type="checkbox"]:indeterminate': { backgroundColor: darkActionColors.nativeChecked+' !important', borderColor: darkActionColors.fill+' !important' },
