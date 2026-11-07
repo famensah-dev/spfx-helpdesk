@@ -1,4 +1,6 @@
 import {createRequire} from 'node:module';
+import {storageProfiles,selectProfile} from './storage/profiles.mjs';
+import {runSqlWorker} from './storage/sql/worker.mjs';
 const require=createRequire(import.meta.url);
 const {GraphClient}=require('../compiled/services/graph/GraphClient.js');
 const {GraphTicketService}=require('../compiled/services/graph/GraphTicketService.js');
@@ -49,6 +51,7 @@ export async function runWorker(config,env=process.env,request=fetch){
   appConfig.resourceIds=workspace?.resourceIds;
   appConfig.siteId=site.id;appConfig.listId=target.id;
   const units=new GraphSupportUnitsService(graph,appConfig),tickets=new GraphTicketService(graph,appConfig);
+  if(workspace?.storage?.provider==='sql')return runSqlWorker({config,profile:selectProfile(storageProfiles(env),workspace.storage.connectionId),graph,appConfig,workspace,units,mailbox,sitePath:'/sites/'+encodeURIComponent(site.id),lists});
   const teamData=await units.load();
   const mail=new GraphNotificationService(graph,appConfig,{email:mailbox,name:'DeskPilot Automation'},true,config.pageUrl,workspace?.title||'DeskPilot',async()=>(await tickets.getTickets()).tickets,async id=>teamData.units.find(team=>team.id===id)?.email||'');
   const path=`/sites/${encodeURIComponent(site.id)}/lists/${target.id}`;

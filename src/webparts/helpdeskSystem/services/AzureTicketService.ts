@@ -28,7 +28,9 @@ interface Session {
 /** The browser has no direct data fallback; authorization lives in the Azure API. */
 export async function createAzureService(baseUrl: string, getToken: () => Promise<string>, request: typeof fetch = (...args) => fetch(...args)): Promise<ITicketDataSource> {
   const endpoint = azureRpcUrl(baseUrl);
+  const versions=new Map<number,string>();
   const rpc = async (method: string, args: unknown[] = []): Promise<unknown> => {
+    if(method==='updateTicket' && args[1] && typeof args[1]==='object')args=[args[0],{changeVersion:versions.get(Number(args[0])),...args[1]}];
     const response = await request(endpoint, { method: 'POST', credentials: 'omit', headers: { Authorization: 'Bearer ' + await getToken(), 'Content-Type': 'application/json' }, body: JSON.stringify({ method, args: await serialize(args) }), signal: AbortSignal.timeout(180000) });
     const body = await response.json().catch(() => ({ error: 'The Azure backend did not return a valid response.' }));
     if (!response.ok) {
@@ -36,6 +38,7 @@ export async function createAzureService(baseUrl: string, getToken: () => Promis
       if (Number.isSafeInteger(body.createdTicketId)) error.createdTicketId = body.createdTicketId;
       throw error;
     }
+    if(method==='getTickets' && Array.isArray(body.result?.tickets))for(const ticket of body.result.tickets)if(typeof ticket.ChangeVersion==='string')versions.set(ticket.Id,ticket.ChangeVersion);
     return body.result;
   };
   const session = await rpc('session') as Session;

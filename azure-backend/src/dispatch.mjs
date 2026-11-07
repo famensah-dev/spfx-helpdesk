@@ -1,6 +1,7 @@
 import {ApiError} from './tokens.mjs';
 import {signReview,verifyReview} from './review.mjs';
 const methods=[
+  'storageManagement.get','storageManagement.save',
   'getTickets','getPriorities','getCreationOptions','createTicket','getAttachments','uploadAttachments','uploadCommentAttachments','updateTicket','updateTickets','deleteArchivedTickets','getComments','addComment','getHistory','recordFirstResponse','markCommentAsSolution','searchUsers','resolveUser','getTeamCandidates','getFaqs','getFaqAccess','saveFaq','deleteFaq','updateFaqs','saveWorkspaceSettings',
   'ticketViews.getOpened','ticketViews.markOpened',
   'supportUnits.load','supportUnits.createUnits','supportUnits.setAutoAssignment','supportUnits.setTeamLead','supportUnits.saveUnit','supportUnits.saveMember','supportUnits.routeTicket',
@@ -38,6 +39,7 @@ export async function dispatch({service,graph,profile,readWorkspaceResource,getP
   const superOnly=['deleteArchivedTickets','saveWorkspaceSettings','roleManagement.load','roleManagement.save','workspaceSetup.inspect','workspaceSetup.run','administration.getLookupColumns','administration.saveColumn','administration.deleteColumn','sla.setup'];
   if(superOnly.includes(method)&&!service.access?.superAdmin)throw new ApiError('Super Admin access is required.');
   if(method.startsWith('workspaceMaintenance.')&&!service.access?.superAdmin)throw new ApiError('Super Admin access is required.');
+  if(method.startsWith('storageManagement.')&&!service.access?.superAdmin)throw new ApiError('Super Admin access is required.');
   if((method.startsWith('supportUnits.')||['notifications.getSettings','notifications.saveSettings','notifications.history','notifications.test','notifications.invite'].includes(method))&&!service.access?.admin)throw new ApiError('Helpdesk Admin access is required.');
   if(method==='administration.getData'&&args[0]==='schema'&&!service.access?.superAdmin)throw new ApiError('Super Admin access is required.');
   if(['administration.saveEntry','administration.deleteEntry'].includes(method)&&!['categories','subcategories','issueTypes'].includes(args[0]))throw new ApiError('Invalid classification page.',400);

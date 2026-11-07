@@ -11,6 +11,7 @@
     "DESKPILOT_SITE_URL": "https://yourtenant.sharepoint.com/sites/helpdesk",
     "DESKPILOT_PAGE_URL": "https://yourtenant.sharepoint.com/sites/helpdesk/SitePages/DeskPilot.aspx",
     "DESKPILOT_TICKETS_LIST_NAME": "Tickets",
+    "DESKPILOT_SQL_PROFILES": "[]",
     "DESKPILOT_WORKER_ENABLED": "false",
     "DESKPILOT_WORKER_MAILBOX": "",
     "DESKPILOT_AUTOMATION_SCHEDULE": "0 */1 * * * *",

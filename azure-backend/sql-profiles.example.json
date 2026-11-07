@@ -1,0 +1,16 @@
+[
+  {
+    "id": "primary",
+    "name": "Primary Helpdesk Database",
+    "sql": {
+      "server": "YOUR-SERVER.database.windows.net",
+      "database": "DeskPilot",
+      "authentication": { "type": "azure-active-directory-default" }
+    },
+    "blobConnectionString": "SERVER-ONLY-AZURE-STORAGE-CONNECTION-STRING",
+    "container": "deskpilot-attachments",
+    "departmentGroups": {
+      "ugmc-it": "00000000-0000-0000-0000-000000000000"
+    }
+  }
+]

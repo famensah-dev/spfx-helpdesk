@@ -22,6 +22,7 @@ export function handler({config,validate,createServices,dispatch,log=console.err
       const result=await dispatch(await createServices(assertion,claims),body.method,body.args);
       return send(200,{result:result??null});
     }catch(error){
+      if(['ConnectionError','RequestError'].includes(error.name))error=new ApiError('Database operation failed. Ask your administrator to check the backend connection and schema.',503);
       const status=error instanceof ApiError?error.status:400;
       // Never log request bodies, tokens, credentials or ticket content.
       log(JSON.stringify({requestId,status,errorType:error.name}));

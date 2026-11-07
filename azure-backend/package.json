@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/functions.mjs",
   "engines": {
-    "node": ">=22 <23"
+    "node": ">=22 <23 || >=24 <25"
   },
   "scripts": {
     "build": "node scripts/build.mjs",
@@ -14,7 +14,9 @@
   },
   "dependencies": {
     "@azure/functions": "^4.17.0",
+    "@azure/storage-blob": "^12.34.0",
     "jose": "6.2.12",
-    "jsdom": "26.1.0"
+    "jsdom": "26.1.0",
+    "mssql": "^12.7.14"
   }
 }

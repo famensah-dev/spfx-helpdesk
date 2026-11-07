@@ -1,7 +1,12 @@
 import {createRequire} from 'node:module';
 import {ApiError,delegatedTokens} from './tokens.mjs';
+import {storageProfiles,selectProfile} from './storage/profiles.mjs';
+import {createStorageManagement} from './storage/management.mjs';
+import {createSqlProvider,workspaceKey} from './storage/sql/provider.mjs';
+import {SqlRepository,sqlPool} from './storage/sql/repository.mjs';
+import {BlobAttachments} from './storage/sql/attachments.mjs';
+import {createSharePointProvider} from './storage/sharepoint/provider.mjs';
 const require=createRequire(import.meta.url);
-const {createSharePointService}=require('../compiled/services/SharePointTicketService.js');
 const {GraphClient}=require('../compiled/services/graph/GraphClient.js');
 export async function createServices(config,assertion,claims,request=fetch) {
   const token=delegatedTokens(config,assertion,request);
@@ -25,7 +30,22 @@ export async function createServices(config,assertion,claims,request=fetch) {
     aadTokenProviderFactory:{getTokenProvider:async()=>({getToken:token})}
   };
   // Group roles, own/assigned scopes, setup and mutations use the CURRENT shared services.
-  const service=await createSharePointService(context,config.listName,undefined,{siteUrl:config.siteUrl,pageUrl:config.pageUrl},true);
+  const control=await createSharePointProvider(context,config);
+  const profiles=storageProfiles();
+  const selected=control.workspaceSettings?.storage||{provider:'sharepoint'};
+  let service=control;
+  if(selected.provider==='sql'){
+    const response=await spRequest(config.siteUrl+ '/_api/web/currentuser?$select=Id','GET');
+    if(!response.ok)throw new ApiError('Unable to identify the workspace user.',403);
+    const user=await response.json();
+    service=await createSqlProvider({config,profile:selectProfile(profiles,selected.connectionId),control,graph,identity:{oid:claims.oid,email:profile.mail||profile.userPrincipalName,name:profile.displayName,userId:(user.d||user).Id},person:async id=>{
+      if(!Number.isSafeInteger(id)||id<1)throw new ApiError('Invalid person ID.',400);
+      const response=await spRequest(config.siteUrl+'/_api/web/siteusers/getbyid('+id+')?$select=Id,Title,Email','GET');if(!response.ok)throw new ApiError('Person not found.',400);const value=await response.json();return value.d||value;
+    }});
+  }else if(selected.provider!=='sharepoint')throw new ApiError('Unsupported workspace storage provider.',400);
+  if(control.access.superAdmin){
+    service.storageManagement=createStorageManagement({control,profiles,openDatabase:async profile=>({repository:new SqlRepository(await sqlPool(profile),workspaceKey(config)),attachments:new BlobAttachments(profile,workspaceKey(config))})});
+  }
   if(service.access.oid?.toLowerCase()!==claims.oid.toLowerCase())throw new ApiError('Workspace identity mismatch.',401);
   const readWorkspaceResource=async url=>{
     if(!service.access.superAdmin)throw new ApiError('Super Admin access is required.');
