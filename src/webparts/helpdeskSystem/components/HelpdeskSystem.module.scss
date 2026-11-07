@@ -679,7 +679,7 @@
 @media (min-width: 1024px) { .lifecycleCards { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; } }
 .navigation {
   background: var(--dp-bg-1b385c, #1b385c);
-  border-bottom-color: var(--dp-line-1b385c, #1b385c);
+  border-bottom-color: #1b385c;
   > button, > button:hover, > button:active, > button.activeNav, > button.activeNav:hover {
     background: transparent; border-color: transparent; color: var(--dp-fg-fff, #fff); box-shadow: none;
   }
@@ -1021,7 +1021,8 @@
   &, &:hover, &[aria-current='page'], &[aria-pressed='true'], &.activeNav, &.activeNav:hover { border-bottom-color: transparent !important; }
   &::after { content: ''; position: absolute; bottom: -2px; left: 10px; right: 10px; height: 2px; background: transparent; }
   &:hover:not(:disabled)::after { background: var(--dp-bg-a9bfd9, #a9bfd9); }
-  &.activeNav::after, &.activeNav:hover::after, &[aria-current='page']::after, &[aria-pressed='true']::after { background: var(--dp-bg-1b385c, #1b385c); }
+  &.activeNav, &.activeNav:hover:not(:disabled), &[aria-current='page'], &[aria-pressed='true'] { color: var(--dp-active-subtab-text, var(--dp-fg-1b385c, #1b385c)); }
+  &.activeNav::after, &.activeNav:hover::after, &[aria-current='page']::after, &[aria-pressed='true']::after { background: var(--dp-active-subtab, #1b385c); }
 }
 .faqCategoryTabs :global(.ms-Pivot-link)::before { left: 8px; right: 8px; }
 .dashboardTicketTypes .dashboardBars { width: 100%; li { grid-template-columns: minmax(80px, 100px) minmax(0, 1fr) auto; } }

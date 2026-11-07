@@ -16,6 +16,13 @@ export function useDeskPilotAppearance(): { dark: boolean; toggle: () => void } 
       if (dark) document.documentElement.style.setProperty(token.name, darkColor(token.color, token.role));
       else document.documentElement.style.removeProperty(token.name);
     }
+    if (dark) {
+      document.documentElement.style.setProperty('--dp-active-subtab', '#344860');
+      document.documentElement.style.setProperty('--dp-active-subtab-text', '#a8ceff');
+    } else {
+      document.documentElement.style.removeProperty('--dp-active-subtab');
+      document.documentElement.style.removeProperty('--dp-active-subtab-text');
+    }
     Chart.defaults.color = dark ? '#c3c9d1' : '#666666';
     Chart.defaults.borderColor = dark ? '#2a3d55' : 'rgba(0,0,0,0.1)';
   }, [dark]);

@@ -11,6 +11,10 @@ export function darkColor(value: string, role: ThemeColorRole): string {
   const base=hex.slice(0,6);
   // Keep navigation amber identical in both appearances; priorities use a richer amber.
   if(base==='ffc43d')return '#'+hex;
+  // Main navigation stays navy in both themes, so its dividers stay unchanged.
+  if(base==='607792' && role==='line')return '#'+hex;
+  // Navy active-subtab underlines need a brighter accent on dark surfaces.
+  if(base==='1b385c' && role==='line')return '#80b3ff'+alpha;
   if(['ce961c','946700'].includes(base) && role==='fg')return '#f5ad24'+alpha;
   if(base==='ce961c' && role==='bg')return '#f5ad24'+alpha;
   if(base==='fff0bf' && role==='bg')return '#443017'+alpha;
