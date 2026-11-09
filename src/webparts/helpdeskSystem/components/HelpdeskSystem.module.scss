@@ -1693,3 +1693,12 @@
   .mobileTicketFilterFields { display:flex; flex-direction:column; gap:18px; padding:12px 0; > button { min-height:40px; } }
   .mobileTicketPage .pagination { flex-wrap:wrap; gap:6px; }
 }
+@media (max-width:640px) {
+  .mobileTicketHeader > button { min-height:34px; height:34px; min-width:0; padding:0 12px; border-radius:18px; :global(.ms-Button-label) { font-size:12px; } :global(.ms-Button-icon) { font-size:12px; } }
+  .mobileTicketTools { padding:0; border:0; background:transparent; gap:10px; }
+  .mobileTicketStats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; button { display:flex; flex-direction:column; align-items:flex-start; gap:4px; padding:10px 12px; border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:8px; background:var(--dp-bg-fff, #fff); color:var(--dp-fg-172536, #172536); cursor:pointer; font:inherit; span { color:var(--dp-fg-526783, #526783); font-size:11px; } strong { font-size:20px; font-weight:600; line-height:1.25; } &[aria-pressed='true'] { border-color:var(--dp-fg-00899b, #00899b); } } }
+  .mobileTicketViews { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:4px; button { min-width:0; min-height:40px; padding:6px 2px; border:0; border-bottom:2px solid transparent; background:transparent; color:var(--dp-fg-526783, #526783); cursor:pointer; font:500 12px/1.4 'Segoe UI',sans-serif; &[aria-current='page'] { color:var(--dp-fg-006bff, #006bff); border-bottom-color:currentColor; } &:disabled { opacity:.45; cursor:default; } } }
+  .mobileTicketToolRow { gap:8px; :global(.ms-TextField-fieldGroup) { height:38px; border-radius:22px; border-color:var(--dp-line-dce5f1, #dce5f1); background:var(--dp-bg-fff, #fff); &::after { border-radius:22px; } } :global(.ms-TextField-field) { font-size:14px; padding:0 13px; color:var(--dp-fg-172536, #172536); } > button { width:40px; height:38px; border-radius:20px; background:var(--dp-bg-fff, #fff); border:1px solid var(--dp-line-dce5f1, #dce5f1); color:var(--dp-fg-172536, #172536); } }
+  .mobileTicketCountSort { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; > .ticketCountContent { flex:1; } > button { min-width:0; height:30px; padding:0 3px; border:0; background:transparent; color:var(--dp-fg-526783, #526783); :global(.ms-Button-label) { font-size:12px; font-weight:400; } :global(.ms-Button-menuIcon) { font-size:10px; } } }
+  .mobileTicketUnread { display:inline-flex; align-items:center; justify-content:center; line-height:0; }
+}

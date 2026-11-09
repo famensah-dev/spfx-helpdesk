@@ -5,7 +5,7 @@ import { canUse, isTicketSubmittedBy } from '../services/appRoleRules';
 import { OrganizationUserPicker } from '../components/OrganizationUserPicker';
 import * as React from 'react';
 import { PersonaCoin, PersonaSize } from '@fluentui/react';
-import { type IButton, type IButtonProps, DatePicker, Dialog, DialogFooter, PrimaryButton, Dropdown, Checkbox, Panel, PanelType, DefaultButton, Icon, IconButton, MessageBar, MessageBarType, SearchBox, Spinner, SpinnerSize } from '@fluentui/react';
+import { type IButton, type IButtonProps, DatePicker, Dialog, DialogFooter, PrimaryButton, TextField, Dropdown, Checkbox, Panel, PanelType, DefaultButton, Icon, IconButton, MessageBar, MessageBarType, SearchBox, Spinner, SpinnerSize } from '@fluentui/react';
 import { TicketDetails } from '../components/TicketDetails';
 import { NewTicketForm, type INewTicketInput } from '../components/NewTicketForm';
 import type { ITicketDataSource, TicketBulkAction, ITicketBulkResult } from '../interfaces/ITicketDataSource';
@@ -103,7 +103,6 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   const [visible, setVisible] = React.useState(defaultColumns);
   const [columnSearch, setColumnSearch] = React.useState('');
   const [columnsOpen, setColumnsOpen] = React.useState(false);
-  const [mobileFilters,setMobileFilters]=React.useState(false);
   const [mobileSelecting,setMobileSelecting]=React.useState(false);
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(() => new Set());
   React.useEffect(() => { setSelectedIds(new Set()); }, [title, tab, search, duration, status, tickets]);
@@ -195,25 +194,24 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   const detailTicket = tickets.find(ticket => ticket.Id === detailId);
   if (detailTicket) return <TicketDetails key={detailTicket.Id} service={service} refresh={refresh} tickets={tickets} ticket={detailTicket} onBack={() => setDetailId(null)} />;
   return <section className={`${styles.pageContent} ${styles.ticketPage} ${styles.mobileTicketPage}`} aria-label={title}>
-    <div className={styles.mobileTicketHeader}><h2>{title}</h2><PrimaryButton text="New Ticket" iconProps={{iconName:'Add'}} disabled={!onCreate || loading || Boolean(error)} onClick={()=>setCreating(true)} /></div>
+    <div className={styles.mobileTicketHeader}><h2>{title}</h2><PrimaryButton text="New" iconProps={{iconName:'Add'}} disabled={!onCreate || loading || Boolean(error)} onClick={()=>setCreating(true)} /></div>
     <div className={styles.mobileTicketTools}>
-      <SearchBox ariaLabel="Search mobile tickets" placeholder="Search tickets?" value={search} onChange={(_,value)=>{setSearch(value || '');setPage(0);}} />
+      <div className={styles.mobileTicketStats} aria-label="Ticket overview">{[{key:'Total',label:'Total',count:scoped.length},{key:'New',label:'New',count:countStatus(scoped,'New')},{key:'In Progress',label:'In Progress',count:countStatus(scoped,'In Progress')}].map(item=><button type="button" key={item.key} aria-pressed={status===item.key} onClick={()=>{setStatus(item.key);setPage(0);}}><span>{item.label}</span><strong>{loading || error ? '\u2014' : item.count}</strong></button>)}</div>
+      <nav className={styles.mobileTicketViews} aria-label="Mobile ticket views">{[{key:'All Tickets',text:'All Tickets',disabled:title!=='Tickets'},{key:'My Assigned Tickets',text:'Assigned to Me',disabled:!currentUserEmail || assignmentIdentityAvailable===false},{key:'Created by Me',text:'Created by Me',disabled:false}].map(item=><button type="button" key={item.key} disabled={item.disabled} aria-current={tab===item.key ? 'page' : undefined} onClick={()=>{setTab(item.key);setPage(0);}}>{item.text}</button>)}</nav>
       <div className={styles.mobileTicketToolRow}>
-        <Dropdown ariaLabel="Ticket view" selectedKey={tab} options={[{key:'All Tickets',text:'All Tickets',disabled:title!=='Tickets'},{key:'My Assigned Tickets',text:'My Assigned Tickets',disabled:!currentUserEmail || assignmentIdentityAvailable===false},{key:'Created by Me',text:'Created by Me'},{key:'Archive',text:'Archive'}]} onChange={(_,option)=>{if(option){setTab(String(option.key));setPage(0);}}} />
-        <DefaultButton text={'Filter'+((status!=='Total' ? 1 : 0)+(duration!=='all' ? 1 : 0) ? ' ('+((status!=='Total' ? 1 : 0)+(duration!=='all' ? 1 : 0))+')' : '')} iconProps={{iconName:'Filter'}} onClick={()=>setMobileFilters(true)} />
-        <IconButton iconProps={{iconName:'Refresh'}} ariaLabel="Refresh mobile tickets" disabled={loading} onClick={()=>{void refresh().catch(()=>undefined);}} />
-        <IconButton iconProps={{iconName:'More'}} menuIconProps={{iconName:''}} ariaLabel="More ticket actions" menuProps={{items:[{key:'select',text:mobileSelecting ? 'Cancel Selection' : 'Select Tickets',iconProps:{iconName:'CheckboxComposite'},onClick:()=>{setMobileSelecting(!mobileSelecting);setSelectedIds(new Set());}},{key:'columns',text:'Choose Desktop Columns',onClick:()=>setColumnsOpen(true)},{key:'export',text:'Export Filtered Tickets (CSV)',disabled:loading || Boolean(error),onClick:()=>exportCsv()}]}} />
+        <TextField ariaLabel="Search mobile tickets" placeholder="Search tickets..." value={search} onChange={(_,value)=>{setSearch(value || '');setPage(0);}} />
+        <IconButton iconProps={{iconName:'Equalizer'}} menuIconProps={{iconName:''}} ariaLabel="More ticket actions" title="Filter and ticket actions" menuProps={{items:[
+          {key:'status',text:'Status',subMenuProps:{items:statusFilters.map(label=>({key:label,text:label==='Total' ? 'All Statuses' : label,canCheck:true,checked:status===label,onClick:()=>{setStatus(label);setPage(0);}}))}},
+          {key:'date',text:'Created Date',subMenuProps:{items:[...durationOptions.map(option=>({...option,canCheck:true,checked:duration===option.key,onClick:()=>{setDuration(option.key);setPage(0);}})),{key:'custom',text:'Custom Range',onClick:()=>setRangeOpen(true)}]}},
+          {key:'refresh',text:'Refresh Tickets',iconProps:{iconName:'Refresh'},disabled:loading,onClick:()=>{void refresh().catch(()=>undefined);}},
+          {key:'export',text:'Export Filtered Tickets (CSV)',iconProps:{iconName:'Download'},disabled:loading || Boolean(error),onClick:()=>exportCsv()},
+          {key:'archive',text:'Archive',canCheck:true,checked:tab==='Archive',onClick:()=>{setTab('Archive');setPage(0);}},
+          {key:'select',text:mobileSelecting ? 'Cancel Selection' : 'Select Tickets',onClick:()=>{setMobileSelecting(!mobileSelecting);setSelectedIds(new Set());}},
+          {key:'columns',text:'Choose Desktop Columns',onClick:()=>setColumnsOpen(true)}
+        ]}} />
       </div>
-      {(status!=='Total' || duration!=='all') && <div className={styles.mobileTicketFilterSummary}><span>{[status!=='Total' ? status : '',duration!=='all' ? durationLabel : ''].filter(Boolean).join(' ? ')}</span><button type="button" onClick={()=>{setStatus('Total');setDuration('all');setPage(0);}}>Clear</button></div>}
+      {(status!=='Total' || duration!=='all' || tab==='Archive') && <div className={styles.mobileTicketFilterSummary}><span>{[tab==='Archive' ? 'Archive' : '',status!=='Total' ? status : '',duration!=='all' ? durationLabel : ''].filter(Boolean).join(' / ')}</span><button type="button" onClick={()=>{setStatus('Total');setDuration('all');setPage(0);}}>Clear Filters</button></div>}
     </div>
-    <Panel isOpen={mobileFilters} type={PanelType.smallFixedFar} headerText="Filter Tickets" closeButtonAriaLabel="Close ticket filters" onDismiss={()=>setMobileFilters(false)} isLightDismiss styles={{main:{background:'var(--dp-bg-fff, #fff)',color:'var(--dp-fg-172536, #172536)'}}}>
-      <div className={styles.mobileTicketFilterFields}>
-        <Dropdown label="Status" selectedKey={status} options={statusFilters.map(label=>({key:label,text:label==='Total' ? 'All Statuses' : label}))} onChange={(_,option)=>{if(option){setStatus(String(option.key));setPage(0);}}} />
-        <Dropdown label="Created Date" selectedKey={duration} options={[...durationOptions,{key:'custom',text:'Custom Range'}]} onChange={(_,option)=>{if(!option)return;if(option.key==='custom'){setMobileFilters(false);setRangeOpen(true);}else{setDuration(String(option.key));setPage(0);}}} />
-        <Dropdown label="Sort By" selectedKey={sort?.column==='Priority' ? 'priority' : sort?.column==='Created Date' ? sort.descending ? 'newest' : 'oldest' : 'custom'} options={[{key:'newest',text:'Newest First'},{key:'oldest',text:'Oldest First'},{key:'priority',text:'Highest Priority First'},{key:'custom',text:'Current Desktop Sort',disabled:true}]} onChange={(_,option)=>{if(!option)return;setSort(option.key==='priority' ? {column:'Priority',descending:false} : {column:'Created Date',descending:option.key==='newest'});setPage(0);}} />
-        <PrimaryButton text="Show Tickets" onClick={()=>setMobileFilters(false)} /><DefaultButton text="Clear Filters" onClick={()=>{setStatus('Total');setDuration('all');setSearch('');setPage(0);}} />
-      </div>
-    </Panel>
     <div className={styles.ticketTabs} role="group" aria-label="Ticket views">
       <h2 className={styles.toolbarTitle}>{title}</h2>
       {[
@@ -278,7 +276,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
     </Panel>
     {loading ? <Spinner label="Loading tickets…" /> : <>
       <div className={styles.mobileTicketCards}>
-      <div className={styles.mobileTicketSelection}><div className={styles.ticketCountContent}>{selectedTickets.length > 0 ? <div className={styles.bulkActions} role="group" aria-label="Selected ticket actions">
+      <div className={styles.mobileTicketSelection}><div className={styles.mobileTicketCountSort}><div className={styles.ticketCountContent}>{selectedTickets.length > 0 ? <div className={styles.bulkActions} role="group" aria-label="Selected ticket actions">
       <strong aria-live="polite">{selectedTickets.length} selected</strong>
       {canUse(service, 'archive') && canUse(service, 'assign') && !agent && <DefaultButton text={bulkBusy ? 'Updating…' : tab === 'Archive' ? 'Unarchive' : 'Archive'} iconProps={{ iconName: tab === 'Archive' ? 'Undo' : 'Archive' }} disabled={bulkBusy || !onBulkAction || Boolean(error)} onClick={() => { void runBulk({kind: 'archive', archived: tab !== 'Archive'}); }} />}
       <DefaultButton text="Mark As" iconProps={{ iconName: 'Tag' }} disabled={!canUse(service, 'status') || bulkBusy || !onBulkAction || Boolean(error) || selectedTickets.some(ticket => !canChangeStatus(ticket))} menuProps={{ items: ticketStatuses.filter(value => (value !== 'Closed' || selectedTickets.every(canCloseTicket)) && (!agent || selectedTickets.every(ownAgentRequest) || !selectedTickets.some(ticket => ['Resolved', 'Completed', 'Closed'].includes(ticket.Status)) || ['Resolved', 'Closed'].includes(value))).map(value => ({key: value, text: value, onClick: () => { void runBulk({kind: 'status', status: value}); }})) }} />
@@ -287,11 +285,11 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
       <DefaultButton text="Export Selected" iconProps={{ iconName: 'Download' }} disabled={bulkBusy || Boolean(error)} onClick={() => exportCsv(selectedTickets)} />
       <DefaultButton text={`Select all ${matching.length} matching`} disabled={bulkBusy || selectedTickets.length === matching.length} onClick={() => setSelectedIds(new Set(matching.map(ticket => ticket.Id)))} />
       <DefaultButton text="Clear Selection" disabled={bulkBusy} onClick={() => setSelectedIds(new Set())} />
-    </div> : <span>{matching.length} tickets in this view</span>}</div>{mobileSelecting && <DefaultButton text={allPageSelected ? 'Deselect Page' : 'Select Page'} disabled={loading || bulkBusy} onClick={()=>toggleSelection(pageTickets.map(ticket=>ticket.Id),!allPageSelected)} />}</div>
+    </div> : <span>{matching.length} tickets in this view</span>}</div><DefaultButton text={sort?.column==='Created Date' ? sort.descending ? 'Recent First' : 'Oldest First' : sort?.column==='Priority' ? 'Priority First' : 'Custom Sort'} menuIconProps={{iconName:'ChevronDown'}} ariaLabel="Quick ticket sort" menuProps={{items:[{key:'recent',text:'Recent First',onClick:()=>{setSort({column:'Created Date',descending:true});setPage(0);}},{key:'oldest',text:'Oldest First',onClick:()=>{setSort({column:'Created Date',descending:false});setPage(0);}},{key:'priority',text:'Highest Priority First',onClick:()=>{setSort({column:'Priority',descending:false});setPage(0);}}]}} /></div>{mobileSelecting && <DefaultButton text={allPageSelected ? 'Deselect Page' : 'Select Page'} disabled={loading || bulkBusy} onClick={()=>toggleSelection(pageTickets.map(ticket=>ticket.Id),!allPageSelected)} />}</div>
       <div role="list" aria-label="Tickets">{pageTickets.map(ticket=><article role="listitem" key={ticket.Id} className={styles.mobileTicketCard} data-selected={selectedIds.has(ticket.Id)}>
         {mobileSelecting && <Checkbox ariaLabel={'Select ticket #'+ticket.Id} checked={selectedIds.has(ticket.Id)} disabled={bulkBusy} onChange={(_,checked)=>toggleSelection([ticket.Id],Boolean(checked))} />}
         <button type="button" className={styles.mobileTicketCardOpen} onClick={()=>onOpenTicket ? onOpenTicket(ticket.Id) : setDetailId(ticket.Id)} aria-label={'Open ticket #'+ticket.Id+': '+ticket.Title}>
-          <span className={styles.mobileTicketCardTop}><span>#{ticket.Id}{viewed.opened && !viewed.opened.has(ticket.Id) && <span className={styles.mobileTicketUnread} aria-label="Unopened ticket">?</span>}</span><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></span>
+          <span className={styles.mobileTicketCardTop}><span>#{ticket.Id}{viewed.opened && !viewed.opened.has(ticket.Id) && <span className={styles.mobileTicketUnread} role="img" aria-label="Unopened ticket"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.5 1.5v5M3 3l4 4M1.5 11.5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></span>}</span><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></span>
           <strong className={styles.mobileTicketCardTitle}>{ticket.Title}</strong>
           <span className={styles.mobileTicketCardBottom}><span>Requested by {ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || 'Not available'}</span><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} />{ticket.Priority}</span></span>
           {ticket.AssignedTo?.Title && <span className={styles.mobileTicketCardAgent}>Assigned to {ticket.AssignedTo.Title}</span>}
