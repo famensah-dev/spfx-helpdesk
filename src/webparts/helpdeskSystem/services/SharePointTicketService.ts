@@ -93,7 +93,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     };
   }
   tickets.notificationEnabled=()=>mail.enabled();
-  tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
+  tickets.onTicketChanged=(ticket,before,created,resolutionEmail)=>mail.changed(ticket,before,created,resolutionEmail);
   if(admin){
     source.roleManagement=roles;
     const administration=source.administration!;

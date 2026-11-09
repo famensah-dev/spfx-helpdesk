@@ -22,24 +22,24 @@ const text = (value: unknown): string => typeof value === 'string' ? value : '';
 export class GraphTicketService implements ITicketDataSource {
   public folderStore?:import('../DepartmentFolderStore').DepartmentFolderStore;
   public notificationEnabled?:()=>Promise<boolean>;
-  public onTicketChanged?:(ticket:ITicket,before?:IChangeSnapshot,created?:boolean)=>Promise<void>;
+  public onTicketChanged?:(ticket:ITicket,before?:IChangeSnapshot,created?:boolean,resolutionEmail?:boolean)=>Promise<void>;
   private notificationWarnings=new Set<string>();
-  private async captureChange(id:number):Promise<IChangeSnapshot|undefined>{
+  private async captureChange(id:number,force=false):Promise<IChangeSnapshot|undefined>{
     if(!this.onTicketChanged)return undefined;
     try {
-      if(!await this.notificationEnabled?.())return undefined;
+      if(!force && !await this.notificationEnabled?.())return undefined;
       const schema=this.updateSchema!;
       const item=await this.graph.get<IGraphItem>(schema.path+'/items/'+id+'?$expand=fields');
       return {status:String(item.fields[schema.status]),assignedToId:Number(item.fields[schema.assigned+'LookupId']) || 0};
     }catch(reason){this.notificationWarnings.add('Notification check failed: '+(reason instanceof Error ? reason.message : 'Unable to load settings.'));return undefined;}
   }
-  private async notifyChange(id:number,before?:IChangeSnapshot,created=false):Promise<void>{
+  private async notifyChange(id:number,before?:IChangeSnapshot,created=false,resolutionEmail?:boolean):Promise<void>{
     if(!this.onTicketChanged || (!before&&!created))return;
     try {
-      if(!await this.notificationEnabled?.())return;
+      if(resolutionEmail===undefined && !await this.notificationEnabled?.())return;
       const ticket=(await this.getTickets()).tickets.find(item=>item.Id===id);
       if(!ticket)throw new Error('Ticket details are unavailable for notification.');
-      await this.onTicketChanged(ticket,before,created);
+      await this.onTicketChanged(ticket,before,created,resolutionEmail);
     }catch(reason){this.notificationWarnings.add('Ticket #'+id+' was saved, but notifications need attention: '+(reason instanceof Error ? reason.message : 'Submission failed.'));}
   }
 
@@ -111,6 +111,13 @@ export class GraphTicketService implements ITicketDataSource {
       .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
   }
   public async updateTicket(id: number, input: ITicketEdit): Promise<void> {
+    if(input.resolutionEmail!==undefined){
+      if(typeof input.resolutionEmail!=='boolean' || !['Resolved','Completed'].includes(input.status))throw new Error('The email choice applies only when resolving a ticket.');
+      const current=(await this.getTickets()).tickets.find(ticket=>ticket.Id===id);
+      if(!current || ['Resolved','Completed'].includes(current.Status))throw new Error('Reload the ticket before resolving it.');
+      const email=current.RequesterEmail || current.Requester?.Email || '';
+      if(input.resolutionEmail && !/^[^\s@<>;,]+@[^\s@<>;,]+\.[^\s@<>;,]+$/.test(email))throw new Error('A valid requester email is required to send the resolution.');
+    }
     if (!this.editSchema || !this.updateSchema) await this.getTickets();
     const schema = this.editSchema!;
     const workflow = this.updateSchema!;
@@ -207,11 +214,11 @@ export class GraphTicketService implements ITicketDataSource {
         }
       }
     }
-    const notificationBefore=await this.captureChange(id);
+    const notificationBefore=await this.captureChange(id,input.resolutionEmail===true);
     await this.addResolutionTimestamp(id, status, fields);
     const pauseEtag=await this.addPauseHistory(id,status,fields);
     await this.graph.patch(`${schema.path}/items/${id}/fields`, fields,sourceEtag || pauseEtag);
-    await this.notifyChange(id,notificationBefore);
+    await this.notifyChange(id,notificationBefore,false,input.resolutionEmail);
   }
   private async addPauseHistory(id:number,next:string,fields:Record<string,unknown>):Promise<string|undefined>{
     const schema=this.updateSchema!;if(!schema.pause)return undefined;

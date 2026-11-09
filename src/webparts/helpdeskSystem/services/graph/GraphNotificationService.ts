@@ -108,8 +108,8 @@ export class GraphNotificationService {
     try{await this.send(settings,rendered.subject,rendered.html,[email],[]);await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:'Accepted',Error:''});}
     catch(reason){await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:'Failed or unconfirmed',Error:reason instanceof Error?reason.message:'Email submission failed.'});throw reason;}
   }
-  public async changed(ticket:ITicket,before?:IChangeSnapshot,created=false):Promise<void>{
-    const settings=await this.getSettings(true);if(!settings.enabled)return;
+  public async changed(ticket:ITicket,before?:IChangeSnapshot,created=false,resolutionEmail?:boolean):Promise<void>{
+    const settings=await this.getSettings(true);if(!settings.enabled && resolutionEmail!==true)return;
     const events:NotificationEvent[]=[];
     if(created)events.push('created');
     if(ticket.AssignedTo?.Id && (created || (before && before.assignedToId!==ticket.AssignedTo.Id)))events.push('assigned');
@@ -122,7 +122,10 @@ export class GraphNotificationService {
     const needsTeam=events.some(event=>[...settings.rules[event].to,...settings.rules[event].cc].includes('team') || settings.rules[event].body.includes('{{TeamEmail}}'));
     const teamEmail=needsTeam && ticket.AssignedUnitId ? await this.teamEmail(ticket.AssignedUnitId) : '';
     for(const event of notificationEvents.filter(value=>events.includes(value))){
-      const rule=settings.rules[event];if(!rule.email&&!rule.inApp)continue;
+      if(!settings.enabled && event!=='resolved')continue;
+      const configured=settings.rules[event];
+      const rule=event==='resolved' && resolutionEmail!==undefined ? {...configured,email:resolutionEmail,inApp:settings.enabled && configured.inApp,...(resolutionEmail ? {to:['requester' as const],cc:[],extraTo:[],extraCc:[]} : {})} : configured;
+      if(!rule.email&&!rule.inApp)continue;
       const revision=event==='created' ? 'initial' : ticket.ChangeVersion || ticket.Modified;
       if(!revision)throw new Error('Notification version could not be verified. Ticket saved; email was not sent.');
       const key=ticket.Id+':'+event+':'+revision;

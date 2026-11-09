@@ -1658,3 +1658,8 @@
 .ticketEditForm .newTicketAdvanced > summary { cursor: pointer; padding-bottom: 14px; }
 .ticketEditForm .newTicketAdvanced[open] > summary { border-bottom: 1px solid var(--dp-line-e0e7f1, #e0e7f1); margin-bottom: 18px; }
 .ticketEditForm .newTicketAdvanced > .detailFormGrid { margin-top: 18px; }
+.emailPlaceholderBadge { display:inline-block; padding:1px 6px; margin:0 2px; border-radius:5px; background:#e8eef6; color:#173451 !important; border:1px solid var(--dp-line-dce5f1, #dce5f1); font-size:12px; line-height:20px; font-weight:500; vertical-align:baseline; }
+.emailPlaceholderTools { padding:8px 10px; border-top:1px solid var(--dp-line-dce5f1, #dce5f1); > div { margin-top:8px; } }
+.emailPlaceholderOptions { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; max-height:180px; overflow:auto; button { border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:5px; padding:5px 8px; background:#e8eef6; color:#173451 !important; cursor:pointer; font:inherit; font-size:12px; } }
+
+.emailPlaceholderInsert { border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:6px; height:30px; min-width:0; padding:0 10px; background:var(--dp-bg-f7faff, #f7faff); color:var(--dp-fg-172536, #172536); :global(.ms-Button-label) { font-size:12px; font-weight:500; } :global(.ms-Button-icon) { font-size:13px; } :global(.ms-Button-menuIcon) { font-size:10px; margin-left:8px; } &:hover { background:var(--dp-bg-e8f0ff, #e8f0ff); border-color:var(--dp-fg-526783, #526783); } }

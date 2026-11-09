@@ -103,5 +103,16 @@ const ticket={Id:5,Title:'Printer offline',Status:'Assigned',Priority:'Medium',C
  fields.TicketSource='';await tickets.updateTicket(5,{...edit,ticketSource:'Email'});assert.equal(fields.TicketSource,'Email');await assert.rejects(tickets.updateTicket(5,{...edit,ticketSource:'Forms'}),/cannot be changed/);
  const breachEmails=emails.length;await service.slaBreach(ticket,'response','lead@example.com');await service.slaBreach(ticket,'response','lead@example.com');assert.equal(emails.length,breachEmails+1,'Breach alerts must deduplicate across repeated checks');assert.deepEqual(emails.at(-1).message.toRecipients,[{emailAddress:{address:'lead@example.com'}}]);
  failSend=true;await assert.rejects(service.slaBreach(ticket,'resolution','lead@example.com'),/Mail denied/);failSend=false;const afterBreachFailure=emails.length;await service.slaBreach(ticket,'resolution','lead@example.com');assert.equal(emails.length,afterBreachFailure,'Unconfirmed breach emails must not be retried');
+ const beforeOverride=emails.length;
+ await service.saveSettings({...settings,enabled:false});
+ await service.changed({...ticket,Status:'Resolved',ChangeVersion:'manual-resolution-1'},{status:'In Progress',assignedToId:11},false,true);
+ assert.equal(emails.length,beforeOverride+1,'Explicit resolution send must work when automatic notifications are disabled');
+ assert.deepEqual(emails.at(-1).message.toRecipients,[{emailAddress:{address:'requester@example.com'}}]);
+ await service.changed({...ticket,Status:'Resolved',ChangeVersion:'manual-resolution-2'},{status:'In Progress',assignedToId:11},false,false);
+ assert.equal(emails.length,beforeOverride+1,'Unchecked resolution send must not send email');
+ await service.saveSettings({...settings,enabled:true});
+ await service.changed({...ticket,Status:'Resolved',ChangeVersion:'manual-resolution-3'},{status:'In Progress',assignedToId:11},false,false);
+ assert.equal(emails.length,beforeOverride+1,'Explicit suppression must override enabled automatic resolution email');
+ assert.equal((await service.getSettings()).enabled,true,'An action override must not change saved settings');
  dom.window.close();console.log('Notification checks passed: Graph 202, safe templates, recipients, event transitions, duplicate prevention, failures, shared sender, inbox scope, admin controls, breach alerts and mutation hooks.');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});
