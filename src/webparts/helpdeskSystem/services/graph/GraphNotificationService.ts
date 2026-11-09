@@ -10,7 +10,7 @@ interface Item {id:string;eTag?:string;'@odata.etag'?:string;createdDateTime?:st
 export class GraphNotificationService {
   private cache?:{expires:number;value:IEmailSettings};
   private paths?:{settings:string;log:string};
-  public constructor(private graph:GraphClient,private config:IAppConfig,private actor:{email:string;name:string},private canManage:boolean,private appUrl:string,private workspace:string,private visibleTickets:()=>Promise<ITicket[]>,private teamEmail:(id:number)=>Promise<string>){}
+  public constructor(private graph:GraphClient,private config:IAppConfig,private actor:{email:string;name:string},private canManage:boolean,private appUrl:string,private workspace:string,private visibleTickets:()=>Promise<ITicket[]>,private teamEmail:(id:number)=>Promise<string>,private superAdmin=false){}
   private async context(optional=false):Promise<{settings:string;log:string}|undefined>{
     if(this.paths)return this.paths;
     const url=new URL(this.config.siteUrl);
@@ -40,6 +40,7 @@ export class GraphNotificationService {
   public async enabled():Promise<boolean>{return (await this.getSettings(true)).enabled;}
   public async saveSettings(value:IEmailSettings):Promise<void>{
     this.requireAdmin();validateEmailSettings(value);const context=(await this.context())!;
+    if(!this.superAdmin && value.appUrl!==(await this.getSettings()).appUrl)throw new Error('Only Super Admins can change the DeskPilot page URL.');
     const items=await this.settingItems(context.settings);
     if(items.length>1)throw new Error('Duplicate email settings found.');
     const fields={Title:'Email notifications',SettingKey:'Configuration',Configuration:JSON.stringify(value)};

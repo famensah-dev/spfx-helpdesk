@@ -12,7 +12,7 @@ const {RichTextEditor}=load('src/webparts/helpdeskSystem/components/RichTextEdit
 const host=document.getElementById('app');let output;
 (async()=>{
  await act(async()=>{ReactDOM.render(h(RichTextEditor,{plainText:true,label:'Subject',value:'Hi {{TicketTitle}}',placeholders:[{key:'TicketTitle',label:'Ticket Title'},{key:'RequesterName',label:'Requester Name'}],onChange:value=>{output=value;}}),host);});
- const editor=host.querySelector('[role="textbox"]');assert.equal(editor.querySelector('[data-email-token]').textContent,'Ticket Title');assert(!editor.textContent.includes('{{'));
+ const editor=host.querySelector('[role="textbox"]');assert.equal(editor.querySelector('[data-email-token]').firstChild.textContent,'Ticket Title');assert(!editor.textContent.includes('{{'));
  const range=document.createRange();range.setStart(editor.firstChild,3);range.collapse(true);window.getSelection().removeAllRanges();window.getSelection().addRange(range);Simulate.mouseUp(editor);
  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Insert Placeholder').click());
  await act(async()=>Simulate.change(host.querySelector('input'),{target:{value:'requester'}}));
@@ -20,5 +20,7 @@ const host=document.getElementById('app');let output;
  await act(async()=>[...host.querySelectorAll('button')].find(button=>button.textContent==='Requester Name').click());
  assert.equal(output,'Hi {{RequesterName}}{{TicketTitle}}','Insertion uses the saved cursor and serializes original template tokens');
  assert.equal(editor.querySelectorAll('[data-email-token]').length,2);
+ await act(async()=>editor.querySelector('[aria-label="Remove Requester Name placeholder"]').click());
+ assert.equal(output,'Hi {{TicketTitle}}','Removing a badge removes only that placeholder from saved content');
  await act(async()=>ReactDOM.unmountComponentAtNode(host));dom.window.close();console.log('Email placeholder editor passed: badges, search, cursor insertion and token serialization.');process.exit(0);
 })().catch(error=>{console.error(error);dom.window.close();process.exit(1);});

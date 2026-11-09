@@ -81,7 +81,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   let visibleSource:ITicketDataSource=source;
   const mail=new GraphNotificationService(graph,config,{email:access.email,name:access.name || access.email},admin || superAdmin,selected?.pageUrl || window.location.href,workspaceSettings.title,async()=>(await visibleSource.getTickets()).tickets,async id=>{
     const data=await supportUnits.load();return data.units.find(team=>team.id===id)?.email || '';
-  });
+  },superAdmin);
   source.notifications={canManage:admin || superAdmin,getSettings:()=>mail.getSettings(),saveSettings:value=>mail.saveSettings(value),history:()=>mail.history(),inbox:()=>mail.inbox(),test:(value,event)=>mail.test(value,event),invite:(user,role,automatic)=>mail.invite(user,role,automatic)};
   if(admin || superAdmin){
     (source.sla as GraphSlaService).onBreach=async(ticket,kind)=>{

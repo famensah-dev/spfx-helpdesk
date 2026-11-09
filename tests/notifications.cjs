@@ -103,6 +103,7 @@ const ticket={Id:5,Title:'Printer offline',Status:'Assigned',Priority:'Medium',C
  fields.TicketSource='';await tickets.updateTicket(5,{...edit,ticketSource:'Email'});assert.equal(fields.TicketSource,'Email');await assert.rejects(tickets.updateTicket(5,{...edit,ticketSource:'Forms'}),/cannot be changed/);
  const breachEmails=emails.length;await service.slaBreach(ticket,'response','lead@example.com');await service.slaBreach(ticket,'response','lead@example.com');assert.equal(emails.length,breachEmails+1,'Breach alerts must deduplicate across repeated checks');assert.deepEqual(emails.at(-1).message.toRecipients,[{emailAddress:{address:'lead@example.com'}}]);
  failSend=true;await assert.rejects(service.slaBreach(ticket,'resolution','lead@example.com'),/Mail denied/);failSend=false;const afterBreachFailure=emails.length;await service.slaBreach(ticket,'resolution','lead@example.com');assert.equal(emails.length,afterBreachFailure,'Unconfirmed breach emails must not be retried');
+ await assert.rejects(service.saveSettings({...settings,appUrl:'https://example.com/other'}),/Only Super Admins/);
  const beforeOverride=emails.length;
  await service.saveSettings({...settings,enabled:false});
  await service.changed({...ticket,Status:'Resolved',ChangeVersion:'manual-resolution-1'},{status:'In Progress',assignedToId:11},false,true);

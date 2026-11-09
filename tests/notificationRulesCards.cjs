@@ -14,7 +14,7 @@ async function toggle(label,checked){await act(async()=>Simulate.change(host.que
  await toggle('Ticket Assigned email',false);assert.equal(value.rules.assigned.email,false);assert.equal(value.rules.assigned.inApp,true);assert.equal(value.rules.created.email,true);
  await toggle('Send invitation automatically',true);assert.equal(value.autoInvite,true);assert.equal(value.enabled,false,'Invitation setting is independent of the ticket master switch');
  await toggle('Enable Invitation Email',false);assert(host.querySelector('[aria-label="Send invitation automatically"]').disabled);assert.equal(value.rules.created.email,true);
- await act(async()=>[...host.querySelectorAll('button')].find(item=>item.textContent==='Ticket Resolved').click());assert.equal(opened,'resolved');
+ await act(async()=>[...host.querySelectorAll('button')].find(item=>item.textContent==='Ticket Resolved Email Template').click());assert.equal(opened,'resolved');
  await act(async()=>[...host.querySelectorAll('button')].find(item=>item.textContent==='Edit Invitation Template').click());assert.equal(opened,'invited');
  await act(async()=>ReactDOM.unmountComponentAtNode(host));dom.window.close();console.log('Notification cards passed: four ticket events, isolated channel toggles, independent invitations and template navigation.');process.exit(0);
 })().catch(error=>{console.error(error);dom.window.close();process.exit(1);});

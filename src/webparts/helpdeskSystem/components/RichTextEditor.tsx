@@ -26,11 +26,23 @@ export function safeDescriptionHtml(value: string): string {
 export function RichTextContent(props: { value: string }): React.ReactElement {
   return <div className={styles.markdownContent} dangerouslySetInnerHTML={{ __html: safeDescriptionHtml(props.value) }} />;
 }
+function placeholderCategory(key:string):'ticket'|'user'|'workspace' {
+  if(['WorkspaceName','AppLink','Event'].includes(key))return 'workspace';
+  if(['RequesterName','RequesterEmail','CreatorName','AssignedTo','AssignedToEmail','Team','TeamEmail','ChangedBy','UserName','UserEmail','UserRole'].includes(key))return 'user';
+  return 'ticket';
+}
 export function RichTextEditor(props: { value: string; label?: string; required?: boolean; disabled?: boolean; placeholders?:ReadonlyArray<{key:string;label:string}>; plainText?:boolean; onChange: (value: string) => void }): React.ReactElement {
   const host = React.useRef<HTMLDivElement>(null);
   const selection = React.useRef<Range | null>(null);
   const [inserting,setInserting]=React.useState(false);
   const [query,setQuery]=React.useState('');
+  const emit = (): void => {
+    if(!host.current)return;
+    const clone=host.current.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll<HTMLElement>('[data-email-token]').forEach(badge=>badge.replaceWith(document.createTextNode('{{'+badge.dataset.emailToken+'}}')));
+    const plain=clone.textContent || '';
+    props.onChange(props.plainText ? plain.replace(/[\r\n]/g,' ') : plain.trim() ? safeDescriptionHtml(clone.innerHTML) : '');
+  };
   const decorate=():void=>{
     if(!props.placeholders || !host.current)return;
     const walker=document.createTreeWalker(host.current,NodeFilter.SHOW_TEXT);const nodes:Text[]=[];
@@ -40,8 +52,12 @@ export function RichTextEditor(props: { value: string; label?: string; required?
       const parts=(node.textContent || '').split(/({{\w+}})/g);if(parts.length===1)continue;
       const fragment=document.createDocumentFragment();
       for(const part of parts){const match=/^{{(\w+)}}$/.exec(part);if(!match){fragment.append(part);continue;}
-        const badge=document.createElement('span');badge.dataset.emailToken=match[1];badge.contentEditable='false';badge.className=styles.emailPlaceholderBadge;
-        badge.textContent=props.placeholders.find(token=>token.key===match[1])?.label || match[1].replace(/([a-z])([A-Z])/g,'$1 $2');badge.title=part;fragment.append(badge);
+        const badge=document.createElement('span');badge.dataset.emailToken=match[1];badge.dataset.placeholderCategory=placeholderCategory(match[1]);badge.contentEditable='false';badge.className=styles.emailPlaceholderBadge;
+        badge.textContent=props.placeholders.find(token=>token.key===match[1])?.label || match[1].replace(/([a-z])([A-Z])/g,'$1 $2');badge.title=part;
+        const remove=document.createElement('button');remove.type='button';remove.textContent='×';remove.dataset.removePlaceholder='true';remove.setAttribute('aria-label','Remove '+badge.textContent+' placeholder');remove.title='Remove placeholder';remove.disabled=Boolean(props.disabled);
+        remove.onmousedown=event=>{event.preventDefault();event.stopPropagation();};
+        remove.onclick=event=>{event.preventDefault();event.stopPropagation();if(host.current?.getAttribute('aria-disabled')==='true')return;badge.remove();selection.current=null;emit();host.current?.focus();};
+        badge.append(remove);fragment.append(badge);
       }
       node.replaceWith(fragment);
     }
@@ -53,15 +69,9 @@ export function RichTextEditor(props: { value: string; label?: string; required?
       else host.current.textContent = decodeHtmlEntities(props.value);
       decorate();
     }
-  }, [props.value]);
+    host.current?.querySelectorAll<HTMLButtonElement>('[data-remove-placeholder]').forEach(button=>{button.disabled=Boolean(props.disabled);});
+  }, [props.value,props.disabled]);
   const remember = (): void => { const current = window.getSelection(); if (current?.rangeCount && host.current?.contains(current.anchorNode)) selection.current = current.getRangeAt(0).cloneRange(); };
-  const emit = (): void => {
-    if(!host.current)return;
-    const clone=host.current.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll<HTMLElement>('[data-email-token]').forEach(badge=>badge.replaceWith(document.createTextNode('{{'+badge.dataset.emailToken+'}}')));
-    const plain=clone.textContent || '';
-    props.onChange(props.plainText ? plain.replace(/[\r\n]/g,' ') : plain.trim() ? safeDescriptionHtml(clone.innerHTML) : '');
-  };
   const command = (name: string, value?: string): void => {
     host.current?.focus();
     if (selection.current) { const current = window.getSelection(); current?.removeAllRanges(); current?.addRange(selection.current); }
@@ -73,12 +83,12 @@ export function RichTextEditor(props: { value: string; label?: string; required?
       {[['Bold', 'bold'], ['Italic', 'italic'], ['Underline', 'underline'], ['Strikethrough', 'strikeThrough'], ['BulletedList', 'insertUnorderedList'], ['NumberedList', 'insertOrderedList'], ['AlignLeft', 'justifyLeft'], ['AlignCenter', 'justifyCenter'], ['ClearFormatting', 'removeFormat']].map(([icon, action]) => <IconButton key={action} iconProps={{ iconName: icon }} ariaLabel={icon} title={icon} disabled={props.disabled} onMouseDown={event => event.preventDefault()} onClick={() => command(action)} />)}
       <IconButton iconProps={{ iconName: 'Link' }} ariaLabel="Insert link" title="Insert link" disabled={props.disabled} onMouseDown={event => event.preventDefault()} onClick={() => { const url = window.prompt('Link URL (https://...)'); if (url && /^https?:\/\//i.test(url)) command('createLink', url); }} />
     </div>}
-    <div ref={host} className={styles.richTextInput} style={props.plainText ? {minHeight:36,padding:'8px 10px'} : undefined} contentEditable={!props.disabled} suppressContentEditableWarning role="textbox" aria-label={props.label || 'Description'} aria-multiline={!props.plainText} aria-required={props.required} aria-disabled={props.disabled} tabIndex={0} onInput={emit} onKeyUp={remember} onMouseUp={remember} onBlur={remember} onKeyDown={event=>{if(props.plainText && event.key==='Enter')event.preventDefault();}}
+    <div ref={host} className={styles.richTextInput} style={props.plainText ? {minHeight:36,padding:'8px 10px'} : undefined} contentEditable={!props.disabled} suppressContentEditableWarning role="textbox" aria-label={props.label || 'Description'} aria-multiline={!props.plainText} aria-required={props.required} aria-disabled={props.disabled} tabIndex={0} onInput={emit} onKeyUp={remember} onMouseUp={remember} onBlur={remember} onKeyDown={event=>{if(props.plainText && event.key==='Enter' && event.target===event.currentTarget)event.preventDefault();}}
       onPaste={event => { event.preventDefault(); command('insertText', event.clipboardData.getData('text/plain')); }} />
     {props.placeholders && <div className={styles.emailPlaceholderTools}>
-      <DefaultButton className={styles.emailPlaceholderInsert} text="Insert Placeholder" iconProps={{iconName:'Variable'}} menuIconProps={{iconName:inserting ? 'ChevronUp' : 'ChevronDown'}} disabled={props.disabled} aria-expanded={inserting} onClick={()=>{setInserting(!inserting);setQuery('');}} />
+      <DefaultButton styles={{rootHovered:{background:'var(--dp-bg-f0f2f5, #f0f2f5)',color:'var(--dp-fg-172536, #172536)'},rootPressed:{background:'var(--dp-bg-f0f2f5, #f0f2f5)',color:'var(--dp-fg-172536, #172536)'},rootExpanded:{background:'var(--dp-bg-f0f2f5, #f0f2f5)',color:'var(--dp-fg-172536, #172536)'},rootFocused:{outline:'2px solid var(--dp-fg-006bff, #006bff)',outlineOffset:'2px'},rootDisabled:{background:'var(--dp-bg-f7faff, #f7faff)',color:'var(--dp-fg-526783, #526783)',opacity:.6},label:{color:'inherit'},icon:{color:'inherit'},menuIcon:{color:'inherit'}}} className={styles.emailPlaceholderInsert} text="Insert Placeholder" iconProps={{iconName:'Tag'}} menuIconProps={{iconName:inserting ? 'ChevronUp' : 'ChevronDown'}} disabled={props.disabled} aria-expanded={inserting} onClick={()=>{setInserting(!inserting);setQuery('');}} />
       {inserting && <div><SearchBox ariaLabel="Search placeholders" placeholder="Find ticket information" value={query} onChange={(_,value)=>setQuery(value || '')} />
-        <div className={styles.emailPlaceholderOptions}>{props.placeholders.filter(token=>(token.label+' '+token.key).toLowerCase().includes(query.toLowerCase())).map(token=><button type="button" key={token.key} disabled={props.disabled} onClick={()=>{
+        <div className={styles.emailPlaceholderOptions}>{props.placeholders.filter(token=>(token.label+' '+token.key).toLowerCase().includes(query.toLowerCase())).map(token=><button type="button" key={token.key} data-placeholder-category={placeholderCategory(token.key)} disabled={props.disabled} onClick={()=>{
           const editor=host.current;if(!editor)return;editor.focus();const range=selection.current && editor.contains(selection.current.startContainer) ? selection.current : document.createRange();
           if(!selection.current || !editor.contains(range.startContainer)){range.selectNodeContents(editor);range.collapse(false);}
           range.deleteContents();const node=document.createTextNode('{{'+token.key+'}}');range.insertNode(node);range.setStartAfter(node);range.collapse(true);const current=window.getSelection();current?.removeAllRanges();current?.addRange(range);emit();decorate();selection.current=null;setInserting(false);

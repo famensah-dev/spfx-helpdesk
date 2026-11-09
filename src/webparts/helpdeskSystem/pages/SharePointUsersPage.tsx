@@ -42,7 +42,7 @@ export function SharePointUsersPage(props: { service: ITicketDataSource; configu
     return () => { active = false; window.clearTimeout(timer); };
   }, [adding, search, props.service]);
   const filtered = assignments.filter(user => (roleFilter === 'all' || user.roleId === roleFilter) && (department === 'all' || user.department === department) && (status === 'all' || (status === 'inactive') === Boolean(user.disabled)) && `${user.name} ${user.email} ${user.department || ''}`.toLowerCase().includes(query.toLowerCase()));
-  const pageSize = 10;
+  const pageSize = 25;
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount - 1);
   const visible = filtered.slice(currentPage * pageSize, (currentPage + 1) * pageSize);

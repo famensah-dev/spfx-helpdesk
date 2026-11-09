@@ -20,6 +20,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
   const [tab, setTab] = React.useState<'users' | 'roles'>('users');
   const [config, setConfig] = React.useState<IRoleConfiguration>();
   const [busy, setBusy] = React.useState(false);
+  const [loading,setLoading]=React.useState(true);
   const [error, setError] = React.useState('');
   const [message, setMessage] = React.useState('');
   const [userNotice, setUserNotice] = React.useState('');
@@ -32,6 +33,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     setError('');
     try { const value = await props.service.roleManagement!.load(); saved.current = value; setConfig(value); setDraft(undefined); }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to load roles.'); }
+    finally {setLoading(false);}
   }, [props.service]);
   React.useEffect(() => { load().catch(() => undefined); }, [load]);
   const currentRole = config?.roles.find(role => role.id === selectedRoleId);
@@ -77,10 +79,10 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     <div className={styles.ticketListCard}>
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {message && <MessageBar messageBarType={MessageBarType.success}>{message}</MessageBar>}
-    {!config ? <><Spinner label="Loading roles..." /><DefaultButton text="Retry" onClick={() => { load().catch(() => undefined); }} /></> : <>
+    {!config ? <>{loading ? <Spinner label="Loading users and roles..." /> : error && <DefaultButton text="Retry" onClick={() => { load().catch(() => undefined); }} />}</> : <>
       {tab === 'roles' && <>
       <div className={styles.rolePermissionToolbar}>
-        <Dropdown label="Role" selectedKey={selectedRoleId} disabled={busy || Boolean(draft)} options={config.roles.filter(role => role.id !== 'requester').map(role => ({ key: role.id, text: role.name }))} onChange={(_, option) => { if (option) { setSelectedRoleId(String(option.key)); setMessage(''); setError(''); } }} />
+        <nav className={styles.ticketTabs} aria-label="Role permissions">{config.roles.filter(role=>role.id!=='requester').map(role=><button type="button" key={role.id} aria-current={selectedRoleId===role.id ? 'page' : undefined} className={selectedRoleId===role.id ? styles.activeNav : undefined} disabled={busy || loading || Boolean(draft)} onClick={()=>{setSelectedRoleId(role.id);setMessage('');setError('');}}>{role.name}</button>)}</nav>
         <div className={styles.ticketActions}>
         {currentRole && <DefaultButton text="Edit Permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
         <DefaultButton text="Reload Permissions" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />
