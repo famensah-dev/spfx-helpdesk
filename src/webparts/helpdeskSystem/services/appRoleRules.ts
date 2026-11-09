@@ -11,6 +11,9 @@ function matchesUser(person: IUserLookup | undefined, userId: number, email: str
 export function isTicketSubmittedBy(ticket: ITicket, userId: number, email: string, aadId?: string): boolean {
   return matchesUser(ticket.Requester, userId, email, aadId) || matchesUser(ticket.CreatedBy, userId, email, aadId);
 }
+export function isTicketCreator(ticket: ITicket, userId: number, email: string, aadId?: string): boolean {
+  return matchesUser(ticket.CreatedBy,userId,email,aadId);
+}
 export function isAgentCreatedTicket(ticket: ITicket, service: ITicketDataSource | undefined, userId = 0): boolean {
   return Boolean((service?.roleRules?.id === 'agent' || service?.access?.agent) && matchesUser(ticket.CreatedBy, userId, service?.access?.email || '', service?.access?.oid));
 }
@@ -55,14 +58,18 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.updateTicket) result.updateTicket = role.actions.some(action => action === 'edit' || action === 'status') ? async (id, input) => {
     const ticket = await requireTicket(id);
     const contentChanged = input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined || input.requestedById !== undefined || input.requesterName !== undefined || input.requesterEmail !== undefined || input.dueDate !== undefined || input.department !== undefined || input.ticketSource !== undefined;
+    if ((input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description)) && !matchesUser(ticket.CreatedBy,userId,email,aadId)) throw new Error('Only the ticket creator can change its title or description.');
+    if(input.requestedById!==undefined || input.requesterName!==undefined || input.requesterEmail!==undefined)throw new Error('Requester details cannot be changed after ticket creation.');
+    if(role.id==='agent' && input.assignedToId !== (ticket.AssignedTo?.Id || null) && !createdByAgent(ticket))throw new Error('Agents can assign only tickets they created.');
+    if(role.id==='agent' && input.status==='Closed' && ticket.Status!=='Closed')throw new Error('Agents cannot close tickets.');
     const submittedAgent = role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId);
     const statusSummary = submittedAgent && input.status !== ticket.Status && ['Resolved','Completed','Closed'].includes(input.status) && Boolean(input.resolutionSummary?.trim());
-    if (contentChanged || (input.resolutionSummary !== undefined && !statusSummary) || input.priority !== ticket.Priority || (input.assignedToId !== (ticket.AssignedTo?.Id || null) && !createdByAgent(ticket))) await requireManagedTicket(id);
+    if ((contentChanged && !createdByAgent(ticket)) || (input.resolutionSummary !== undefined && !statusSummary) || input.priority !== ticket.Priority || (input.assignedToId !== (ticket.AssignedTo?.Id || null) && !createdByAgent(ticket))) await requireManagedTicket(id);
     if (input.resolutionSummary !== undefined) {
       requireAction('edit');
       if (!input.resolutionSummary.trim() && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can clear the resolution summary.');
     }
-    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin && !(role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId))) throw new Error('Only Helpdesk Admins or an agent who submitted the request can close tickets.');
+    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
     if (contentChanged) requireAction('edit');
     if (input.status !== ticket.Status) requireAction('status');
     if (input.priority !== ticket.Priority) requireAction('priority');
@@ -72,14 +79,18 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.updateTickets) result.updateTickets = role.actions.some(action => ['status', 'priority', 'assign', 'archive'].includes(action)) ? async (ids, action) => {
     if (action.kind !== 'assign') requireAction(action.kind);
     for (const id of ids) {
+      const checked=await requireTicket(id);
+      if(role.id==='agent' && action.kind==='assign' && !createdByAgent(checked))throw new Error('Agents can assign only tickets they created.');
+      if(role.id==='agent' && action.kind==='status' && action.status==='Closed')throw new Error('Agents cannot close tickets.');
       if (action.kind === 'assign' && createdByAgent(await requireTicket(id))) continue;
       if (action.kind === 'assign') requireAction('assign');
       const ticket = action.kind === 'status' ? await requireTicket(id) : await requireManagedTicket(id);
-      if (action.kind === 'status' && action.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin && !(role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId))) throw new Error('Only Helpdesk Admins or an agent who submitted the request can close tickets.');
+      if (action.kind === 'status' && action.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
     }
     return source.updateTickets!(ids, action);
   } : undefined;
   if (source.getComments) result.getComments = async id => { await requireTicket(id); return source.getComments!(id); };
+  if(source.deleteComment)result.deleteComment=async(id,commentId)=>{requireAction('comment');await requireTicket(id);await source.deleteComment!(id,commentId);};
   if (source.getHistory) result.getHistory = async id => { await requireTicket(id); return source.getHistory!(id); };
   if (source.markCommentAsSolution) result.markCommentAsSolution = source.access?.admin || source.access?.superAdmin ? async (id, commentId, replace) => { requireAction('edit'); await requireTicket(id); await source.markCommentAsSolution!(id,commentId,replace); } : undefined;
   if (source.addComment) result.addComment = role.actions.includes('comment') ? async (id, text, options) => { requireAction('comment'); await requireTicket(id); await source.addComment!(id, text, options); } : undefined;

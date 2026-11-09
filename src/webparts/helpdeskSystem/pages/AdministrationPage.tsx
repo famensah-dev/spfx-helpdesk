@@ -26,7 +26,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const availableTabs = tabs.filter(tab => (tab.key !== 'schema' || !props.service.access || props.service.access.superAdmin) && (tab.key !== 'members' || props.service.members) && (tab.key !== 'units' || props.service.supportUnits) && (tab.key === 'units' || tab.key === 'members' || tab.key === 'schema' || canUse(props.service, tab.key === 'sla' ? 'sla' : tab.key === 'faqs' ? 'manageFaqs' : 'classifications')));
   const [localPage, setLocalPage] = React.useState<AdminSection>('home');
   const requestedPage = props.section || localPage;
-  const page: AdminSection = requestedPage === 'home' ? props.service.supportUnits ? 'assignment' : availableTabs[0]?.key || (props.service.roleManagement ? 'roles' : props.service.notifications?.canManage ? 'email' : 'assignment') : requestedPage;
+  const page: AdminSection = requestedPage === 'home' ? props.service.roleManagement ? 'roles' : props.service.supportUnits ? 'assignment' : availableTabs[0]?.key || (props.service.notifications?.canManage ? 'email' : 'assignment') : requestedPage;
   const setPage=(value:AdminSection):void=>{if(props.onSectionChange)props.onSectionChange(value);else setLocalPage(value);};
   const [data, setData] = React.useState<IAdminData | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -81,7 +81,7 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const hubLinks:IHelpdeskSettingLink[]=availableTabs.map(tab=>({key:tab.key,title:tab.text,...settingDescriptions[tab.key]}));
   if(props.service.notifications?.canManage)hubLinks.push({key:'email',title:'Email & Notifications',description:'Configure email templates, recipients and ticket notifications.',icon:'Mail',group:'Automation'});
   if(props.service.supportUnits)hubLinks.push({key:'assignment',title:'Assignment',description:'Enable category-based assignment through support teams.',icon:'Flow',group:'Automation'});
-  if(props.service.roleManagement)hubLinks.push({key:'roles',title:'Users & Roles',description:'Manage app access and role permissions. Super Admin only.',icon:'Permissions',group:'People & Teams'});
+  if(props.service.roleManagement)hubLinks.unshift({key:'roles',title:'Users & Roles',description:'Manage app access and role permissions.',icon:'Permissions',group:'People & Teams'});
   if(!hubLinks.some(link=>link.key===page))return <MessageBar messageBarType={MessageBarType.error}>You do not have access to this settings page.</MessageBar>;
   
   const modal = {isBlocking: true, styles: {main: {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760, borderRadius: 6, selectors: {'@media (min-width: 480px)': {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760}}}}};

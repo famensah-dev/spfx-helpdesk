@@ -10,7 +10,7 @@ export interface ITicketCreationOptions { departments?:Array<{key:string;name:st
 export interface ITicketEdit { requestedById?: number | null; requesterName?: string; requesterEmail?: string; dueDate?: string; department?: string; ticketSource?: string; resolutionSummary?: string; title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; }
 export interface ITicketAttachment { name: string; url: string; previewUrl?:string; contentUrl?:string; size?: number; created?: string; author?: string; }
 export interface ICommentPostOptions { html?: string; files?: File[]; requestId?: string; onProgress?: (message: string) => void; }
-export interface ITicketComment { html?: string; id: string; text: string; author: string; created: string; attachments?: ITicketAttachment[]; attachmentError?: string; }
+export interface ITicketComment { canDelete?: boolean; html?: string; id: string; text: string; author: string; created: string; attachments?: ITicketAttachment[]; attachmentError?: string; }
 export interface ITicketVersion { id: string; modified: string; author: string; }
 export type TicketBulkAction = { kind: 'status'; status: TicketStatus } | { kind: 'priority'; priority: TicketPriority } | { kind: 'assign'; userId: number | null } | { kind: 'archive'; archived?: boolean };
 export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: number; message: string }>; }
@@ -52,6 +52,7 @@ export interface ITicketDataSource {
   deleteArchivedTickets?(ids: number[]): Promise<ITicketBulkResult>;
   updateTicket?(id: number, input: ITicketEdit): Promise<void>;
   getComments?(id: number): Promise<ITicketComment[]>;
+  deleteComment?(id:number,commentId:string):Promise<void>;
   markCommentAsSolution?(id: number, commentId: string, replaceExisting?: boolean): Promise<void>;
   addComment?(id: number, text: string, options?: ICommentPostOptions): Promise<void>;
   getHistory?(id: number): Promise<ITicketVersion[]>;

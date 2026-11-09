@@ -50,7 +50,8 @@ export async function createSharePointService(context: WebPartContext, listName:
   const currentUserData = await currentUserResponse.json();
   const currentUserId = Number((currentUserData.d || currentUserData).Id);
   if (!Number.isInteger(currentUserId) || currentUserId < 1) throw new Error('Unable to identify your SharePoint user.');
-  const role = superAdmin ? { id: 'superAdmin', name: 'Super Admin', scope: 'all' as const, actions: [...roleActions] } : groupRole ? configuration.roles.find(item=>item.id===groupRole) || defaultRoleConfiguration().roles.find(item=>item.id===groupRole) : undefined;
+  const configuredRole = superAdmin ? { id: 'superAdmin', name: 'Super Admin', scope: 'all' as const, actions: [...roleActions] } : groupRole ? configuration.roles.find(item=>item.id===groupRole) || defaultRoleConfiguration().roles.find(item=>item.id===groupRole) : undefined;
+  const role = configuredRole?.id === 'admin' ? {...configuredRole,actions:[...new Set([...configuredRole.actions,'classifications','manageFaqs','sla'] as typeof configuredRole.actions)]} : configuredRole;
   if (!role) throw new Error('You do not have access to this DeskPilot workspace. Contact your helpdesk administrator to request access.');
   const admin = role.id === 'admin';
   const provider = await context.aadTokenProviderFactory.getTokenProvider();
@@ -93,6 +94,16 @@ export async function createSharePointService(context: WebPartContext, listName:
   }
   tickets.notificationEnabled=()=>mail.enabled();
   tickets.onTicketChanged=(ticket,before,created)=>mail.changed(ticket,before,created);
+  if(admin){
+    source.roleManagement=roles;
+    const administration=source.administration!;
+    const rejectSchema=async():Promise<never>=>{throw new Error('Ticket list schema requires Super Admin access.');};
+    source.administration={
+      getData:page=>page==='schema' ? rejectSchema() : administration.getData(page),
+      getLookupColumns:rejectSchema,saveColumn:rejectSchema,deleteColumn:rejectSchema,
+      saveEntry:administration.saveEntry.bind(administration),deleteEntry:administration.deleteEntry.bind(administration)
+    };
+  }
   if (superAdmin) {
     source.deleteArchivedTickets=ids=>tickets.recycleArchivedTickets(ids);
     source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles,siteUrl);

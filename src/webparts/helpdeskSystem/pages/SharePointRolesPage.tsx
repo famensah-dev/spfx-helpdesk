@@ -80,7 +80,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     {!config ? <><Spinner label="Loading roles..." /><DefaultButton text="Retry" onClick={() => { load().catch(() => undefined); }} /></> : <>
       {tab === 'roles' && <>
       <div className={styles.rolePermissionToolbar}>
-        <Dropdown label="Role" selectedKey={selectedRoleId} disabled={busy || Boolean(draft)} options={config.roles.map(role => ({ key: role.id, text: role.name }))} onChange={(_, option) => { if (option) { setSelectedRoleId(String(option.key)); setMessage(''); setError(''); } }} />
+        <Dropdown label="Role" selectedKey={selectedRoleId} disabled={busy || Boolean(draft)} options={config.roles.filter(role => role.id !== 'requester').map(role => ({ key: role.id, text: role.name }))} onChange={(_, option) => { if (option) { setSelectedRoleId(String(option.key)); setMessage(''); setError(''); } }} />
         <div className={styles.ticketActions}>
         {currentRole && <DefaultButton text="Edit Permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
         <DefaultButton text="Reload Permissions" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />

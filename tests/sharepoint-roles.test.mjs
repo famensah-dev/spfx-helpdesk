@@ -69,12 +69,12 @@ test('agents retain submitted requests after another agent receives them without
   assert.deepEqual((await service.getTickets()).tickets.map(ticket => ticket.Id), [1,3,4]);
   await service.getHistory(4); await service.addComment(4, 'Following up');
   await service.updateTicket(4, { title: submitted.Title, status: 'Resolved', priority: 'Low', assignedToId: 8, resolutionSummary: 'My request has been fulfilled.' });
-  await service.updateTickets([4], { kind: 'status', status: 'Closed' });
+  await assert.rejects(service.updateTickets([4], { kind: 'status', status: 'Closed' }), /Agents cannot close/);
   await service.updateTickets([4], { kind: 'status', status: 'In Progress' });
   await service.updateTickets([3], { kind: 'status', status: 'Pending' });
-  await assert.rejects(service.updateTicket(4, { title: 'Changed content', status: 'Resolved', priority: 'Low', assignedToId: 8 }), /Only tickets assigned/);
+  await service.updateTicket(4, { title: 'Changed content', status: 'Resolved', priority: 'Low', assignedToId: 8 });
   await assert.rejects(service.updateTickets([2], { kind: 'status', status: 'Resolved' }), /outside/);
-  await assert.rejects(service.updateTickets([1], { kind: 'status', status: 'Closed' }), /submitted the request/);
+  await assert.rejects(service.updateTickets([1], { kind: 'status', status: 'Closed' }), /Agents cannot close/);
   assert.equal(writes.length, 5);
   assert.equal(ticketInScope({ ...submitted, CreatedBy: { AadId: 'creator-guid' } }, role, 0, '', 'CREATOR-GUID'), true);
   assert.equal(ticketInScope({ ...submitted, CreatedBy: { Email: 'AGENT@example.com' } }, role, 0, 'agent@example.com'), true);
@@ -82,7 +82,7 @@ test('agents retain submitted requests after another agent receives them without
 });
 test('Agent cannot assign, reprioritize or archive through normal app calls', async () => {
   const { service, writes } = fixture();
-  for (const action of [{ kind: 'assign', userId: 8 }, { kind: 'priority', priority: 'High' }, { kind: 'archive' }]) await assert.rejects(service.updateTickets([1], action), /does not allow/);
+  for (const action of [{ kind: 'assign', userId: 8 }, { kind: 'priority', priority: 'High' }, { kind: 'archive' }]) await assert.rejects(service.updateTickets([1], action), /does not allow|only tickets they created/);
   await assert.rejects(service.createTicket({ title: 'New', assignedToId: 8 }), /does not allow/);
   await assert.rejects(service.updateTicket(1, { title: 'Assigned', status: 'New', priority: 'High', assignedToId: 7 }), /does not allow/);
   await service.updateTickets([1], { kind: 'status', status: 'In Progress' });

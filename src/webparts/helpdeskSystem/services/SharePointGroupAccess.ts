@@ -46,6 +46,9 @@ export class SharePointGroupAccess {
       return {resource:name,action:!group?'Create SharePoint group with Read permission only':group.Description===pendingDescription?'Complete Read permission initialization':'Reuse SharePoint group; preserve its current permissions'};
     });
   }
+  public async managementPrincipal():Promise<number | undefined>{
+    return (await this.groups()).find(group=>group.Title.toLowerCase()===deskPilotGroups.admin.toLowerCase())?.Id;
+  }
   /** Read existing role-group membership only; never expose the private access configuration. */
   public async members():Promise<IOrganizationUser[]>{
     const groups=await this.groups();

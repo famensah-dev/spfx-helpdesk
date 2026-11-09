@@ -11,8 +11,8 @@ export class SharePointRoleManagement implements IRoleManagement {
   private readonly users: string;
   private itemId?: number;
   private etag?: string;
-  private identity?: { user: number; owners: number; read: number; full: number };
-  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>;initialize?():Promise<Array<{Id:number}>>},private groupRole?:'agent'|'admin'|'requester',siteUrl=context.pageContext.web.absoluteUrl) {
+  private identity?: { user: number; owners: number; read: number; full: number; administrators?:number };
+  public constructor(private context: WebPartContext, private owner: boolean, private groups?: {sync(assignments:IRoleConfiguration['assignments'],previousUserIds:number[]):Promise<void>;initialize?():Promise<Array<{Id:number}>>;managementPrincipal?():Promise<number|undefined>},private groupRole?:'agent'|'admin'|'requester',siteUrl=context.pageContext.web.absoluteUrl) {
     this.web = `${siteUrl.replace(/\/$/, '')}/_api/web`;
     this.root = `${this.web}/lists/getbytitle('DeskPilot Access')`;
     this.users = this.root;
@@ -48,7 +48,7 @@ export class SharePointRoleManagement implements IRoleManagement {
       const read = definitions.value.find(item => item.RoleTypeKind === 2)?.Id;
       const full = definitions.value.find(item => item.RoleTypeKind === 5)?.Id;
       if (!read || !full) throw new Error('SharePoint Read and Full Control permission levels are required.');
-      this.identity = { user: user.Id, owners: owners.Id, read, full };
+      this.identity = { user: user.Id, owners: owners.Id, read, full, administrators:await this.groups?.managementPrincipal?.() };
     }
     return this.identity;
   }
@@ -56,16 +56,17 @@ export class SharePointRoleManagement implements IRoleManagement {
     const info = await this.info();
     await this.write(`${path}/breakroleinheritance(copyRoleAssignments=false,clearSubscopes=false)`);
     // Grant administrators first, then remove every obsolete/broad grant.
-    for (const principal of new Set([info.user, info.owners])) {
+    const managers = new Set([info.owners,...(this.owner ? [info.user] : []),...(info.administrators ? [info.administrators] : [])]);
+    for (const principal of managers) {
       await this.write(`${path}/roleassignments/addroleassignment(principalid=${principal},roledefid=${info.full})`);
     }
     const existing = await this.read<{ value: Array<{ PrincipalId: number }> }>(`${path}/roleassignments?$select=PrincipalId`);
     for (const assignment of existing.value) {
-      if (assignment.PrincipalId !== info.user && assignment.PrincipalId !== info.owners) {
+      if (!managers.has(assignment.PrincipalId)) {
         await this.write(`${path}/roleassignments/getbyprincipalid(${assignment.PrincipalId})`, undefined, { 'X-HTTP-Method': 'DELETE' });
       }
     }
-    if (userId && userId !== info.user && userId !== info.owners) await this.write(`${path}/roleassignments/addroleassignment(principalid=${userId},roledefid=${info.read})`);
+    if (userId && !managers.has(userId)) await this.write(`${path}/roleassignments/addroleassignment(principalid=${userId},roledefid=${info.read})`);
   }
   private async ensureList(path: string, title: string): Promise<void> {
     const response = await this.context.spHttpClient.get(`${path}?$select=Id`, SPHttpClient.configurations.v1);
@@ -128,7 +129,7 @@ export class SharePointRoleManagement implements IRoleManagement {
     }
   }
   public async load(): Promise<IRoleConfiguration> {
-    if (!this.owner) {
+    if (!this.owner && this.groupRole !== 'admin') {
       const user = await this.read<{ Id: number }>(`${this.web}/currentuser?$select=Id`);
       const fallback=async():Promise<IRoleConfiguration>=>{
         if(!this.groupRole)throw new Error('You do not have access to this DeskPilot workspace. Contact your helpdesk administrator.');
@@ -152,26 +153,35 @@ export class SharePointRoleManagement implements IRoleManagement {
       return upgradeRoleConfiguration(config);
     }
     const response = await this.context.spHttpClient.get(`${this.root}?$select=Id`, SPHttpClient.configurations.v1);
-    if (response.status === 404) return defaultRoleConfiguration();
+    const unavailable=():never=>{throw new Error('Unable to read the shared DeskPilot user configuration. A Super Admin must open this workspace to publish access for the DeskPilot Helpdesk Administrator group, then reload Users & Roles. No empty user configuration has been loaded.');};
+    if (response.status === 404) { if(!this.owner)return unavailable(); return defaultRoleConfiguration(); }
     if (!response.ok) throw new Error('Unable to load private DeskPilot configuration.');
     const fields = await this.read<{ value: Array<{ InternalName: string }> }>(`${this.root}/fields?$select=InternalName&$filter=InternalName eq 'Rules'`);
-    if (!fields.value.length) return defaultRoleConfiguration();
+    if (!fields.value.length) { if(!this.owner)return unavailable(); return defaultRoleConfiguration(); }
     const data = await this.read<{ value: Array<AccessItem & { 'odata.etag'?: string; '@odata.etag'?: string }> }>(`${this.root}/items?$select=Id,Rules&$filter=Title eq 'Configuration'&$top=2`);
-    if (!data.value.length) return defaultRoleConfiguration();
+    if (!data.value.length) { if(!this.owner)return unavailable(); return defaultRoleConfiguration(); }
     if (data.value.length !== 1) throw new Error('DeskPilot Access must contain exactly one Configuration item.');
     const item = await this.configurationItem(data.value[0].Id);
     const config = upgradeRoleConfiguration(JSON.parse(item.Rules) as IRoleConfiguration);
     this.itemId = item.Id; this.etag = item.etag;
-    await this.ensureList(this.root, 'DeskPilot Access');
-    await this.secure(`${this.root}/items(${item.Id})`);
-    await this.sync(config);
+    if(this.owner){
+      await this.ensureList(this.root, 'DeskPilot Access');
+      await this.secure(`${this.root}/items(${item.Id})`);
+      await this.sync(config);
+    }
     return config;
   }
   public async save(configuration: IRoleConfiguration): Promise<void> {
-    if (!this.owner) throw new Error('Only SharePoint site owners can manage DeskPilot roles.');
+    if (!this.owner && this.groupRole !== 'admin') throw new Error('Only SharePoint site owners or Helpdesk Admins can manage DeskPilot roles.');
+    if(!this.owner){
+      if(!this.itemId || !this.etag)throw new Error('Reload access settings before saving.');
+      const current=await this.configurationItem(this.itemId);
+      const existing=JSON.parse(current.Rules) as IRoleConfiguration;
+      if(JSON.stringify(existing.workspace)!==JSON.stringify(configuration.workspace))throw new Error('Only Super Admins can change workspace settings.');
+    }
     validateRoleConfiguration(configuration);
     if (JSON.stringify(configuration).length > 60000) throw new Error('Too many user assignments.');
-    await this.ensureList(this.root, 'DeskPilot Access');
+    if(this.owner)await this.ensureList(this.root, 'DeskPilot Access');
     if (this.itemId) {
       if (!this.etag) throw new Error('Reload access settings before saving.');
       await this.write(`${this.root}/items(${this.itemId})`, { Rules: JSON.stringify(configuration) }, { 'IF-MATCH': this.etag, 'X-HTTP-Method': 'MERGE' });

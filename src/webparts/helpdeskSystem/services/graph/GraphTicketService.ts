@@ -268,6 +268,8 @@ export class GraphTicketService implements ITicketDataSource {
     for (let offset = 0; offset < matching.length; offset += 4) {
       result.push(...await Promise.all(matching.slice(offset,offset + 4).map(async item => {
         const comment:ITicketComment = {id:item.id,...decodeComment(text(item.fields[schema.content])),author:item.createdBy?.user?.displayName || 'Organization user',created:item.createdDateTime};
+        const age=Date.now()-Date.parse(item.createdDateTime);
+        comment.canDelete=Number(item.fields.AuthorLookupId)===this.config.currentUserId && Number.isFinite(age) && age>=0 && age<10*60*1000;
         if (item.fields.Attachments !== false) {
           try {comment.attachments = await this.attachments().list(schema.listId,Number(item.id));}
           catch (reason) {comment.attachmentError = reason instanceof Error ? reason.message : 'Unable to load files. Refresh comments to retry.';}
@@ -312,6 +314,19 @@ export class GraphTicketService implements ITicketDataSource {
   public async getAttachments(id:number): Promise<ITicketAttachment[]> {
     if (!this.context) await this.getTickets();
     return this.attachments().list(this.context!.listId,id);
+  }
+  public async deleteComment(ticketId:number,commentId:string):Promise<void>{
+    if(!/^[1-9]\d*$/.test(commentId))throw new Error('Invalid comment ID.');
+    const schema=await this.commentsContext(ticketId);
+    const item=await this.graph.get<IGraphItem>(`${schema.path}/items/${commentId}?$expand=fields`);
+    const age=Date.now()-Date.parse(item.createdDateTime);
+    if(item.fields[schema.key]!==schema.ticketKey || !this.config.currentUserId || Number(item.fields.AuthorLookupId)!==this.config.currentUserId)throw new Error('You can delete only your own comments on this ticket.');
+    if(!Number.isFinite(age)||age<0||age>=10*60*1000)throw new Error('Comments can be deleted only within 10 minutes of posting.');
+    const ticket=(await this.getTickets()).tickets.find(value=>value.Id===ticketId);
+    if(!ticket)throw new Error('Ticket is unavailable.');
+    if(String(ticket.SolutionCommentId)===commentId)throw new Error('A Helpdesk Admin must clear this comment as the solution before it can be deleted.');
+    if(Date.now()-Date.parse(item.createdDateTime)>=10*60*1000)throw new Error('The 10-minute deletion window has expired.');
+    await this.graph.delete(`${schema.path}/items/${commentId}`);
   }
   public async uploadCommentAttachments(ticketId:number,commentId:string,files:File[],progress?:(message:string)=>void): Promise<void> {
     const schema = await this.commentsContext(ticketId);
