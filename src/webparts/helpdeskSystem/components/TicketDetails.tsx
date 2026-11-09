@@ -1,7 +1,7 @@
 import { TicketActivity } from './TicketActivity';
 import { CommentComposer } from './CommentComposer';
 import { TicketDueDatePicker } from './TicketDueDatePicker';
-import { canUse, isTicketSubmittedBy } from '../services/appRoleRules';
+import { canUse, isTicketSubmittedBy, isAgentCreatedTicket } from '../services/appRoleRules';
 import type { IFaqInput } from '../interfaces/IFaq';
 import { TicketClassificationFields } from './TicketClassificationFields';
 import { RichTextEditor, RichTextContent } from './RichTextEditor';
@@ -25,6 +25,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const canManage = !handlingAgent || ticket.AssignedTo?.Email?.toLowerCase() === service?.access?.email.toLowerCase();
   const ownAgentRequest = Boolean((agent || service?.roleRules?.id === 'agent') && isTicketSubmittedBy(ticket, 0, service?.access?.email || '', service?.access?.oid));
   const canChangeStatus = canManage || ownAgentRequest;
+  const canAssignCreated = isAgentCreatedTicket(ticket, service);
   const canCloseTicket = Boolean(service?.access?.admin || service?.access?.superAdmin || ownAgentRequest);
   const heading = React.useRef<HTMLHeadingElement>(null);
   const [viewTrackingError,setViewTrackingError]=React.useState('');
@@ -299,7 +300,12 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
             <div><dt><Icon iconName="Tag" />Category</dt><dd>{ticket.Category || 'Not specified'}</dd></div>
             <div><dt><Icon iconName="Tag" />Sub Category</dt><dd>{ticket.Subcategory || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Ticket Type</dt><dd>{ticket.TicketType || 'Not specified'}</dd></div><div><dt><Icon iconName="Tag" />Issue Type</dt><dd>{ticket.IssueType || 'Not specified'}</dd></div><div><dt><Icon iconName="Work" />Department</dt><dd>—</dd></div><div><dt><Icon iconName="Calendar" />Created</dt><dd>{date(ticket.Created)}</dd></div>
             <div><dt><Icon iconName="Clock" />Last Updated</dt><dd>{date(ticket.Modified)}</dd></div>
-            <div><dt><Icon iconName="Contact" />Assigned To</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true"><PersonaCoin text={ticket.AssignedTo?.Title || 'Unassigned'} coinSize={28} /></span>{ticket.AssignedTo?.Title || 'Unassigned'}</dd></div>
+            <div><dt><Icon iconName="Contact" />Assigned To</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true"><PersonaCoin text={ticket.AssignedTo?.Title || 'Unassigned'} coinSize={28} /></span>{ticket.AssignedTo?.Title || 'Unassigned'}</dd>
+              {canAssignCreated && service?.updateTicket && <div>
+                <FormAssigneePicker label="Assign Ticket" service={service} value={assigned ? {Id:assigned,Title:assignedName} : null} disabled={saving} onBusy={setAssignmentBusy} onChange={person=>{setAssigned(person?.Id || 0);setAssignedName(person?.Title || person?.Email || 'Unassigned');}} />
+                <DefaultButton text="Save Assignment" disabled={saving || assignmentBusy || assigned === (ticket.AssignedTo?.Id || 0)} onClick={()=>{setSaving(true);setError('');void service.updateTicket!(ticket.Id,{title:ticket.Title,priority:ticket.Priority,status:ticket.Status,assignedToId:assigned || null}).then(()=>props.refresh()).catch(reason=>setError(reason instanceof Error ? reason.message : 'Unable to assign ticket.')).finally(()=>setSaving(false));}} />
+              </div>}
+            </div>
             {ticket.DueDate && <div><dt><Icon iconName="Calendar" />Due Date</dt><dd>{date(ticket.DueDate)}</dd></div>}
             <div><dt><Icon iconName="Warning" />Escalated</dt><dd>{ticket.Escalated || ticket.Status === 'Escalated' ? 'Yes' : 'No'}</dd></div>
             <div><dt><Icon iconName="Contact" />Requester</dt><dd className={styles.detailAssignee}><span className={styles.personInitials} aria-hidden="true"><PersonaCoin text={ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || 'Not available'} coinSize={28} /></span>{ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || 'Not available'}</dd></div>
