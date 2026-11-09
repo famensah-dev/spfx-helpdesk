@@ -16,6 +16,9 @@ param maximumInstanceCount int = 40
 @description('Server-only SQL profiles JSON, preferably an Azure Key Vault app-setting reference. Leave [] for SharePoint-only workspaces.')
 param sqlProfilesReference string = ''
 @secure()
+@description('Server-only PostgreSQL profiles JSON or a Key Vault app-setting reference. Leave [] for other providers.')
+param postgresProfilesReference string = ''
+@secure()
 @description('Key Vault app-setting reference: @Microsoft.KeyVault(SecretUri=https://...)')
 param apiCredentialReference string
 var storageName = 'dp${uniqueString(resourceGroup().id, functionName)}'
@@ -68,6 +71,7 @@ var settings = {
   DESKPILOT_PAGE_URL: pageUrl
   DESKPILOT_TICKETS_LIST_NAME: ticketsListName
   DESKPILOT_SQL_PROFILES: empty(sqlProfilesReference) ? '[]' : sqlProfilesReference
+  DESKPILOT_POSTGRES_PROFILES: empty(postgresProfilesReference) ? '[]' : postgresProfilesReference
   DESKPILOT_WORKER_ENABLED: 'false'
   DESKPILOT_AUTOMATION_SCHEDULE: '0 */1 * * * *'
   'AzureWebJobs.Automation.Disabled': 'true'

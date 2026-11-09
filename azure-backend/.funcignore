@@ -6,3 +6,4 @@ infra/
 README.md
 *.zip
 node_modules/typescript/
+node_modules/@electric-sql/

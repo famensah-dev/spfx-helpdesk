@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { SqlRepository, sqlPool } from './repository.mjs';
+import { openRepository } from '../database.mjs';
 import { workspaceKey } from './provider.mjs';
 const require = createRequire(import.meta.url);
 const { GraphNotificationService } = require('../../../compiled/services/graph/GraphNotificationService.js');
@@ -37,7 +37,7 @@ export async function deliverSqlEvents(repository, mail, clock = () => Date.now(
     return { processed, failed };
 }
 export async function runSqlWorker({ config, profile, graph, appConfig, workspace, units, mailbox, sitePath, lists }) {
-    const repository = new SqlRepository(await sqlPool(profile), workspaceKey(config));
+    const repository = await openRepository(profile, workspaceKey(config));
     await repository.health();
     const all = async () => (await repository.list('ticket')).map(({ id, version, ...row }) => ({ ...row, Id: id, ChangeVersion: version }));
     const mail = new GraphNotificationService(graph, appConfig, { email: mailbox, name: 'DeskPilot Automation' }, true, config.pageUrl, workspace.title, all, async (id) => (await units.load()).units.find(team => team.id === id)?.email || '');

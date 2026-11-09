@@ -1,5 +1,9 @@
 # DeskPilot Azure Setup — Step by Step
 
+**For the Azure SQL database you have already created, continue with [SQL-MIGRATION.md](SQL-MIGRATION.md)** to migrate existing SharePoint tickets. This is separate from the PostgreSQL guide.
+
+**For Azure PostgreSQL and moving existing SharePoint tickets, continue with [POSTGRESQL-SETUP.md](POSTGRESQL-SETUP.md) after the Azure backend is working.** Do not run the Azure SQL schema against PostgreSQL.
+
 This guide connects the DeskPilot SharePoint interface to an Azure Functions backend, while keeping your existing data in SharePoint lists.
 
 **Already using DeskPilot successfully? Do not recreate your resources.** Use this guide as a reference and complete only unfinished steps. SQL storage and unattended automation are separate, optional tasks at the end.

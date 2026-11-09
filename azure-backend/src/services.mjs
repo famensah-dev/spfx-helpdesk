@@ -3,12 +3,12 @@ import {ApiError,delegatedTokens} from './tokens.mjs';
 import {storageProfiles,selectProfile} from './storage/profiles.mjs';
 import {createStorageManagement} from './storage/management.mjs';
 import {createSqlProvider,workspaceKey} from './storage/sql/provider.mjs';
-import {SqlRepository,sqlPool} from './storage/sql/repository.mjs';
+import {openRepository,requireMatchingProvider} from './storage/database.mjs';
 import {BlobAttachments} from './storage/sql/attachments.mjs';
 import {createSharePointProvider} from './storage/sharepoint/provider.mjs';
 const require=createRequire(import.meta.url);
 const {GraphClient}=require('../compiled/services/graph/GraphClient.js');
-export async function createServices(config,assertion,claims,request=fetch) {
+export async function createServices(config,assertion,claims,request=fetch,{forMigration=false}={}) {
   const token=delegatedTokens(config,assertion,request);
   const graph=new GraphClient(()=>token('https://graph.microsoft.com'),request);
   const profile=await graph.get('/me?$select=id,displayName,mail,userPrincipalName');
@@ -31,10 +31,12 @@ export async function createServices(config,assertion,claims,request=fetch) {
   };
   // Group roles, own/assigned scopes, setup and mutations use the CURRENT shared services.
   const control=await createSharePointProvider(context,config);
+  if(forMigration && (!control.access.superAdmin || (control.workspaceSettings?.storage?.provider || 'sharepoint')!=='sharepoint'))throw new ApiError('Migration requires a Super Admin and a SharePoint-backed workspace.');
   const profiles=storageProfiles();
   const selected=control.workspaceSettings?.storage||{provider:'sharepoint'};
   let service=control;
-  if(selected.provider==='sql'){
+  if(['sql','postgres'].includes(selected.provider)){
+    requireMatchingProvider(selectProfile(profiles,selected.connectionId),selected.provider);
     const response=await spRequest(config.siteUrl+ '/_api/web/currentuser?$select=Id','GET');
     if(!response.ok)throw new ApiError('Unable to identify the workspace user.',403);
     const user=await response.json();
@@ -43,8 +45,8 @@ export async function createServices(config,assertion,claims,request=fetch) {
       const response=await spRequest(config.siteUrl+'/_api/web/siteusers/getbyid('+id+')?$select=Id,Title,Email','GET');if(!response.ok)throw new ApiError('Person not found.',400);const value=await response.json();return value.d||value;
     }});
   }else if(selected.provider!=='sharepoint')throw new ApiError('Unsupported workspace storage provider.',400);
-  if(control.access.superAdmin){
-    service.storageManagement=createStorageManagement({control,profiles,openDatabase:async profile=>({repository:new SqlRepository(await sqlPool(profile),workspaceKey(config)),attachments:new BlobAttachments(profile,workspaceKey(config))})});
+  if(control.access.superAdmin && !forMigration){
+    service.storageManagement=createStorageManagement({control,profiles,openDatabase:async profile=>({repository:await openRepository(profile,workspaceKey(config)),attachments:new BlobAttachments(profile,workspaceKey(config))})});
   }
   if(service.access.oid?.toLowerCase()!==claims.oid.toLowerCase())throw new ApiError('Workspace identity mismatch.',401);
   const readWorkspaceResource=async url=>{

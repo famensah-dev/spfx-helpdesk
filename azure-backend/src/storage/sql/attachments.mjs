@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { BlobServiceClient, BlobSASPermissions } from '@azure/storage-blob';
 import { ApiError } from '../../tokens.mjs';
 export class BlobAttachments {
@@ -22,4 +23,9 @@ export class BlobAttachments {
     }
     async remove(file) { if (!file.key.startsWith(this.workspace + '/'))
         throw new ApiError('Invalid attachment location.'); await this.container.getBlobClient(file.key).deleteIfExists(); }
+    async verify(file, hash) {
+        if (!file.key.startsWith(this.workspace + '/')) throw new ApiError('Invalid attachment location.');
+        const bytes = await this.container.getBlockBlobClient(file.key).downloadToBuffer();
+        if (bytes.length !== file.size || createHash('sha256').update(bytes).digest('hex') !== hash) throw new ApiError('Migrated attachment verification failed.', 409);
+    }
 }

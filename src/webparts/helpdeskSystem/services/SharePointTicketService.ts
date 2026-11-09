@@ -45,7 +45,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const groupRole=superAdmin ? undefined : await groupAccess.currentRole();
   const roles = new SharePointRoleManagement(context, superAdmin,groupAccess,groupRole,siteUrl,serverMode);
   const configuration = await roles.load();
-  if(configuration.workspace?.storage?.provider==='sql' && !serverMode)throw new Error('This workspace stores tickets in Azure SQL. Configure the DeskPilot Azure API URL and resource in the web part properties to open it. Direct SharePoint mode cannot access this workspace.');
+  if(['sql','postgres'].includes(configuration.workspace?.storage?.provider || '') && !serverMode)throw new Error('This workspace stores tickets in an Azure database. Configure the DeskPilot Azure API URL and resource in the web part properties to open it. Direct SharePoint mode cannot access this workspace.');
   const currentUserResponse = await context.spHttpClient.get(`${siteUrl}/_api/web/currentuser`, SPHttpClient.configurations.v1);
   if (!currentUserResponse.ok) throw new Error('Unable to identify your SharePoint user.');
   const currentUserData = await currentUserResponse.json();

@@ -1,0 +1,17 @@
+[
+  {
+    "id": "postgres-main",
+    "name": "DeskPilot PostgreSQL",
+    "provider": "postgres",
+    "postgres": {
+      "host": "YOUR-SERVER.postgres.database.azure.com",
+      "database": "deskpilot",
+      "user": "YOUR-FUNCTION-MANAGED-IDENTITY-NAME",
+      "authentication": "managed-identity",
+      "port": 5432
+    },
+    "blobConnectionString": "YOUR-PRIVATE-ATTACHMENT-STORAGE-CONNECTION-STRING",
+    "container": "deskpilot-attachments",
+    "departmentGroups": {}
+  }
+]

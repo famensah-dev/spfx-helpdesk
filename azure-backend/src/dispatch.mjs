@@ -1,7 +1,7 @@
 import {ApiError} from './tokens.mjs';
 import {signReview,verifyReview} from './review.mjs';
 const methods=[
-  'storageManagement.get','storageManagement.save',
+  'storageManagement.get','storageManagement.save','storageManagement.test',
   'getTickets','getPriorities','getCreationOptions','createTicket','getAttachments','uploadAttachments','uploadCommentAttachments','updateTicket','updateTickets','deleteArchivedTickets','getComments','addComment','getHistory','recordFirstResponse','markCommentAsSolution','searchUsers','resolveUser','getTeamCandidates','getFaqs','getFaqAccess','saveFaq','deleteFaq','updateFaqs','saveWorkspaceSettings',
   'ticketViews.getOpened','ticketViews.markOpened',
   'supportUnits.load','supportUnits.createUnits','supportUnits.setAutoAssignment','supportUnits.setTeamLead','supportUnits.saveUnit','supportUnits.saveMember','supportUnits.routeTicket',

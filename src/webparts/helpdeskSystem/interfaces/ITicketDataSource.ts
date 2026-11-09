@@ -17,7 +17,7 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
-  storageManagement?: { get(): Promise<{selected: {provider:'sharepoint'|'sql';connectionId?:string};connections:Array<{id:string;name:string}>;locked:boolean}>; save(value:{provider:'sharepoint'|'sql';connectionId?:string}):Promise<void>; };
+  storageManagement?: { get(): Promise<{selected: {provider:'sharepoint'|'sql'|'postgres';connectionId?:string};connections:Array<{id:string;name:string;provider?:'sql'|'postgres'}>;locked:boolean}>; test?(connectionId:string):Promise<{ok:boolean;provider:'sql'|'postgres'}>; save(value:{provider:'sharepoint'|'sql'|'postgres';connectionId?:string}):Promise<void>; };
   readWorkspaceResource?(url: string): Promise<unknown>;
   getProfilePhoto?(): Promise<string | undefined>;
   workspaceConnection?: import('../utils/workspaceConnection').IWorkspaceConnection;

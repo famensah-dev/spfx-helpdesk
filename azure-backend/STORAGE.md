@@ -1,5 +1,9 @@
 # Configurable workspace storage
 
+For existing SharePoint tickets moving to **Azure SQL**, use [SQL-MIGRATION.md](SQL-MIGRATION.md). The SQL and PostgreSQL migration entry points share source capture and verification but use separate transaction/ID handling for their database engines.
+
+Azure PostgreSQL is also supported. Follow [POSTGRESQL-SETUP.md](POSTGRESQL-SETUP.md) for its separate schema, connection profile, and SharePoint migration tool. PostgreSQL reuses the ticket, role, attachment and worker services through `storage/database.mjs`; it does not run SQL Server queries.
+
 The SPFx interface calls the same authenticated Azure API for either provider.
 Super Admins choose **Settings → General → Data Storage** in an API-connected workspace.
 SharePoint-only SPFx deployments keep their existing behaviour and do not show this setting.

@@ -3,7 +3,7 @@ export type RoleAction = typeof roleActions[number];
 export type TicketScope = 'own' | 'assigned' | 'all';
 export interface IDeskPilotRole { id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
-export interface IWorkspaceSettings { storage?: {provider:'sharepoint'|'sql';connectionId?:string;locked?:boolean}; title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
+export interface IWorkspaceSettings { storage?: {provider:'sharepoint'|'sql'|'postgres';connectionId?:string;locked?:boolean}; title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
 export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
 export interface IRoleManagement { load(): Promise<IRoleConfiguration>; save(configuration: IRoleConfiguration): Promise<void>; }
 export function assignedRole(configuration: IRoleConfiguration, userId: number): IDeskPilotRole | undefined {
@@ -18,7 +18,7 @@ export const defaultRoleConfiguration = (): IRoleConfiguration => ({ roles: [
 
 export function validateRoleConfiguration(value: IRoleConfiguration): void {
   const storage=value?.workspace?.storage;
-  if(storage && (!['sharepoint','sql'].includes(storage.provider) || (storage.provider==='sql' && !/^[a-z0-9-]{1,48}$/.test(storage.connectionId || '')) || (storage.locked!==undefined && typeof storage.locked!=='boolean')))throw new Error('Invalid workspace storage configuration.');
+  if(storage && (!['sharepoint','sql','postgres'].includes(storage.provider) || (storage.provider!=='sharepoint' && !/^[a-z0-9-]{1,48}$/.test(storage.connectionId || '')) || (storage.locked!==undefined && typeof storage.locked!=='boolean')))throw new Error('Invalid workspace storage configuration.');
   if (value?.workspace && (['title', 'description', 'listName', 'listId'] as const).some(key => typeof value.workspace![key] !== 'string')) throw new Error('Invalid workspace settings.');
   if (value?.workspace && (!value.workspace.listName.trim() || value.workspace.title.length > 255 || value.workspace.description.length > 4000 || (value.workspace.listId && !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(value.workspace.listId)))) throw new Error('Invalid workspace title, description or ticket list binding.');
   const ids = ['agent', 'admin', 'requester'];

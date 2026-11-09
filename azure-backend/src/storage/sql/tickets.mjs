@@ -63,7 +63,7 @@ export function createSqlTicketService({ repository, attachments, identity, scop
     };
     const service = {
         ...base,
-        getTickets: async () => ({ tickets: (await repository.list('ticket', { scope })).map(clean), sourceLabel: 'Azure SQL', isMockData: false, hasResolvedAt: true, hasCategory: true, hasDueDate: true, hasEscalated: false, hasPending: true, assignmentIdentityAvailable: true }),
+        getTickets: async () => ({ tickets: (await repository.list('ticket', { scope })).map(clean), sourceLabel: repository.sourceLabel || 'Azure SQL', isMockData: false, hasResolvedAt: true, hasCategory: true, hasDueDate: true, hasEscalated: false, hasPending: true, assignmentIdentityAvailable: true }),
         createTicket: async (input) => {
             if (!input || typeof input.title !== 'string' || !input.title.trim() || input.title.length > 255 || typeof input.description !== 'string' || input.description.length > 1000000)
                 throw new ApiError('Enter a ticket title and valid description.', 400);

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
-import { SqlRepository, sqlPool } from './repository.mjs';
+import { openRepository } from '../database.mjs';
 import { BlobAttachments } from './attachments.mjs';
 import { createSqlTicketService } from './tickets.mjs';
 import { sqlKnowledge } from './knowledge.mjs';
@@ -13,7 +13,7 @@ const { GraphSupportUnitsService } = require('../../../compiled/services/graph/G
 const { GraphSlaService } = require('../../../compiled/services/graph/GraphSlaService.js');
 export function workspaceKey(config) { return createHash('sha256').update(config.tenantId.toLowerCase() + '|' + config.siteUrl.toLowerCase()).digest('hex'); }
 export async function createSqlProvider({ config, profile, control, graph, identity, person }) {
-    const repository = new SqlRepository(await sqlPool(profile), workspaceKey(config));
+    const repository = await openRepository(profile, workspaceKey(config));
     const attachments = new BlobAttachments(profile, workspaceKey(config));
     await repository.health();
     await attachments.health();
@@ -49,7 +49,7 @@ export async function createSqlProvider({ config, profile, control, graph, ident
     const result = createSqlTicketService({ repository, attachments, identity, scope, base, person, route, changed: enqueue, departments: workspace.departmentFolders?.departments });
     source = result.service;
     const readTickets = source.getTickets;
-    source.getTickets = async () => ({ ...await readTickets(), ...(process.env.DESKPILOT_WORKER_ENABLED !== 'true' ? { warnings: ['SQL email delivery is queued. Enable the Azure automation worker to send queued notifications.'] } : {}) });
+    source.getTickets = async () => ({ ...await readTickets(), ...(process.env.DESKPILOT_WORKER_ENABLED !== 'true' ? { warnings: ['Database email delivery is queued. Enable the Azure automation worker to send queued notifications.'] } : {}) });
     Object.assign(source, sqlKnowledge(repository, access.superAdmin || role.actions.includes('manageFaqs'), () => control.getFaqAccess()));
     if (access.admin)
         source.supportUnits = { ...Object.fromEntries(['load', 'createUnits', 'setAutoAssignment', 'setTeamLead', 'saveUnit', 'saveMember'].map(name => [name, units[name].bind(units)])), routeTicket: async (id) => { await result.visible(id); const before = await repository.get('ticket', id); const message = await route(id); await enqueue((await source.getTickets()).tickets.find(item => item.Id === id), { status: before.Status, assignedToId: before.AssignedTo?.Id || 0 }, false); return message; } };

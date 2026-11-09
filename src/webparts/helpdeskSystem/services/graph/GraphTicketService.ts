@@ -70,7 +70,7 @@ export class GraphTicketService implements ITicketDataSource {
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
     private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>, private readonly routeNewTicket?: (id:number) => Promise<string>) {}
-  public async getPriorities(): Promise<string[]> { if (!this.editSchema) await this.getTickets(); return [...this.editSchema!.priorities]; }
+  public async getPriorities(): Promise<string[]> { if (!this.editSchema) await this.loadTicketData(true); return [...this.editSchema!.priorities]; }
   public async searchUsers(query: string, department?: string): Promise<IOrganizationUser[]> {
     if (!this.directory) throw new Error('Organization user search is not configured.');
     const escape = (value: string): string => value.replace(/'/g, "''");
@@ -392,7 +392,7 @@ export class GraphTicketService implements ITicketDataSource {
     return result;
   }
   public async getCreationOptions(): Promise<ITicketCreationOptions> {
-    if (!this.creationSchema) await this.getTickets();
+    if (!this.creationSchema) await this.loadTicketData(true);
     if (!this.creationSchema) throw new Error('Configure New as a Status choice before creating tickets.');
     const classification = await loadClassification(this.graph, this.context!.sitePath, this.context!.lists, this.config.resourceIds);
     return {departments:this.folderStore?.policy.departments,ticketSources:this.requesterFields?.sourceChoices || ['DeskPilot','Email','Forms','Phone / Call-in','Other'],classification, priorities:this.creationSchema.choices, description:Boolean(this.creationSchema.description), assignment:Boolean(this.updateSchema?.choices.includes('New')), fields:this.creationFields.filter(field=>!this.folderStore || field.key!=='department').map(field => ({key:field.key,label:field.label,choices:field.column.choice?.choices,required:field.column.required}))};
@@ -493,7 +493,8 @@ export class GraphTicketService implements ITicketDataSource {
     }
     } finally {if(Number.isSafeInteger(Number(created?.id)) && Number(created.id)>0)await this.notifyChange(Number(created.id),undefined,true);}
   }
-  public async getTickets(): Promise<ITicketQueryResult> {
+  public async getTickets(): Promise<ITicketQueryResult> { return this.loadTicketData(false); }
+  private async loadTicketData(schemaOnly: boolean): Promise<ITicketQueryResult> {
     const url = new URL(this.config.siteUrl);
     const site = this.config.siteId ? { id: this.config.siteId } : await this.graph.get<{ id: string }>(`/sites/${url.hostname}:${url.pathname}?$select=id`);
     const sitePath = `/sites/${encodeURIComponent(site.id)}`;
@@ -555,6 +556,8 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
     const fields = [...(this.updateSchema.pause?[this.updateSchema.pause]:[]), "AuthorLookupId", ...(requesterName ? [requesterName.name] : []), ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    // Database-backed providers reuse creation metadata, not the old SharePoint ticket rows.
+    if (schemaOnly) return { tickets: [], isMockData: false, sourceLabel: 'SharePoint Schema', hasResolvedAt: Boolean(resolved), hasCategory: Boolean(category), hasDueDate: Boolean(due), hasEscalated: Boolean(escalated), hasPending: Boolean(status.choice?.choices.includes('Pending')), assignmentIdentityAvailable: true, warnings: [] };
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];

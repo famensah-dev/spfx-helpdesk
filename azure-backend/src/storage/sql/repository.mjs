@@ -9,6 +9,10 @@ export async function sqlPool(profile) {
     }
     return pools.get(profile.id);
 }
+export async function closeSqlPools() {
+    const current = [...pools.values()]; pools.clear();
+    await Promise.all(current.map(async value => (await value).close()));
+}
 export class SqlRepository {
     constructor(pool, workspace) { this.pool = pool; this.workspace = workspace; }
     request(kind) { return this.pool.request().input('workspace', sql.NVarChar(64), this.workspace).input('kind', sql.NVarChar(32), kind); }

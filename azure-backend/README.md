@@ -1,5 +1,9 @@
 # Set Up DeskPilot in Azure
 
+**Using Azure SQL with existing SharePoint tickets? Follow [SQL-MIGRATION.md](SQL-MIGRATION.md)** for the connection test and separate preview, copy, verification and activation commands.
+
+**Moving existing SharePoint tickets to Azure PostgreSQL? Follow [POSTGRESQL-SETUP.md](POSTGRESQL-SETUP.md).** It covers database creation, identity access, storage profiles, and a reviewed copy/activation procedure. The Azure SQL instructions below are a separate storage option.
+
 Follow these steps in order. First connect the Azure backend to your **existing SharePoint lists**.
 Once that works, you can add Azure SQL using Step 10.
 
@@ -506,3 +510,7 @@ Local frontend/backend builds and automated tests have been run. These do not ve
 tenant, database, networking, mailbox, or deployment. Complete Step 9 before staff use.
 Large SharePoint lists still need paging/caching improvements; Azure hosting alone does not remove
 the existing full-list queries.
+
+
+
+
