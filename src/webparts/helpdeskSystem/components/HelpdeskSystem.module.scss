@@ -1672,3 +1672,24 @@
   &[data-placeholder-category='workspace'] { background:#e8eef6; border-color:#ccd9ea; color:#173451 !important; }
 }
 .emailPlaceholderBadge button { color:inherit !important; &:hover { background:rgba(20,40,65,.1); } }
+.mobileTicketHeader, .mobileTicketTools, .mobileTicketCards { display:none; }
+@media (max-width: 640px) {
+  .pageContent.ticketPage.mobileTicketPage { padding:10px 8px 72px; min-width:0; }
+  .mobileTicketPage > .ticketTabs, .mobileTicketPage .ticketToolbar, .mobileTicketPage .mobileTableHint, .mobileTicketPage > .ticketListCard > .tableContainer { display:none; }
+  .mobileTicketPage > .ticketListCard { padding:0; margin:0; border:0; box-shadow:none; background:transparent; min-width:0; }
+  .mobileTicketHeader { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; h2 { margin:0; font-size:20px; font-weight:600; } > button { min-height:40px; border-radius:6px; } }
+  .mobileTicketTools { display:flex; flex-direction:column; gap:10px; padding:12px; margin-bottom:12px; background:var(--dp-bg-fff, #fff); border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:8px; :global(.ms-SearchBox) { height:40px; } }
+  .mobileTicketToolRow { display:flex; align-items:center; gap:6px; min-width:0; > :first-child { flex:1; min-width:0; } > button { flex-shrink:0; min-width:36px; height:40px; border-radius:5px; } :global(.ms-Dropdown-title) { height:40px; line-height:38px; padding-right:24px; } :global(.ms-Dropdown-caretDownWrapper) { height:40px; line-height:40px; } }
+  .mobileTicketFilterSummary { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--dp-fg-526783, #526783); span { flex:1; overflow-wrap:anywhere; } button { border:0; padding:6px; background:transparent; color:var(--dp-fg-172536, #172536); text-decoration:underline; cursor:pointer; } }
+  .mobileTicketCards { display:block; min-width:0; }
+  .mobileTicketSelection { margin:0 0 10px; color:var(--dp-fg-526783, #526783); font-size:13px; .ticketCountContent { padding:0; display:block; } .bulkActions { display:flex; flex-wrap:wrap; gap:6px; } }
+  .mobileTicketCard { display:flex; gap:8px; align-items:flex-start; padding:14px; margin-bottom:10px; border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:9px; background:var(--dp-bg-fff, #fff); &[data-selected='true'] { border-color:var(--dp-fg-006bff, #006bff); } > :global(.ms-Checkbox) { margin-top:4px; flex-shrink:0; } }
+  .mobileTicketCardOpen { display:flex; flex:1; flex-direction:column; gap:9px; min-width:0; width:100%; padding:0; border:0; background:transparent; color:var(--dp-fg-172536, #172536); text-align:left; font:inherit; cursor:pointer; &:focus-visible { outline:2px solid var(--dp-fg-006bff, #006bff); outline-offset:5px; border-radius:3px; } }
+  .mobileTicketCardTop { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12px; color:var(--dp-fg-526783, #526783); > span:first-child { display:flex; align-items:center; gap:6px; } .statusPill { white-space:normal; text-align:right; } }
+  .mobileTicketUnread { color:#e5ad00; font-size:16px; }
+  .mobileTicketCardTitle { font-size:15px; font-weight:600; line-height:1.5; overflow-wrap:anywhere; }
+  .mobileTicketCardBottom { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; font-size:12px; line-height:1.5; > span:first-child { flex:1 1 140px; min-width:0; overflow-wrap:anywhere; color:var(--dp-fg-526783, #526783); } .priorityLabel { white-space:nowrap; } }
+  .mobileTicketCardAgent { font-size:12px; color:var(--dp-fg-526783, #526783); overflow-wrap:anywhere; }
+  .mobileTicketFilterFields { display:flex; flex-direction:column; gap:18px; padding:12px 0; > button { min-height:40px; } }
+  .mobileTicketPage .pagination { flex-wrap:wrap; gap:6px; }
+}

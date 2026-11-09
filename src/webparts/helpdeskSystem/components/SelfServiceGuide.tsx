@@ -109,7 +109,7 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
       onPointerUp={finishDrag} onPointerCancel={finishDrag}
       onLostPointerCapture={() => { drag.current = undefined; setDragging(false); }}
       onClick={event => { if (suppressClick.current && event.detail !== 0) { suppressClick.current = false; return; } setOpen(true); }}
-      aria-label="Open self-service help"><Icon iconName="Chat" />Need Help?</button>
+      aria-label="Open self-service help"><Icon iconName="Chat" /><span className={styles.launcherText}>Need Help?</span></button>
     <Panel isOpen={open} onDismiss={() => { if (!loading) setOpen(false); }} type={PanelType.custom} customWidth="440px" headerText="Quick Help" closeButtonAriaLabel="Close Quick Help" isLightDismiss={!loading} styles={{ main: { maxWidth: '100vw' }, content: { padding: 20 }, commands: { paddingTop: 0 }, navigation: { alignItems: 'center', minHeight: 64, padding: '12px 20px', boxSizing: 'border-box' }, header: { padding: 0, alignSelf: 'center', minWidth: 0 }, headerText: { margin: 0, lineHeight: '32px' }, closeButton: { margin: 0, width: 32, height: 32, background: 'transparent', border: 0, color: "var(--dp-fg-52647a, #52647a)" } }}>
       <div className={styles.guide}>
         <p className={styles.intro}>Find a helpful article or let us help you create a support ticket.</p>

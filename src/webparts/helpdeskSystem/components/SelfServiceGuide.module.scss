@@ -13,3 +13,8 @@
 .launcher { touch-action: none; user-select: none; }
 
 .noMatchLink { padding: 3px 0; border: 0; background: transparent; color: var(--dp-fg-172536, #172536); font: 400 13px/1.5 'Segoe UI',sans-serif; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; &:hover { color: var(--dp-fg-101e32, #101e32); } &:focus-visible { outline: 2px solid var(--dp-line-00899b, #00899b); outline-offset: 3px; } }
+.launcherText { display:inline; }
+@media (max-width:640px) {
+  .launcher { width:46px; height:46px; padding:0; justify-content:center; gap:0; border-radius:50%; right:12px; bottom:12px; font-size:19px; }
+  .launcherText { display:none; }
+}
