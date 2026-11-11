@@ -83,7 +83,7 @@ export class GraphFaqService {
     if(this.actor.admin)return true;
     if(!this.actor.agent)return false;
     const publisher=schema.publisherEmail ? String(fields[schema.publisherEmail] || '').trim().toLowerCase() : '';
-    const owns=publisher ? publisher===this.config.currentUserEmail?.trim().toLowerCase() : Boolean(this.config.currentUserId && Number(fields.AuthorLookupId)===this.config.currentUserId);
+    const owns=Boolean(this.config.currentUserId && Number(fields.AuthorLookupId)===this.config.currentUserId) || Boolean(publisher && publisher===this.config.currentUserEmail?.trim().toLowerCase());
     return owns || Boolean(schema.agentEditing && fields[schema.agentEditing]===true);
   }
   public async getFaqs(manage = false): Promise<IFaq[]> {
@@ -92,7 +92,7 @@ export class GraphFaqService {
     const fields = schema.fields;
     const access=await this.getAccess();
     const [lookupOptions, items] = await Promise.all([this.lookupOptions(schema), this.graph.getAll<{ id: string; lastModifiedDateTime: string; fields: Record<string, unknown> }>(`${schema.path}/items?$expand=fields&$top=200`)]);
-    return items.filter(item => manage || item.fields[fields.published] === true).map(item => ({
+    return items.filter(item => manage || item.fields[fields.published] === true || Boolean(access.canEditArticles && this.mayEdit(item.fields,schema))).map(item => ({
       id: Number(item.id), canEdit:Boolean(access.canEditArticles && this.mayEdit(item.fields,schema)), publisherEmail:schema.publisherEmail ? String(item.fields[schema.publisherEmail] || '') : undefined, agentEditingEnabled:Boolean(schema.agentEditing && item.fields[schema.agentEditing]===true), question: String(item.fields[fields.question] || ''), answer: String(item.fields[fields.answer] || ''),
       categoryId: schema.categoryColumn.lookup ? String(item.fields[`${fields.category}LookupId`] || '') : undefined,
       category: lookupOptions.categoryOptions?.find(value => value.id === String(item.fields[`${fields.category}LookupId`]))?.name || String(item.fields[fields.category] || ''),
@@ -106,7 +106,7 @@ export class GraphFaqService {
     const access = await this.getAccess(true);
     if(id!==undefined && (!Number.isSafeInteger(id) || id<=0))throw new Error('Invalid article ID.');
     const current=id ? await this.graph.get<{fields:Record<string,unknown>;eTag?:string}>(schema.path+'/items/'+id+'?$expand=fields') : undefined;
-    if(draftOnly ? (!access.canSubmitDraft || id!==undefined || input.published) : current ? (!access.canEditArticles || !this.mayEdit(current.fields,schema)) : !access.canCreate)throw new Error('Only the publisher, a Helpdesk Admin, or an agent allowed to edit this article can save it.');
+    if(draftOnly ? (!access.canSubmitDraft || id!==undefined || input.published) : current ? (!access.canEditArticles || !this.mayEdit(current.fields,schema)) : !access.canCreate)throw new Error('Only the creator, publisher, a Helpdesk Admin, or an agent allowed to edit this article can save it.');
     const storedGrant=Boolean(current && schema.agentEditing && current.fields[schema.agentEditing]===true);
     if(input.agentEditingEnabled!==undefined && input.agentEditingEnabled!==storedGrant && !this.actor.admin)throw new Error('Only a Helpdesk Admin can change agent editing access.');
     if(input.agentEditingEnabled && !schema.agentEditing)throw new Error('Initialize workspace to add Knowledge Base editing permissions.');

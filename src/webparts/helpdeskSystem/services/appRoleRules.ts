@@ -49,11 +49,11 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   };
   if (source.createTicket) result.createTicket = role.actions.includes('create') ? async input => {
     requireAction('create');
-    if (input.assignedToId !== null && input.assignedToId !== undefined) requireAction('assign');
+    if (input.assignedToId !== null && input.assignedToId !== undefined && role.id!=='agent') requireAction('assign');
     await source.createTicket!(input);
   } : undefined;
   if (source.getCreationOptions) result.getCreationOptions = async () => {
-    const options = await source.getCreationOptions!(); return { ...options, assignment: options.assignment && role.actions.includes('assign') };
+    const options = await source.getCreationOptions!(); return { ...options, assignment: options.assignment && (role.actions.includes('assign') || (role.id==='agent' && role.actions.includes('create'))) };
   };
   if (source.updateTicket) result.updateTicket = role.actions.some(action => action === 'edit' || action === 'status') ? async (id, input) => {
     const ticket = await requireTicket(id);
@@ -100,11 +100,10 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireManagedTicket(id); await source.recordFirstResponse!(id); } : undefined;
   if(source.ticketViews)result.ticketViews=role.actions.includes('tickets') || role.actions.includes('dashboard') ? {getOpened:ids=>source.ticketViews!.getOpened(ids),markOpened:async id=>{await requireTicket(id);await source.ticketViews!.markOpened(id);},subscribe:source.ticketViews.subscribe?.bind(source.ticketViews)} : undefined;
   if (!role.actions.includes('classifications')) result.administration = undefined;
-  if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canCreate:access.canCreate && role.actions.includes('manageFaqs'), canEditArticles:access.canEditArticles && role.actions.includes('faqs'), canSubmitDraft: false }; };
+  if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canCreate:access.canCreate && (role.actions.includes('manageFaqs') || (role.id==='agent' && role.actions.includes('faqs'))), canEditArticles:access.canEditArticles && role.actions.includes('faqs'), canSubmitDraft: false }; };
   if (source.getFaqs) result.getFaqs = async manage => { requireAction('faqs'); if (manage) requireAction('manageFaqs'); const articles=await source.getFaqs!(manage);return role.id==='requester' ? articles.filter(article=>article.published) : articles; };
   if(source.saveFaq && role.id==='agent' && role.actions.includes('faqs'))result.saveFaq=async(input,id)=>{
     requireAction('faqs');
-    if(id===undefined)requireAction('manageFaqs');
     await source.saveFaq!(input,id);
   };
   if (!role.actions.includes('manageFaqs')) { if(role.id!=='agent' || !role.actions.includes('faqs'))result.saveFaq = undefined; result.deleteFaq = undefined; result.updateFaqs = undefined; }
