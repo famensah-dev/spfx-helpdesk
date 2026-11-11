@@ -1830,7 +1830,7 @@
 .newTicketAdvanced[open] > summary { [data-fields-collapsed] { display:none; } [data-fields-expanded] { display:inline; } }
 @media (prefers-reduced-motion:reduce) { .newTicketAdvanced > summary > i { transition:none; } }
 
-.ticketAssignmentRow { grid-template-columns:minmax(0,3fr) minmax(0,1fr); }
+.ticketAssignmentRow { grid-template-columns:minmax(0,1fr) minmax(360px,1fr); }
 @media (max-width:620px) { .ticketAssignmentRow { grid-template-columns:minmax(0,1fr); } }
 
 .rolePermissionToolbar { align-items:center; justify-content:space-between; > nav { flex:0 1 auto; min-width:0; margin-bottom:0; } > .ticketActions { display:flex; justify-content:flex-end; flex-wrap:wrap; margin-left:auto; } }
@@ -2067,3 +2067,21 @@
 
 .helpdeskSystemShell :global(.deskpilot-documentation .documentation-hero) > h2 { font-size:30px; font-weight:500; letter-spacing:-.3px; }
 @media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-hero) > h2 { font-size:25px; } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-visual) { text-align:left; img { margin-left:0; margin-right:0; } }
+  :global(.documentation-topics) { scrollbar-color:var(--dp-line-d6e1ee, #d6e1ee) transparent; background:var(--dp-bg-f7f9fc, #f7f9fc);
+    &::-webkit-scrollbar-thumb { background:var(--dp-line-d6e1ee, #d6e1ee); }
+    &::-webkit-scrollbar-thumb:hover { background:var(--dp-line-bccce1, #bccce1); }
+    :global(.documentation-home) { margin-bottom:14px; padding-bottom:16px; border-bottom:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:0; }
+    section + section { border-top:0; }
+    :global(.documentation-group-toggle) { gap:8px; font-weight:500; padding:9px 6px; > i:first-child { font-size:10px; flex:0 0 12px; } > span { flex:1; } }
+    :global(.documentation-topic-tree) { margin-left:20px; border-left:0;
+      > button { padding:8px 10px; border-radius:4px; line-height:1.5; &::before { content:none; } &[aria-current='page'] { border-radius:4px; background:var(--dp-bg-f0f2f5, #f0f2f5); color:var(--dp-fg-172536, #172536); font-weight:500; } }
+    }
+  }
+  :global(.documentation-reading) { strong { font-weight:500; } > :global(.documentation-summary) { color:var(--dp-fg-172536, #172536); } }
+  :global(.documentation-on-page) > span { font-weight:600; }
+  :global(.documentation-overview-section) > header p, :global(.documentation-quick-grid) > button > span, :global(.documentation-browse-grid) > button > span { color:var(--dp-fg-293d58, #293d58); }
+  :global(.documentation-feature-index) { ul { list-style:none; margin:0; padding:0; } li { margin:0; padding:14px 0; border-bottom:1px solid var(--dp-line-e0e5ef, #e0e5ef); } button { padding:0; border:0; background:transparent; color:var(--dp-fg-244a91, #244a91); text-align:left; font:500 16px/1.5 'Segoe UI',sans-serif; cursor:pointer; &:hover { text-decoration:underline; } } p { margin:4px 0 0; font-size:14px; color:var(--dp-fg-293d58, #293d58); line-height:1.6; } }
+}

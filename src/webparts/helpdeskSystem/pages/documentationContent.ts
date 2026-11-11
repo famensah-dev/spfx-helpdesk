@@ -1,5 +1,5 @@
 export interface IDocumentationTopic {
-  id:string; section:string; title:string; summary:string; keywords:string;
+  id:string; featureOverview?:boolean; section:string; title:string; summary:string; keywords:string;
   paragraphs?:string[]; sections?:Array<{id:string;title:string;paragraphs:string[]}>; steps?:string[]; note?:string; related?:string[];
 }
 /** Product help is bundled with the app. No tickets or personal data are searched here. */
@@ -196,7 +196,52 @@ export const documentationTopics:IDocumentationTopic[]=[
     'Remember that your role limits the tickets and actions you can see. A disabled field may be intentionally protected, such as another person’s ticket description.',
     'Ask a Helpdesk Admin to check your DeskPilot role. If the problem is site access, workspace configuration, or protected fields, ask a Super Admin to check it.',
     'When reporting a problem, include the ticket number, the action you tried, and the exact error text. Never include your password.'
-  ],related:['roles','find','archive']}
+  ],related:['roles','find','archive']},
+  {id:'guide-overview',featureOverview:true,section:'Getting Started',title:'User Guide Overview',summary:'Start with the screens and roles, then learn the tasks you need.',keywords:'overview introduction learn basics beginner where start user guide',paragraphs:[
+    'DeskPilot is a workspace for recording support requests, following their progress, and sharing guidance. This part of the guide explains the application before you start working with tickets.',
+    'Begin with Welcome to DeskPilot, then read Get to Know the Interface to understand the screens and controls. Understand Your Role explains which actions are available to Agents and Helpdesk Admins.'
+  ],sections:[{id:'next',title:'Where to Start',paragraphs:[
+    'If you are new to DeskPilot, read the topics below in order. If you already know the application, use a feature group in the sidebar or search for the task you need.',
+    'Getting Started at the top of the sidebar returns to the guide home page. Each feature group begins with an overview, followed by instructions for individual tasks.'
+  ]}]},
+  {id:'tickets-overview',featureOverview:true,section:'Working With Tickets',title:'Tickets Overview',summary:'Understand a ticket and how it moves through the support process.',keywords:'overview tickets workflow request lifecycle create assign comment resolve close feature',paragraphs:[
+    'A ticket is the record of a support request. It brings together the problem, the requester, the person handling it, the conversation, and the outcome. Use tickets for work that needs to be followed through to completion.',
+    'The ticket list helps you find requests. Opening a ticket shows its description, details, comments, files, and recorded activity. What you can see or change depends on your role and your relationship to that ticket.'
+  ],sections:[{id:'flow',title:'How a Request Moves Through DeskPilot',paragraphs:[
+    'Create the ticket with enough information for someone to act. Choose an assignee, or let a configured assignment rule route it. An assigned ticket starts In Progress.',
+    'Keep updates and questions in Comments. Use Pending when work is waiting and explain why. Resolve records the result when the work is complete; a Helpdesk Admin can then close the ticket.'
+  ]},{id:'choose',title:'Choose the Task You Need',paragraphs:[
+    'Start with Create a Ticket if you are reporting a new issue. Use Find, Filter, and Sort Tickets to locate existing work. The remaining topics explain assignment, edits, conversation, files, and completion.'
+  ]}]},
+  {id:'tracking-overview',featureOverview:true,section:'Tracking Work',title:'Tracking Work Overview',summary:'Understand priority, time targets, and the dashboard before reading the figures.',keywords:'overview reporting tracking performance priority sla dashboard charts overdue',paragraphs:[
+    'Tracking work helps the support team decide what needs attention and see whether requests are being handled within the agreed time. Priority, SLA targets, and dashboard figures each answer a different question.',
+    'Priority describes urgency and impact. An SLA describes the target time for a response or resolution. The dashboard brings together the tickets you can access into totals and charts.'
+  ],sections:[{id:'interpret',title:'Read the Figures in Context',paragraphs:[
+    'Check the date range and other filters before comparing totals. Resolved totals include closed tickets, while the current-status chart keeps those statuses separate.',
+    'An at-risk indicator means a target is approaching. A breach means it has been missed. Unknown timing means there is not enough reliable information for the calculation; it does not mean the ticket met its target.'
+  ]}]},
+  {id:'knowledge-overview',featureOverview:true,section:'Knowledge Base',title:'Knowledge Base Overview',summary:'Find useful guidance and turn repeat solutions into reusable articles.',keywords:'overview knowledge base articles guides faq read create publish edit author',paragraphs:[
+    'The Knowledge Base is a collection of instructions and solutions that people can reuse. Use it to find help before creating a request, or to record a solution that will help with future requests.',
+    'An article has a title, content, classification, and publication status. Search and category tabs help people find the right guidance. Published articles can also appear in Quick Help.'
+  ],sections:[{id:'publishing',title:'Writing and Publishing Are Different',paragraphs:[
+    'Save an unpublished article while it is being prepared. Publish This Article makes it available as published guidance. Agents can create articles directly and edit their own; Helpdesk Admins can create and edit any article.',
+    'A Helpdesk Admin can also allow agents to edit a particular article. Check the editing topic below for ownership and shared-editing rules.'
+  ]}]},
+  {id:'administration-overview',featureOverview:true,section:'For Helpdesk Admins',title:'Helpdesk Settings Overview',summary:'Understand how people, teams, routing, and notifications fit together.',keywords:'overview administration settings helpdesk admin people teams users roles assignment notifications categories',paragraphs:[
+    'Helpdesk settings control how the support workspace operates day to day. Users & Roles determines DeskPilot access, Support Teams groups the people handling requests, and Assignment connects ticket categories to the appropriate team.',
+    'Categories and issue types organise requests. SLA & Priorities defines the time targets. Email & Notifications controls which ticket events send messages and what those messages contain.'
+  ],sections:[{id:'sequence',title:'A Practical Setup Order',paragraphs:[
+    'Start by checking users and roles. Set up categories, create the support teams, add their members, and check who is available. Then review the assignment method and email notification settings.',
+    'Review the saved settings and test a normal request before relying on a changed workflow. DeskPilot role settings do not replace the underlying SharePoint site and list permissions.'
+  ]}],note:'Workspace connections, Ticket List Schema, and certain protected settings require a Super Admin. This guide focuses on everyday helpdesk management.'},
+  {id:'troubleshooting-overview',featureOverview:true,section:'Common Questions',title:'Troubleshooting Overview',summary:'Identify whether a problem is a filter, a permission, an update delay, or a failed action.',keywords:'overview troubleshoot problem missing error access refresh loading issue help',paragraphs:[
+    'Start with what you can see on the screen. A missing ticket may be outside the current filters or your permitted view. A disabled field may be protected for your role. A spinner means an action is still loading.',
+    'Read the full message after an action. Some warnings mean the ticket was saved but a later action, such as uploading files or sending a notification, could not finish.'
+  ],sections:[{id:'check',title:'Before You Retry',paragraphs:[
+    'Check the workspace, selected view, search text, date range, and status filters. Use Refresh to check for current data. Avoid reloading the browser while a form has unsaved work.',
+    'When asking for help, include the ticket number, the action you tried, and the exact error. If a ticket already exists, use the available retry action rather than creating a duplicate.'
+  ]}]}
+
 ];
 export function searchDocumentation(query:string):IDocumentationTopic[] {
   const words=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
