@@ -1,11 +1,12 @@
 import { TicketDueDatePicker } from './TicketDueDatePicker';
 import { SearchableSelect } from './SearchableSelect';
-import { attachmentAccept, validateTicketAttachments } from '../utils/ticketAttachments';
+import { validateTicketAttachments } from '../utils/ticketAttachments';
+import { AttachmentPicker } from './AttachmentFiles';
 import { RichTextEditor } from './RichTextEditor';
 import { cancelButtonStyles } from './cancelButtonStyles';
 import * as React from 'react';
 import { useLocation } from 'react-router-dom';
-import { TextField, ChoiceGroup, DirectionalHint, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Label, Icon, IconButton } from '@fluentui/react';
+import { TextField, ChoiceGroup, DirectionalHint, Dropdown, PrimaryButton, DefaultButton, MessageBar, MessageBarType, Spinner, Icon } from '@fluentui/react';
 import type { INewTicketInput, ITicketDataSource, ITicketCreationOptions } from '../interfaces/ITicketDataSource';
 import type { IUserLookup } from '../interfaces/ITicket';
 import { FormAssigneePicker } from './FormAssigneePicker';
@@ -52,10 +53,6 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
     catch (reason) { const id = (reason as { createdTicketId?: number })?.createdTicketId; if (id) setCreatedTicketId(id); setError(reason instanceof Error ? reason.message : 'Unable to create the ticket.'); }
     finally { submitting.current = false; setSaving(false); }
   };
-  const addFiles = (incoming: File[]): void => {
-    try { const next = [...files, ...incoming]; validateTicketAttachments(next); setFiles(next); setError(''); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Unable to select these files.'); }
-  };
   const field = (item: ITicketCreationOptions['fields'][number]): React.ReactNode => {
     const labels:Record<string,string>={category:'Ticket Category',subcategory:'Ticket Subcategory',issueType:'Ticket Issue Type',ticketType:'Ticket Type',department:'Department',dueDate:'Due Date'};
     item={...item,label:labels[item.key] || item.label};
@@ -74,18 +71,18 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
     {loading ? <Spinner label="Loading ticket fields?" /> : options && <form onSubmit={event => { void submit(event); }} className={styles.newTicketForm}>
       <div className={styles.newTicketSection}>
         <div className="ticket-title-source-row"><TextField label="Title" required autoFocus maxLength={255} value={input.title} disabled={saving} onChange={(_, value) => change('title', value || '')} /><Dropdown label="Ticket Source" selectedKey={input.ticketSource || 'DeskPilot'} disabled={saving || Boolean(createdTicketId)} options={(options.ticketSources || ['DeskPilot','Email','Forms','Phone / Call-in','Other']).map(value=>({key:value,text:value==='Forms'?'Microsoft Forms':value}))} onChange={(_,option)=>change('ticketSource',String(option?.key || 'DeskPilot'))} /></div>
-        <div className={styles.newTicketDescriptionRow}>
-        {options.description && <RichTextEditor value={input.description} disabled={saving || Boolean(createdTicketId)} onChange={value => change('description', value)} />}
-        <div><Label>Attachments</Label><div className={styles.ticketUploadArea} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (!saving && !createdTicketId) addFiles(Array.from(event.dataTransfer.files)); }}>
-          <Icon iconName="CloudUpload" /><p>Drop files here or choose files</p><small>Up to 10 files, 5 MB each<br />PDF, DOC, DOCX, MP4, JPEG, JPG, WebP, PNG</small>
-          <input ref={fileInput} type="file" multiple accept={attachmentAccept} hidden disabled={saving || Boolean(createdTicketId)} onChange={event => { addFiles(Array.from(event.target.files || [])); event.target.value = ''; }} />
-          <DefaultButton text="Choose Files" disabled={saving || Boolean(createdTicketId) || files.length >= 10} onClick={() => fileInput.current?.click()} />
-        </div><ul className={styles.ticketUploadList}>{files.map(file => <li key={file.name}><span>{file.name}<small>{(file.size / (1024 * 1024)).toFixed(2)} MB</small></span><IconButton iconProps={{ iconName: 'Cancel' }} ariaLabel={`Remove ${file.name}`} disabled={saving || Boolean(createdTicketId)} onClick={() => setFiles(current => current.filter(value => value !== file))} /></li>)}</ul></div>
+        {options.description ? <RichTextEditor value={input.description} disabled={saving || Boolean(createdTicketId)} onChange={value => change('description', value)} footer={<div className={styles.descriptionAttachments}><AttachmentPicker compact chips files={files} onChange={setFiles} disabled={saving || Boolean(createdTicketId)} /></div>} /> : <AttachmentPicker compact chips files={files} onChange={setFiles} disabled={saving || Boolean(createdTicketId)} />}
+        <div className={`${styles.newTicketFields} ${styles.ticketAssignmentRow}`}>
+          {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}
+          <ChoiceGroup className={styles.ticketPriorityChoices} label="Priority" required selectedKey={input.priority} disabled={saving} options={options.priorities.map(value => ({ key: value, text: value }))} onChange={(_, option) => change('priority', String(option?.key || ''))} />
         </div>
-        <div className={styles.newTicketClassification}>{options.fields.filter(item => item.key === 'ticketType').map(field)}<ChoiceGroup className={styles.ticketPriorityChoices} label="Priority" required selectedKey={input.priority} disabled={saving} options={options.priorities.map(value => ({ key: value, text: value }))} onChange={(_, option) => change('priority', String(option?.key || ''))} />
-        {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}</div>
-        
-        <details className={styles.newTicketAdvanced} open={options.fields.some(item=>['category','subcategory','issueType','department','dueDate'].includes(item.key)&&item.required) || undefined}><summary>Show All</summary><div className={styles.newTicketClassification}>{options.fields.filter(item => ['category', 'subcategory', 'issueType'].includes(item.key)).map(field)}</div><div className={styles.newTicketFields}><TextField label="Requester Name" maxLength={255} value={input.requesterName || ''} disabled={saving} onChange={(_,value)=>change('requesterName',value || '')} /><TextField label="Requester Email" type="email" maxLength={254} value={input.requesterEmail || ''} disabled={saving} onChange={(_,value)=>change('requesterEmail',value || '')} /></div><div className={styles.newTicketFields}>{options.fields.filter(item => ['dueDate','department'].includes(item.key)).sort((a,b)=>Number(a.key!=='dueDate')-Number(b.key!=='dueDate')).map(field)}</div></details>
+        <details className={styles.newTicketAdvanced} open={options.fields.some(item=>['category','subcategory','issueType','department','dueDate','ticketType'].includes(item.key)&&item.required) || undefined}>
+          <summary><Icon iconName="ChevronDown" /><span data-fields-collapsed>Show All Fields</span><span data-fields-expanded>Show Less</span><small>Additional ticket details</small></summary>
+          <div className={styles.ticketTypeDueRow}>{options.fields.filter(item=>['ticketType','dueDate'].includes(item.key)).sort((a,b)=>Number(a.key!=='ticketType')-Number(b.key!=='ticketType')).map(field)}</div>
+          <div className={styles.newTicketClassification}>{options.fields.filter(item=>['category','subcategory','issueType'].includes(item.key)).map(field)}</div>
+          <div className={styles.newTicketFields}><TextField label="Requester Name" maxLength={255} value={input.requesterName || ''} disabled={saving} onChange={(_,value)=>change('requesterName',value || '')} /><TextField label="Requester Email" type="email" maxLength={254} value={input.requesterEmail || ''} disabled={saving} onChange={(_,value)=>change('requesterEmail',value || '')} /></div>
+          <div className={styles.newTicketFields}>{options.fields.filter(item=>item.key==='department').map(field)}</div>
+        </details>
       {!!options.departments?.length && <Dropdown label="Department" required selectedKey={options.departments.find(item=>item.name===input.department)?.key || input.department} options={options.departments.map(item=>({key:item.key,text:item.name}))} disabled={saving || Boolean(createdTicketId)} onChange={(_,option)=>change('department',options.departments!.find(item=>item.key===option?.key)?.name || '')} />}
       <div className={styles.newTicketFooter}><p>{person ? 'This ticket will start In Progress with the selected assignee.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry Uploads' : 'Create Ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
       </div>

@@ -85,6 +85,23 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   const dashboardActive = page === 'Dashboard' || page === 'My Dashboard' || page === 'My Assigned Tickets';
   const detailTicket = dashboard.tickets.find(ticket=>ticket.Id===route.ticketId);
   const heading = React.useRef<HTMLHeadingElement>(null);
+  const navigationRef=React.useRef<HTMLElement>(null);
+  React.useEffect(()=>{
+    const revealActive=():void=>{
+      const nav=navigationRef.current;
+      if(!nav || window.innerWidth>700)return;
+      const active=nav.querySelector<HTMLElement>('[aria-current="page"], [data-active="true"]');
+      if(!active)return;
+      const bounds=nav.getBoundingClientRect(),tab=active.getBoundingClientRect();
+      const inset=8;
+      if(tab.left<bounds.left+inset)nav.scrollLeft-=bounds.left+inset-tab.left;
+      else if(tab.right>bounds.right-inset)nav.scrollLeft+=tab.right-bounds.right+inset;
+    };
+    const frame=window.requestAnimationFrame(revealActive);
+    window.addEventListener('resize',revealActive);
+    return()=>{window.cancelAnimationFrame(frame);window.removeEventListener('resize',revealActive);};
+  },[location.pathname,props.settingsContent]);
+
   const navigate = (next: Page): void => {
     if (permittedPage(next)) routerNavigate(pagePaths[next]);
   };
@@ -102,7 +119,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         <div className={styles.brand}><Icon iconName="Headset" aria-hidden="true" /><strong>DeskPilot</strong><span className={styles.brandDivider} aria-hidden="true">|</span><span className={styles.portalLabel}>{props.portalTitle?.trim() || 'IT Helpdesk'}</span></div>
         <div className={styles.headerActions}><IconButton onRenderIcon={() => appearance.dark ? <Icon iconName="Sunny" /> : <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false"><path d="M19.8 15.1A8 8 0 0 1 8.9 4.2 8 8 0 1 0 19.8 15.1Z" fill="currentColor" fillOpacity=".18" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>} ariaLabel={appearance.dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'} title={appearance.dark ? 'Switch to Light Mode' : 'Switch to Dark Mode'} toggle checked={appearance.dark} onClick={appearance.toggle} styles={{root:{background:'transparent',color:"var(--dp-fg-ffffff, #ffffff)",width:34,height:34},rootHovered:{background:'rgba(255,255,255,.12)',color:"var(--dp-fg-ffffff, #ffffff)"},rootChecked:{background:'transparent',color:"var(--dp-fg-ffffff, #ffffff)"},rootCheckedHovered:{background:'rgba(255,255,255,.12)',color:"var(--dp-fg-ffffff, #ffffff)"},icon:{fontSize:17}}} />{canUse(props.service,'tickets') && <><span className={styles.headerActionDivider} aria-hidden={true} /><NotificationCenter service={props.service} onOpenTicket={id=>routerNavigate('/tickets/'+id)} /></>}{props.accountActions}</div>
       </header>
-      {!props.settingsContent && <nav className={styles.navigation} aria-label="DeskPilot navigation">
+      {!props.settingsContent && <nav ref={navigationRef} className={styles.navigation} aria-label="DeskPilot navigation">
         {canUse(props.service, 'dashboard') && (rules ? <button type="button" aria-current={dashboardActive ? 'page' : undefined} className={[styles.dashboardNav, dashboardActive ? styles.activeNav : ''].join(' ')} onClick={() => navigate('Dashboard')}>Dashboard</button> : <div className={[styles.dashboardSplit, styles.dashboardNav].join(' ')} data-active={dashboardActive}><DefaultButton text="Dashboard" split onClick={() => navigate(props.service.access?.agent ? 'My Dashboard' : 'Dashboard')} splitButtonAriaLabel="Choose dashboard view" className={dashboardActive ? styles.activeNav : undefined} menuProps={{ items: [
           { key: 'personal', text: 'My Dashboard', canCheck: true, checked: page === 'My Dashboard', onClick: () => navigate('My Dashboard') },
           ...(!props.service.access?.agent ? [{ key: 'global', text: 'Admin Dashboard', canCheck: true, checked: page === 'Dashboard', onClick: () => navigate('Dashboard') }] : [])

@@ -252,7 +252,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
     <div className={styles.ticketListCard}>
     <div className={styles.ticketToolbar}>
       <div className={styles.ticketActions}>
-        <DefaultButton text="New" iconProps={{ iconName: 'Add' }} disabled={!onCreate || loading || Boolean(error)} onClick={() => setCreating(true)} />
+        <DefaultButton data-create-action="true" text="New" iconProps={{ iconName: 'Add' }} disabled={!onCreate || loading || Boolean(error)} onClick={() => setCreating(true)} />
         <DefaultButton text="Columns" iconProps={{ iconName: 'Table' }} onClick={() => setColumnsOpen(true)} />
         <DefaultButton text="Import/Export" iconProps={{ iconName: 'Upload' }} menuProps={{ items: [{ key: 'export', text: 'Export Filtered Tickets (CSV)', disabled: loading || Boolean(error), onClick: () => exportCsv() }, { key: 'import', text: 'Import Tickets (Coming Soon)', disabled: true }] }} />
       </div>

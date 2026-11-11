@@ -106,9 +106,17 @@ export class GraphTicketService implements ITicketDataSource {
     if (!Number.isSafeInteger(id) || id <= 0) throw new Error('Invalid ticket ID.');
     if (!this.context) await this.getTickets();
     const path = `${this.context!.sitePath}/lists/${encodeURIComponent(this.context!.listId)}/items/${id}/versions`;
-    const versions = await this.graph.getAll<{ id: string; lastModifiedDateTime: string; lastModifiedBy?: { user?: { displayName?: string }; application?: { displayName?: string } } }>(path);
-    return versions.map(version => ({ id: version.id, modified: version.lastModifiedDateTime, author: version.lastModifiedBy?.user?.displayName || version.lastModifiedBy?.application?.displayName || 'Unknown author' }))
-      .sort((a, b) => new Date(b.modified).getTime() - new Date(a.modified).getTime());
+    const versions = await this.graph.getAll<{ id: string; lastModifiedDateTime: string; fields?:Record<string,unknown>; lastModifiedBy?: { user?: { displayName?: string }; application?: { displayName?: string } } }>(path+'?$expand=fields');
+    const ordered=versions.sort((a,b)=>new Date(a.lastModifiedDateTime).getTime()-new Date(b.lastModifiedDateTime).getTime());
+    const requester=this.requesterFields;
+    const identity=(fields:Record<string,unknown>):string=>[requester?.name ? fields[requester.name] : undefined,requester?.email ? fields[requester.email] : undefined].filter(Boolean).join(' / ') || (requester?.requestedBy ? String(fields[requester.requestedBy+'LookupId'] || '') : '');
+    return ordered.map((version,index)=>{
+      const previous=ordered[index-1];
+      const before=previous?.fields ? identity(previous.fields) : '';
+      const after=version.fields ? identity(version.fields) : '';
+      const personChanged=Boolean(previous?.fields && version.fields && requester?.requestedBy && String(previous.fields[requester.requestedBy+'LookupId'] || '')!==String(version.fields[requester.requestedBy+'LookupId'] || ''));
+      return {id:version.id,modified:version.lastModifiedDateTime,author:version.lastModifiedBy?.user?.displayName || version.lastModifiedBy?.application?.displayName || 'Unknown author',...(previous?.fields && version.fields && (before!==after || personChanged) ? {requesterChange:{before:before || 'Not specified',after:after || 'Not specified'}} : {})};
+    }).reverse();
   }
   public async updateTicket(id: number, input: ITicketEdit): Promise<void> {
     if(input.resolutionEmail!==undefined){

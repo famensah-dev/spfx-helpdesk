@@ -100,9 +100,14 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if (source.recordFirstResponse) result.recordFirstResponse = role.actions.includes('status') ? async id => { requireAction('status'); await requireManagedTicket(id); await source.recordFirstResponse!(id); } : undefined;
   if(source.ticketViews)result.ticketViews=role.actions.includes('tickets') || role.actions.includes('dashboard') ? {getOpened:ids=>source.ticketViews!.getOpened(ids),markOpened:async id=>{await requireTicket(id);await source.ticketViews!.markOpened(id);},subscribe:source.ticketViews.subscribe?.bind(source.ticketViews)} : undefined;
   if (!role.actions.includes('classifications')) result.administration = undefined;
-  if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canSubmitDraft: false }; };
+  if (source.getFaqAccess) result.getFaqAccess = async () => { const access = await source.getFaqAccess!(); return { ...access, canManage: access.canManage && role.actions.includes('manageFaqs'), canCreate:access.canCreate && role.actions.includes('manageFaqs'), canEditArticles:access.canEditArticles && role.actions.includes('faqs'), canSubmitDraft: false }; };
   if (source.getFaqs) result.getFaqs = async manage => { requireAction('faqs'); if (manage) requireAction('manageFaqs'); const articles=await source.getFaqs!(manage);return role.id==='requester' ? articles.filter(article=>article.published) : articles; };
-  if (!role.actions.includes('manageFaqs')) { result.saveFaq = undefined; result.deleteFaq = undefined; result.updateFaqs = undefined; }
+  if(source.saveFaq && role.id==='agent' && role.actions.includes('faqs'))result.saveFaq=async(input,id)=>{
+    requireAction('faqs');
+    if(id===undefined)requireAction('manageFaqs');
+    await source.saveFaq!(input,id);
+  };
+  if (!role.actions.includes('manageFaqs')) { if(role.id!=='agent' || !role.actions.includes('faqs'))result.saveFaq = undefined; result.deleteFaq = undefined; result.updateFaqs = undefined; }
   if (source.sla) result.sla = { getSettings: manage => { if (manage) requireAction('sla'); return source.sla!.getSettings(manage); }, setup: async () => { throw new Error('SLA setup requires Super Admin.'); }, savePriority: async input => { requireAction('sla'); await source.sla!.savePriority(input); }, saveClockRules: source.sla.saveClockRules ? async input=>{requireAction('sla');await source.sla!.saveClockRules!(input);} : undefined, checkBreaches: source.sla.checkBreaches && source.access?.admin ? async tickets=>{if(!role.actions.includes('tickets')&&!role.actions.includes('dashboard'))return;await source.sla!.checkBreaches!(tickets.filter(visible));} : undefined };
   return result;
 }

@@ -16,6 +16,7 @@ export function labelSettingsTables(root:HTMLElement):void {
     table.dataset.settingsList='true';
     Array.from(table.tBodies).forEach(body=>Array.from(body.rows).forEach(row=>{
       let index=0;
+      row.dataset.settingsSelectable=String(headers[0]==='Select');
       Array.from(row.cells).forEach(cell=>{
         if(cell.tagName==='TD'){
           const label=headers[index] || (cell.querySelector('button, a') ? 'Actions' : 'Details');
@@ -25,6 +26,18 @@ export function labelSettingsTables(root:HTMLElement):void {
         }
         index+=cell.colSpan;
       });
+      const primary=row.querySelector<HTMLElement>('[data-settings-primary="true"]');
+      const details=Array.from(row.cells).filter(cell=>cell.tagName==='TD' && cell!==primary && cell.dataset.settingsLabel!=='Select');
+      if(!primary || !details.length)return;
+      const summary=details.find(cell=>!cell.querySelector('button, input, [role="switch"], [role="checkbox"]') && cell.dataset.settingsLabel!=='Actions');
+      details.forEach(cell=>{cell.dataset.settingsSummary=String(cell===summary);});
+      if(!row.dataset.settingsExpanded)row.dataset.settingsExpanded='false';
+      if(primary.querySelector('[data-settings-expand]'))return;
+      const toggle=root.ownerDocument.createElement('button');toggle.type='button';toggle.dataset.settingsExpand='true';toggle.textContent='';toggle.setAttribute('aria-expanded',row.dataset.settingsExpanded);toggle.setAttribute('aria-label',row.dataset.settingsExpanded==='true' ? 'Hide item details' : 'Show item details');
+      toggle.onclick=event=>{event.stopPropagation();const expanded=row.dataset.settingsExpanded!=='true';row.dataset.settingsExpanded=String(expanded);toggle.setAttribute('aria-expanded',String(expanded));toggle.setAttribute('aria-label',expanded ? 'Hide item details' : 'Show item details');};
+      const chevron=root.ownerDocument.createElementNS('http://www.w3.org/2000/svg','svg');chevron.setAttribute('viewBox','0 0 16 16');chevron.setAttribute('width','14');chevron.setAttribute('height','14');chevron.setAttribute('aria-hidden','true');chevron.setAttribute('focusable','false');
+      const path=root.ownerDocument.createElementNS('http://www.w3.org/2000/svg','path');path.setAttribute('d','M6 3l5 5-5 5');path.setAttribute('fill','none');path.setAttribute('stroke','currentColor');path.setAttribute('stroke-width','1.6');path.setAttribute('stroke-linecap','round');path.setAttribute('stroke-linejoin','round');chevron.append(path);toggle.append(chevron);
+      primary.append(toggle);
     }));
   });
 }

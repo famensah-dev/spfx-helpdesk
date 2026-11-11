@@ -10,3 +10,9 @@
 .workDays { display: flex; flex-wrap: wrap; gap: 14px; }
 .clockCard .ruleHint { padding: 0 20px 18px; font-size: 12px; }
 @media(max-width: 700px) { .clockRow { flex-wrap: wrap; gap: 12px; } .clockControls { margin-left: auto; } }
+
+@media(max-width:700px) {
+  .clockControls { width:100%; min-width:0; margin-left:0; justify-content:space-between; }
+  .clockControls > :global(.ms-TextField) { width:auto !important; flex:1 1 0; min-width:0; }
+  .clockControls > :global(.ms-Toggle) { flex:0 0 auto; margin-left:auto; }
+}

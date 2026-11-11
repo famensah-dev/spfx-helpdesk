@@ -31,7 +31,7 @@ function placeholderCategory(key:string):'ticket'|'user'|'workspace' {
   if(['RequesterName','RequesterEmail','CreatorName','AssignedTo','AssignedToEmail','Team','TeamEmail','ChangedBy','UserName','UserEmail','UserRole'].includes(key))return 'user';
   return 'ticket';
 }
-export function RichTextEditor(props: { value: string; label?: string; required?: boolean; disabled?: boolean; placeholders?:ReadonlyArray<{key:string;label:string}>; plainText?:boolean; onChange: (value: string) => void }): React.ReactElement {
+export function RichTextEditor(props: { value: string; label?: string; required?: boolean; disabled?: boolean; placeholders?:ReadonlyArray<{key:string;label:string}>; plainText?:boolean; footer?:React.ReactNode; onChange: (value: string) => void }): React.ReactElement {
   const host = React.useRef<HTMLDivElement>(null);
   const selection = React.useRef<Range | null>(null);
   const [inserting,setInserting]=React.useState(false);
@@ -94,5 +94,6 @@ export function RichTextEditor(props: { value: string; label?: string; required?
           range.deleteContents();const node=document.createTextNode('{{'+token.key+'}}');range.insertNode(node);range.setStartAfter(node);range.collapse(true);const current=window.getSelection();current?.removeAllRanges();current?.addRange(range);emit();decorate();selection.current=null;setInserting(false);
         }}>{token.label}</button>)}</div></div>}
     </div>}
+    {props.footer}
   </div></div>;
 }

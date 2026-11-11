@@ -63,8 +63,8 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     ...currentRole.actions.filter(action => !confirmation.role.actions.includes(action)).map(action => `Remove: ${labels[action]}`),
     ...(confirmation.role.scope !== currentRole.scope ? [`Ticket view: ${scopeOptions.find(option => option.key === confirmation.role.scope)?.text}`] : [])
   ] : [];
-  return <section className={`${styles.pageContent} ${styles.ticketPage}`}>
-    <nav className={styles.ticketTabs} aria-label="Users and roles pages">
+  return <section className={`${styles.pageContent} ${styles.ticketPage}`} data-page="users-and-roles">
+    <nav className={styles.ticketTabs} data-settings-tabs="true" aria-label="Users and roles pages">
       {!props.hideHeading && <h2 className={styles.toolbarTitle}>Users &amp; Roles</h2>}
       <button type="button" aria-current={tab === 'users' ? 'page' : undefined} className={tab === 'users' ? styles.activeNav : undefined} disabled={busy || Boolean(draft)} onClick={() => setTab('users')}><Icon iconName="People" />Users</button>
       <button type="button" aria-current={tab === 'roles' ? 'page' : undefined} className={tab === 'roles' ? styles.activeNav : undefined} disabled={busy} onClick={() => setTab('roles')}><Icon iconName="Shield" />Roles &amp; Permissions</button>
@@ -82,10 +82,10 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     {!config ? <>{loading ? <Spinner label="Loading users and roles..." /> : error && <DefaultButton text="Retry" onClick={() => { load().catch(() => undefined); }} />}</> : <>
       {tab === 'roles' && <>
       <div className={styles.rolePermissionToolbar}>
-        <nav className={styles.ticketTabs} aria-label="Role permissions">{config.roles.filter(role=>role.id!=='requester').map(role=><button type="button" key={role.id} aria-current={selectedRoleId===role.id ? 'page' : undefined} className={selectedRoleId===role.id ? styles.activeNav : undefined} disabled={busy || loading || Boolean(draft)} onClick={()=>{setSelectedRoleId(role.id);setMessage('');setError('');}}>{role.name}</button>)}</nav>
+        <nav className={styles.ticketTabs} data-settings-tabs="true" data-settings-inset="true" aria-label="Role permissions">{config.roles.filter(role=>role.id!=='requester').map(role=><button type="button" key={role.id} aria-current={selectedRoleId===role.id ? 'page' : undefined} className={selectedRoleId===role.id ? styles.activeNav : undefined} disabled={busy || loading || Boolean(draft)} onClick={()=>{setSelectedRoleId(role.id);setMessage('');setError('');}}>{role.name}</button>)}</nav>
         <div className={styles.ticketActions}>
         {currentRole && <DefaultButton text="Edit Permissions" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
-        <DefaultButton text="Reload Permissions" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />
+        <DefaultButton text="Reload" iconProps={{ iconName: 'Refresh' }} disabled={busy || Boolean(draft)} onClick={() => { load().catch(() => undefined); }} />
         {currentRole && <DefaultButton text="Restore Defaults" iconProps={{ iconName: 'Undo' }} disabled={busy} onClick={() => { const role = defaultRoleConfiguration().roles.find(item => item.id === selectedRoleId); if (role) setConfirmation({ role, restore: true }); }} />}
         </div>
       </div>

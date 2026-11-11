@@ -40,7 +40,7 @@ export function EmailSettingsPage({service}:{service:ITicketDataSource}):React.R
     {error && <MessageBar messageBarType={MessageBarType.error} onDismiss={()=>setError('')}>{error}</MessageBar>}
     {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={()=>setMessage('')}>{message}</MessageBar>}
     
-    <div className="email-settings-toolbar email-settings-tabs"><nav aria-label="Email settings sections">{tabs.map(name=><button type="button" key={name} aria-current={tab===name?'page':undefined} onClick={()=>setTab(name)}>{name}</button>)}</nav></div>
+    <div className="email-settings-toolbar email-settings-tabs"><nav data-settings-tabs="true" aria-label="Email settings sections">{tabs.map(name=><button type="button" key={name} aria-current={tab===name?'page':undefined} onClick={()=>setTab(name)}>{name}</button>)}</nav></div>
     {loading && <Spinner label="Loading notification settings..." />}
     {!loading && settings && tab!=='History' && <>
       {tab==='Notification Rules' && <NotificationRulesCards value={settings} busy={busy} saveControl={saveControl} onChange={setSettings} onTemplate={key=>{setEvent(key);setTab('Email Templates');}} />}

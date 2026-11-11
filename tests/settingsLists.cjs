@@ -7,7 +7,12 @@ const button=root.querySelector('button'),checkbox=root.querySelector('tbody inp
 labelSettingsTables(root);let cells=root.querySelectorAll('tbody td');
 assert.deepEqual([...cells].map(cell=>cell.dataset.settingsLabel),['Select','Name','Email','Actions']);
 assert.equal(cells[1].dataset.settingsPrimary,'true');assert(!cells[0].dataset.settingsPrimary);
-assert.equal(root.querySelector('button'),button,'Keep existing action nodes and handlers');assert.equal(root.querySelector('tbody input'),checkbox);
+assert(root.contains(button),'Keep existing action nodes and handlers');assert.equal(root.querySelector('tbody input'),checkbox);
+const row=root.querySelector('tbody tr'),toggle=row.querySelector('[data-settings-expand]');
+assert.equal(row.dataset.settingsExpanded,'false');assert.equal(cells[2].dataset.settingsSummary,'true');
+toggle.click();assert.equal(row.dataset.settingsExpanded,'true');assert.equal(toggle.getAttribute('aria-expanded'),'true');
+toggle.click();assert.equal(row.dataset.settingsExpanded,'false');
+labelSettingsTables(root);assert.equal(row.querySelectorAll('[data-settings-expand]').length,1,'Do not duplicate detail controls on observer updates');
 root.querySelector('tbody').insertAdjacentHTML('beforeend','<tr><td><input type="checkbox"></td><td>Ben</td><td>ben@example.com</td><td><button>Remove</button></td></tr>');
 labelSettingsTables(root);assert.equal(root.querySelectorAll('tbody tr')[1].cells[2].dataset.settingsLabel,'Email','Label async/paginated rows');
 root.querySelector('thead th:nth-child(3)').textContent='User Email';labelSettingsTables(root);assert.equal(root.querySelector('tbody td:nth-child(3)').dataset.settingsLabel,'User Email');

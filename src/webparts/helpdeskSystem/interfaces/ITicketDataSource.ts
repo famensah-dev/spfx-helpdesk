@@ -11,7 +11,7 @@ export interface ITicketEdit { resolutionEmail?: boolean; requestedById?: number
 export interface ITicketAttachment { name: string; url: string; previewUrl?:string; contentUrl?:string; size?: number; created?: string; author?: string; }
 export interface ICommentPostOptions { html?: string; files?: File[]; requestId?: string; onProgress?: (message: string) => void; }
 export interface ITicketComment { canDelete?: boolean; html?: string; id: string; text: string; author: string; created: string; attachments?: ITicketAttachment[]; attachmentError?: string; }
-export interface ITicketVersion { id: string; modified: string; author: string; }
+export interface ITicketVersion { id: string; modified: string; author: string; requesterChange?: { before: string; after: string }; }
 export type TicketBulkAction = { kind: 'status'; status: TicketStatus } | { kind: 'priority'; priority: TicketPriority } | { kind: 'assign'; userId: number | null } | { kind: 'archive'; archived?: boolean };
 export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: number; message: string }>; }
 

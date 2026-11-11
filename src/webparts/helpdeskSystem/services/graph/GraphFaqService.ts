@@ -3,12 +3,12 @@ import type { IAppConfig } from './IAppConfig';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from '../../interfaces/IFaq';
 
 interface Column { required?: boolean; name: string; displayName: string; text?: object; boolean?: object; number?: object; choice?: { choices: string[] }; readOnly?: boolean; lookup?: { listId: string; allowMultipleValues?: boolean }; }
-interface Context { path: string; listId: string; fields: Record<'question' | 'answer' | 'category' | 'keywords' | 'published' | 'sortOrder', string> & { subcategory?: string }; categories?: string[]; categoryColumn: Column; subcategoryColumn?: Column; sitePath: string; requiredTitle?: string; }
+interface Context { publisherEmail?:string; agentEditing?:string; path: string; listId: string; fields: Record<'question' | 'answer' | 'category' | 'keywords' | 'published' | 'sortOrder', string> & { subcategory?: string }; categories?: string[]; categoryColumn: Column; subcategoryColumn?: Column; sitePath: string; requiredTitle?: string; }
 export class GraphFaqService {
   private context?: Context;
   private lookupCache?: { expires: number; request: Promise<Pick<IFaqAccess, 'categoryOptions' | 'subcategoryOptions'>> };
   private accessCache?: { expires: number; value: IFaqAccess };
-  public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig, private readonly getSharePointToken?: () => Promise<string>) {}
+  public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig, private readonly getSharePointToken?: () => Promise<string>, private readonly actor:{admin:boolean;agent:boolean}={admin:false,agent:false}) {}
   private async schema(): Promise<Context> {
     if (this.context) return this.context;
     const url = new URL(this.config.siteUrl);
@@ -34,7 +34,7 @@ export class GraphFaqService {
     };
     const category = find(['Category'], ['text', 'choice', 'lookup']);
     const subcategory = columns.some(item => normalize(item.displayName) === 'subcategory' || normalize(item.name) === 'subcategory') ? find(['Subcategory'], ['lookup', 'text', 'choice']) : undefined;
-    this.context = { path, listId: list.id, categories: category.choice?.choices, requiredTitle: columns.find(item => item.name === 'Title' && item.required && item.text)?.name, categoryColumn: category, subcategoryColumn: subcategory, sitePath: `/sites/${encodeURIComponent(site.id)}`, fields: {
+    this.context = { publisherEmail:columns.find(column=>column.name==='PublisherEmail' && column.text && !column.readOnly)?.name, agentEditing:columns.find(column=>column.name==='AgentEditingEnabled' && column.boolean && !column.readOnly)?.name, path, listId: list.id, categories: category.choice?.choices, requiredTitle: columns.find(item => item.name === 'Title' && item.required && item.text)?.name, categoryColumn: category, subcategoryColumn: subcategory, sitePath: `/sites/${encodeURIComponent(site.id)}`, fields: {
       question: find(['Question', 'Title'], ['text']).name, answer: find(['Answer'], ['text']).name,
       category: category.name, keywords: find(['Keywords'], ['text']).name,
       ...(subcategory ? { subcategory: subcategory.name } : {}), published: find(['Active', 'IsPublished', 'Published'], ['boolean']).name, sortOrder: find(['SortOrder', 'Sort Order'], ['number']).name
@@ -75,17 +75,25 @@ export class GraphFaqService {
     if (!response.ok) throw new Error(`Unable to verify FAQ management permissions (${response.status}). Confirm SharePoint permission consent and list access.`);
     const permissions = await response.json() as { Low: string; High: string };
     // AddListItems, EditListItems, DeleteListItems. Actual writes remain enforced by SharePoint.
-    const value = { canSubmitDraft: (Number(permissions.Low) & 2) === 2, canManage: (Number(permissions.Low) & 14) === 14, categories: schema.categories, ...await this.lookupOptions(schema) };
+    const value = { canSubmitDraft: (Number(permissions.Low) & 2) === 2, canManage: this.actor.admin && (Number(permissions.Low) & 14) === 14, canCreate:(this.actor.admin || this.actor.agent) && (Number(permissions.Low)&2)===2, canEditArticles:(Number(permissions.Low)&4)===4, supportsAgentEditing:Boolean(schema.agentEditing), categories: schema.categories, ...await this.lookupOptions(schema) };
     this.accessCache = { expires: Date.now() + 30000, value };
     return value;
+  }
+  private mayEdit(fields:Record<string,unknown>,schema:Context):boolean {
+    if(this.actor.admin)return true;
+    if(!this.actor.agent)return false;
+    const publisher=schema.publisherEmail ? String(fields[schema.publisherEmail] || '').trim().toLowerCase() : '';
+    const owns=publisher ? publisher===this.config.currentUserEmail?.trim().toLowerCase() : Boolean(this.config.currentUserId && Number(fields.AuthorLookupId)===this.config.currentUserId);
+    return owns || Boolean(schema.agentEditing && fields[schema.agentEditing]===true);
   }
   public async getFaqs(manage = false): Promise<IFaq[]> {
     const schema = await this.schema();
     if (manage && !(await this.getAccess()).canManage) throw new Error('Your account cannot manage this FAQ list.');
     const fields = schema.fields;
+    const access=await this.getAccess();
     const [lookupOptions, items] = await Promise.all([this.lookupOptions(schema), this.graph.getAll<{ id: string; lastModifiedDateTime: string; fields: Record<string, unknown> }>(`${schema.path}/items?$expand=fields&$top=200`)]);
     return items.filter(item => manage || item.fields[fields.published] === true).map(item => ({
-      id: Number(item.id), question: String(item.fields[fields.question] || ''), answer: String(item.fields[fields.answer] || ''),
+      id: Number(item.id), canEdit:Boolean(access.canEditArticles && this.mayEdit(item.fields,schema)), publisherEmail:schema.publisherEmail ? String(item.fields[schema.publisherEmail] || '') : undefined, agentEditingEnabled:Boolean(schema.agentEditing && item.fields[schema.agentEditing]===true), question: String(item.fields[fields.question] || ''), answer: String(item.fields[fields.answer] || ''),
       categoryId: schema.categoryColumn.lookup ? String(item.fields[`${fields.category}LookupId`] || '') : undefined,
       category: lookupOptions.categoryOptions?.find(value => value.id === String(item.fields[`${fields.category}LookupId`]))?.name || String(item.fields[fields.category] || ''),
       subcategoryId: fields.subcategory && schema.subcategoryColumn?.lookup ? String(item.fields[`${fields.subcategory}LookupId`] || '') : undefined,
@@ -96,7 +104,12 @@ export class GraphFaqService {
   public async save(input: IFaqInput, id?: number, draftOnly = false): Promise<void> {
     const schema = await this.schema();
     const access = await this.getAccess(true);
-    if (draftOnly ? (!access.canSubmitDraft || id !== undefined || input.published) : !access.canManage) throw new Error(draftOnly ? 'Your account cannot submit this FAQ draft.' : 'Your account cannot manage this FAQ list.');
+    if(id!==undefined && (!Number.isSafeInteger(id) || id<=0))throw new Error('Invalid article ID.');
+    const current=id ? await this.graph.get<{fields:Record<string,unknown>;eTag?:string}>(schema.path+'/items/'+id+'?$expand=fields') : undefined;
+    if(draftOnly ? (!access.canSubmitDraft || id!==undefined || input.published) : current ? (!access.canEditArticles || !this.mayEdit(current.fields,schema)) : !access.canCreate)throw new Error('Only the publisher, a Helpdesk Admin, or an agent allowed to edit this article can save it.');
+    const storedGrant=Boolean(current && schema.agentEditing && current.fields[schema.agentEditing]===true);
+    if(input.agentEditingEnabled!==undefined && input.agentEditingEnabled!==storedGrant && !this.actor.admin)throw new Error('Only a Helpdesk Admin can change agent editing access.');
+    if(input.agentEditingEnabled && !schema.agentEditing)throw new Error('Initialize workspace to add Knowledge Base editing permissions.');
     if (!input.question.trim() || input.question.trim().length > 255) throw new Error('Enter a question of 1–255 characters.');
     if (!input.answer.trim()) throw new Error('Enter an answer.');
     if (!Number.isFinite(input.sortOrder) || input.sortOrder < 0) throw new Error('Sort order must be zero or greater.');
@@ -118,7 +131,13 @@ export class GraphFaqService {
       if (input.subcategoryId && (!subcategory || subcategory.parentId !== input.categoryId)) throw new Error('Select a subcategory belonging to the selected category.');
       values[`${schema.fields.subcategory}LookupId`] = subcategory?.id || null;
     }
-    if (id) await this.graph.patch(`${schema.path}/items/${id}/fields`, values);
+    if(schema.agentEditing && this.actor.admin && input.agentEditingEnabled!==undefined)values[schema.agentEditing]=input.agentEditingEnabled;
+    if(schema.publisherEmail && input.published && (!current || !current.fields[schema.publisherEmail])){
+      // Capture the first publisher; later edits never transfer ownership.
+      // Legacy published articles retain their creator as the ownership fallback.
+      if(!current || current.fields[schema.fields.published]!==true)values[schema.publisherEmail]=this.config.currentUserEmail || '';
+    }
+    if (id) await this.graph.patch(`${schema.path}/items/${id}/fields`, values, current?.eTag);
     else await this.graph.post(`${schema.path}/items`, { fields: values });
   }
   public async delete(id: number): Promise<void> {
@@ -137,7 +156,14 @@ export class GraphFaqService {
       const id = unique[index];
       try {
         if (action.kind === 'delete') await this.graph.delete(`${schema.path}/items/${id}`);
-        else await this.graph.patch(`${schema.path}/items/${id}/fields`, { [action.kind === 'sort' ? schema.fields.sortOrder : schema.fields.published]: action.kind === 'sort' ? index + 1 : action.published });
+        else {
+          const values:Record<string,unknown>={[action.kind==='sort' ? schema.fields.sortOrder : schema.fields.published]:action.kind==='sort' ? index+1 : action.published};
+          if(action.kind==='publish' && action.published && schema.publisherEmail){
+            const current=await this.graph.get<{fields:Record<string,unknown>}>(schema.path+'/items/'+id+'?$expand=fields');
+            if(!current.fields[schema.publisherEmail] && current.fields[schema.fields.published]!==true)values[schema.publisherEmail]=this.config.currentUserEmail || '';
+          }
+          await this.graph.patch(schema.path+'/items/'+id+'/fields',values);
+        }
         result.succeeded.push(id);
       } catch (reason) { result.failed.push({ id, message: reason instanceof Error ? reason.message : 'Update failed.' }); }
     }

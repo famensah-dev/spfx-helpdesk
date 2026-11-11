@@ -64,7 +64,7 @@ export async function createSharePointService(context: WebPartContext, listName:
   const tickets = new GraphTicketService(graph, config, graph, sharePointToken, id => supportUnits.routeTicket(id));
   if(workspaceSettings.departmentFolders)tickets.folderStore=new DepartmentFolderStore(siteUrl,sharePointToken,workspaceSettings.departmentFolders,currentUserId,context.pageContext.user.email,admin || superAdmin || role.id==='agent');
   const ticketViews=new SharePointTicketViews(siteUrl,sharePointToken,graph,currentUserId,async()=>{if(config.listId)return config.listId;const info=await graph.get<{id:string}>('/sites/'+new URL(siteUrl).hostname+':'+new URL(siteUrl).pathname+'?$select=id');const lists=await graph.getAll<{id:string;displayName:string}>('/sites/'+encodeURIComponent(info.id)+'/lists?$select=id,displayName');const list=lists.find(item=>item.displayName===config.listName);if(!list)throw new Error('Ticket list was not found.');return list.id;},workspaceSettings.resourceIds?.ticketViews);
-  const faqs = new GraphFaqService(graph, config, sharePointToken);
+  const faqs = new GraphFaqService(graph, config, sharePointToken, {admin:admin || superAdmin,agent:role.id==='agent'});
   const access: IWorkspaceAccess = {role: role.name, oid: aadId, admin: admin || superAdmin, superAdmin, agent: role.id === 'agent', email: context.pageContext.user.email, name: context.pageContext.user.displayName, siteUrl};
   const source: ITicketDataSource = Object.assign(tickets, {
     workspaceConnection: selected,
