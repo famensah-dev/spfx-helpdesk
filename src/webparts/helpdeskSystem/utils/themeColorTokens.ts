@@ -376,5 +376,10 @@ export const themeColorTokens = [
 {"name":"--dp-fg-735100","role":"fg","color":"#735100"},
 {"name":"--dp-fg-16834a","role":"fg","color":"#16834a"},
 {"name":"--dp-fg-c4262e","role":"fg","color":"#c4262e"},
-{"name":"--dp-line-d5dae1","role":"line","color":"#d5dae1"}
+{"name":"--dp-line-d5dae1","role":"line","color":"#d5dae1"},
+{"name":"--dp-line-c5e8da","role":"line","color":"#c5e8da"},
+{"name":"--dp-line-dcd0ef","role":"line","color":"#dcd0ef"},
+{"name":"--dp-bg-fff4e6","role":"bg","color":"#fff4e6"},
+{"name":"--dp-line-f6dfbf","role":"line","color":"#f6dfbf"},
+{"name":"--dp-fg-c66b13","role":"fg","color":"#c66b13"},
 ] as const;

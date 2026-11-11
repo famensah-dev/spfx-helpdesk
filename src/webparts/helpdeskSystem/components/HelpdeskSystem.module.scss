@@ -1902,3 +1902,168 @@
   :global(.documentation-topics) { max-height:240px; overflow-y:auto; overscroll-behavior:contain; padding:8px 0; }
   :global(.documentation-article) { padding:16px; font-size:14px; > h3 { font-size:19px; } }
 } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-reading) { max-width:70ch; width:100%; margin-inline:auto;
+    > h3 { margin:0 0 6px; font-size:22px; font-weight:500; line-height:1.4; scroll-margin-top:16px; &:focus { outline:none; } &:focus-visible { outline:2px solid var(--dp-fg-006bff, #006bff); outline-offset:4px; } }
+    > p { margin:14px 0; } > :global(.documentation-section-name) { margin:0 0 6px; color:var(--dp-fg-61728b, #61728b); font-size:12px; } > :global(.documentation-summary) { margin:0 0 18px; color:var(--dp-fg-61728b, #61728b); }
+  }
+  :global(.documentation-visual) { margin:18px 0 22px; img { display:block; width:100%; max-width:700px; height:auto; margin-inline:auto; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; box-sizing:border-box; } figcaption { margin-top:6px; color:var(--dp-fg-61728b, #61728b); font-size:11px; line-height:1.5; } }
+}
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-reading) > h3 { font-size:19px; } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-topics) { max-height:calc(100dvh - 250px); overflow-y:auto; overscroll-behavior:contain; scrollbar-gutter:stable; h3 { color:var(--dp-fg-1b385c, #1b385c); } }
+  :global(.documentation-article) footer button { border:0; background:var(--dp-bg-f0f2f5, #f0f2f5); &:hover { background:var(--dp-bg-e5e9ef, #e5e9ef); } }
+}
+@media(min-width:701px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-topics) { position:sticky; top:12px; max-height:clamp(240px, calc(100dvh - 250px), 600px); } }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-topics) { max-height:240px; } }
+
+// Documentation landing page: topic tree and main content, with no third column.
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-layout) { grid-template-columns:230px minmax(0,1fr); gap:16px; margin-top:0; }
+  :global(.documentation-main) { display:grid; gap:14px; min-width:0; }
+  :global(.documentation-topics) { padding:8px; max-height:calc(100dvh - 170px); border-radius:6px; top:12px;
+    section + section { margin-top:8px; padding-top:8px; }
+    h3 { margin:0 0 4px; }
+    :global(.documentation-home) { display:flex; align-items:center; gap:10px; font-weight:600; border-radius:4px; padding:9px 10px; margin-bottom:8px; > i { color:var(--dp-fg-2855b6, #2855b6); font-size:17px; } }
+    :global(.documentation-group-toggle) { display:flex; align-items:center; gap:10px; padding:8px 6px; font-size:13px; font-weight:600; color:var(--dp-fg-1b385c, #1b385c); border-left:0; > span { flex:1; } > i:first-child { font-size:17px; } > i:last-child { font-size:10px; } }
+    :global(.documentation-topic-tree) { margin:0 0 4px 20px; border-left:1px solid var(--dp-line-d6e1ee, #d6e1ee); button { position:relative; font-size:12px; padding:6px 8px 6px 14px; line-height:1.45; border-left:0; &::before { content:''; position:absolute; left:-3px; top:13px; width:5px; height:5px; border-radius:50%; background:var(--dp-fg-9297a5, #9297a5); } &[aria-current='page'] { border-radius:0 4px 4px 0; color:var(--dp-active-subtab-text, var(--dp-fg-2855b6, #2855b6)); &::before { background:currentColor; } } } }
+  }
+  :global(.documentation-hero) { position:relative; overflow:hidden; padding:22px; border:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:8px; background:linear-gradient(130deg,var(--dp-bg-edf3fc, #edf3fc),var(--dp-bg-e8effc, #e8effc));
+    &::before { content:''; position:absolute; inset:0; background:linear-gradient(150deg,transparent 45%,rgba(70,145,234,.08) 45%,rgba(70,145,234,.03) 70%,transparent 70%); pointer-events:none; }
+    > h2 { position:relative; max-width:calc(100% - 210px); margin:10px 0 6px; font-size:clamp(25px,2.5vw,38px); line-height:1.2; font-weight:650; letter-spacing:-.7px; color:var(--dp-fg-1b385c, #1b385c); &:focus { outline:none; } }
+    > p { position:relative; max-width:calc(100% - 230px); margin:0 0 24px; font-size:14px; line-height:1.6; }
+    form { position:relative; display:flex; align-items:center; gap:8px; padding:5px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:18px; background:var(--dp-bg-fff, #fff); box-shadow:0 2px 5px rgba(27,56,92,.06); :global(.ms-SearchBox) { flex:1; min-width:0; height:32px; border:0; background:transparent; border-radius:12px; } :global(.ms-SearchBox-field) { font-size:12px; } > button { flex-shrink:0; padding:8px 22px; border:0; border-radius:16px; background:var(--dp-bg-2855b6, #2855b6); color:#fff; font:500 12px 'Segoe UI',sans-serif; cursor:pointer; &:hover { background:var(--dp-bg-1b385c, #1b385c); } } }
+  }
+  :global(.documentation-eyebrow) { position:relative; display:inline-block; padding:4px 12px; border-radius:14px; background:var(--dp-bg-d5e2fb, #d5e2fb); color:var(--dp-fg-1b385c, #1b385c); font-size:11px; font-weight:600; }
+  :global(.documentation-artwork) { position:absolute; right:12px; top:18px; width:235px; height:150px; pointer-events:none; }
+  :global(.documentation-overview-section) { padding:18px 20px; border:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:8px; background:var(--dp-bg-fff, #fff);
+    > header { display:flex; align-items:flex-start; gap:12px; margin-bottom:14px; > i { font-size:24px; color:var(--dp-fg-2855b6, #2855b6); margin-top:2px; } h3 { margin:0; font-size:18px; font-weight:600; } p { margin:2px 0 0; font-size:12px; color:var(--dp-fg-61728b, #61728b); } }
+  }
+  :global(.documentation-quick-grid), :global(.documentation-browse-grid) { display:grid; gap:12px;
+    > button { position:relative; display:flex; flex-direction:column; gap:6px; align-items:flex-start; min-width:0; padding:16px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:7px; text-align:left; background:var(--dp-bg-edf3fc, #edf3fc); color:var(--dp-fg-172536, #172536); cursor:pointer; font:400 12px/1.5 'Segoe UI',sans-serif;
+      > i:first-child { font-size:24px; margin-bottom:3px; color:var(--dp-fg-2855b6, #2855b6); } > strong { font-size:13px; font-weight:600; } > span { font-size:12px; color:var(--dp-fg-415575, #415575); }
+      &[data-tone='green'] { background:var(--dp-bg-e4f4eb, #e4f4eb); border-color:var(--dp-line-c5e8da, #c5e8da); > i:first-child { color:var(--dp-fg-159663, #159663); } }
+      &[data-tone='purple'] { background:var(--dp-bg-f0e8fc, #f0e8fc); border-color:var(--dp-line-dcd0ef, #dcd0ef); > i:first-child { color:var(--dp-fg-6850a5, #6850a5); } }
+      &[data-tone='orange'] { background:var(--dp-bg-fff4e6, #fff4e6); border-color:var(--dp-line-f6dfbf, #f6dfbf); > i:first-child { color:var(--dp-fg-c66b13, #c66b13); } }
+      &:hover { box-shadow:0 3px 12px rgba(27,56,92,.1); } > small { display:flex; align-items:center; gap:8px; width:100%; margin-top:auto; padding-top:9px; border-top:1px solid var(--dp-line-d6e1ee, #d6e1ee); color:var(--dp-fg-244a91, #244a91); font-size:12px; font-weight:500; i { font-size:12px; } }
+    }
+  }
+  :global(.documentation-quick-grid) { grid-template-columns:repeat(4,minmax(0,1fr)); > button { padding:14px; padding-right:24px; > i:last-child { position:absolute; right:10px; top:50%; font-size:11px; color:var(--dp-fg-2855b6, #2855b6); } } }
+  :global(.documentation-browse-grid) { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:1100px) { .helpdeskSystemShell :global(.deskpilot-documentation) { :global(.documentation-layout) { grid-template-columns:210px minmax(0,1fr); } :global(.documentation-quick-grid), :global(.documentation-browse-grid) { grid-template-columns:repeat(2,minmax(0,1fr)); } :global(.documentation-artwork) { width:170px; top:32px; right:8px; } :global(.documentation-hero) { > h2 { max-width:calc(100% - 140px); font-size:28px; } > p { max-width:calc(100% - 145px); font-size:13px; } } } }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-layout) { grid-template-columns:minmax(0,1fr); gap:12px; }
+  :global(.documentation-topics) { position:static; max-height:220px; }
+  :global(.documentation-artwork) { display:none; }
+  :global(.documentation-hero) { padding:16px; > h2 { max-width:none; font-size:27px; } > p { max-width:none; margin-bottom:16px; font-size:13px; } form > button { padding:8px 14px; } }
+  :global(.documentation-overview-section) { padding:14px 12px; > header h3 { font-size:17px; } }
+  :global(.documentation-quick-grid), :global(.documentation-browse-grid) { gap:8px; > button { padding:12px; > strong { font-size:12px; } } }
+} }
+@media(max-width:380px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-browse-grid) { grid-template-columns:minmax(0,1fr); } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation .documentation-hero) { > h2, > p { max-width:none; } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-theme-search) { position:relative; margin-top:18px; max-width:680px; }
+  :global(.documentation-theme-search) > :global(.ms-SearchBox), :global(.documentation-sidebar-search) > :global(.ms-SearchBox) { width:100%; min-width:0; height:34px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; background:var(--dp-bg-fff, #fff); box-shadow:none; :global(.ms-SearchBox-field) { font-size:13px; } :global(.ms-SearchBox-icon) { font-size:15px; } }
+  :global(.documentation-sidebar-search) { padding:4px 4px 12px; }
+  :global(.documentation-breadcrumb) { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:10px; font-size:11px; line-height:1.5; color:var(--dp-fg-61728b, #61728b); > button { padding:0; border:0; background:transparent; color:inherit; font:inherit; cursor:pointer; &:hover { text-decoration:underline; } } > i { font-size:8px; } }
+  :global(.documentation-meta) { display:flex; align-items:center; flex-wrap:wrap; gap:8px; margin:10px 0 14px; > span { display:inline-flex; align-items:center; gap:6px; padding:3px 9px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:14px; background:var(--dp-bg-f3f6fc, #f3f6fc); color:var(--dp-fg-526783, #526783); font-size:11px; line-height:1.4; > i { font-size:11px; } } }
+  :global(.documentation-on-page) { display:flex; flex-wrap:wrap; align-items:baseline; gap:6px 14px; margin:0 0 20px; padding:9px 0; border-top:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-bottom:1px solid var(--dp-line-e0e5ef, #e0e5ef); font-size:12px; > span { color:var(--dp-fg-61728b, #61728b); } > button { padding:0; min-height:24px; border:0; background:transparent; color:var(--dp-fg-244a91, #244a91); font:inherit; cursor:pointer; &:hover { text-decoration:underline; } } }
+  :global(.documentation-reading) > section { margin:20px 0; > h4 { margin:0 0 8px; font-size:15px; line-height:1.5; font-weight:600; scroll-margin-top:16px; } > p { margin:10px 0; } }
+  :global(.documentation-reading) > h3 { font-size:24px; margin-bottom:4px; }
+  :global(.documentation-reading) > :global(.documentation-summary) { margin-bottom:10px; color:var(--dp-fg-2855b6, #2855b6); }
+  :global(.documentation-reading) [tabindex='-1']:focus { outline:none; }
+  :global(.documentation-reading) [tabindex='-1']:focus-visible { outline:2px solid var(--dp-fg-006bff, #006bff); outline-offset:3px; }
+}
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) { :global(.documentation-reading) > h3 { font-size:20px; } :global(.documentation-on-page) { gap:4px 10px; margin-bottom:16px; } } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation .documentation-quick-grid) > button { padding-bottom:36px; > strong { font-size:15px; } > i:last-child { top:auto; bottom:12px; right:14px; font-size:14px; } }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-quick-grid) > button { padding-bottom:34px; > strong { font-size:14px; } } }
+
+@media(min-width:701px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-topics) { max-height:calc(100dvh - 130px); } }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-topics) { max-height:260px; } }
+
+@media(min-width:701px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-reading) { width:80%; max-width:none; margin-inline:auto; } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-topics) { button { font-size:14px; } :global(.documentation-group-toggle) { font-size:14px; } :global(.documentation-topic-tree) button { font-size:13px; line-height:1.55; } }
+  :global(.documentation-reading) { font-size:16px; line-height:1.8; > section > h4 { font-size:17px; } }
+  :global(.documentation-note) { font-size:14px; line-height:1.7; }
+}
+
+.helpdeskSystemShell :global(.deskpilot-documentation .documentation-topics) { padding-top:16px; }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-theme-search) { max-width:none; width:100%; margin-top:24px; }
+  :global(.documentation-hero) { padding:28px; }
+  :global(.documentation-overview-section) { padding:24px; > header { margin-bottom:20px; } }
+  :global(.documentation-quick-grid), :global(.documentation-browse-grid) { gap:20px;
+    > button { background:var(--dp-bg-fff, #fff); border-color:var(--dp-line-e0e5ef, #e0e5ef); padding:20px; gap:9px;
+      > i:first-child { display:flex; align-items:center; justify-content:center; width:48px; height:48px; flex:0 0 48px; border-radius:50%; margin-bottom:7px; background:var(--dp-bg-edf3fc, #edf3fc); color:var(--dp-fg-2855b6, #2855b6); font-size:23px; }
+      &[data-tone='green'], &[data-tone='purple'], &[data-tone='orange'] { background:var(--dp-bg-fff, #fff); border-color:var(--dp-line-e0e5ef, #e0e5ef); }
+      &[data-tone='green'] > i:first-child { background:var(--dp-bg-e4f4eb, #e4f4eb); color:var(--dp-fg-159663, #159663); }
+      &[data-tone='purple'] > i:first-child { background:var(--dp-bg-f0e8fc, #f0e8fc); color:var(--dp-fg-6850a5, #6850a5); }
+      &[data-tone='orange'] > i:first-child { background:var(--dp-bg-fff4e6, #fff4e6); color:var(--dp-fg-c66b13, #c66b13); }
+    }
+  }
+  :global(.documentation-quick-grid) > button { padding-bottom:40px; }
+}
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-hero), :global(.documentation-overview-section) { padding:16px; }
+  :global(.documentation-quick-grid), :global(.documentation-browse-grid) { gap:12px; > button { padding:14px; > i:first-child { width:42px; height:42px; flex-basis:42px; font-size:21px; } } }
+  :global(.documentation-quick-grid) > button { padding-bottom:36px; }
+} }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-topics) { padding-top:24px; }
+  :global(.documentation-article) { padding-top:40px; }
+  :global(.documentation-breadcrumb) { font-size:13px; margin-bottom:16px; gap:10px; }
+  :global(.documentation-reading) > h3 { font-size:29px; line-height:1.35; margin-bottom:10px; }
+  :global(.documentation-reading) > section { margin:36px 0; > h4 { margin-bottom:12px; } }
+  :global(.documentation-reading) > footer { margin-top:36px; padding-top:20px; }
+}
+@media(min-width:701px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-reading) { width:88%; } }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-article) { padding-top:28px; }
+  :global(.documentation-breadcrumb) { font-size:12px; margin-bottom:12px; }
+  :global(.documentation-reading) > h3 { font-size:24px; }
+  :global(.documentation-reading) > section { margin:28px 0; }
+} }
+
+@media(min-width:1101px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-layout) { grid-template-columns:280px minmax(0,1fr); } }
+@media(min-width:701px) and (max-width:1100px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-layout) { grid-template-columns:240px minmax(0,1fr); } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation .documentation-on-page) { column-gap:0; row-gap:10px; > span { margin-right:8px; } > button { padding-inline:16px; } > button + button { border-left:1px solid var(--dp-line-d6e1ee, #d6e1ee); } }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-on-page) { column-gap:0; row-gap:8px; > button { padding-inline:12px; } } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) { padding-bottom:48px; }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) { padding-bottom:64px; } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation .documentation-note) { background:var(--dp-bg-fff, #fff); border:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-left:4px solid var(--dp-fg-2855b6, #2855b6); border-radius:4px; padding:14px 16px; color:var(--dp-fg-293d58, #293d58); > i { color:var(--dp-fg-2855b6, #2855b6); } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-topics) { scrollbar-width:thin; scrollbar-color:var(--dp-line-a9bfd9, #a9bfd9) transparent; &::-webkit-scrollbar { width:6px; height:6px; } &::-webkit-scrollbar-track { background:transparent; } &::-webkit-scrollbar-thumb { background:var(--dp-line-a9bfd9, #a9bfd9); border-radius:6px; } &::-webkit-scrollbar-thumb:hover { background:var(--dp-bg-a9bfd9, #a9bfd9); } }
+  :global(.documentation-group-toggle) > i:last-child { font-size:10px !important; }
+  :global(.documentation-article) { padding-top:56px; }
+  :global(.documentation-note) { background:var(--dp-bg-fff4d6, #fff4d6); border-left-color:var(--dp-fg-946200, #946200); padding:18px 20px; font-size:16px; line-height:1.75; color:var(--dp-fg-293d58, #293d58); > i { color:var(--dp-fg-946200, #946200); font-size:18px; } }
+  :global(.documentation-overview-section) > header p, :global(.documentation-quick-grid) > button > span, :global(.documentation-browse-grid) > button > span { font-size:14px; line-height:1.65; }
+  :global(.documentation-topics) button small { font-size:13px; }
+  :global(.documentation-visual) figcaption { font-size:13px; }
+  :global(.documentation-meta) > span { font-size:12px; }
+}
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) { :global(.documentation-article) { padding-top:36px; } :global(.documentation-note) { padding:14px 16px; font-size:15px; } } }
+
+:global(.documentation-modal-search) :global(.ms-SearchBox) { height:34px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; background:var(--dp-bg-fff, #fff); }
+:global(.documentation-modal-count) { margin:12px 0 8px; font-size:13px; color:var(--dp-fg-61728b, #61728b); }
+:global(.documentation-search-results) { max-height:min(52dvh,420px); overflow-y:auto; > button { display:block; width:100%; padding:12px 8px; border:0; border-bottom:1px solid var(--dp-line-e0e5ef, #e0e5ef); background:transparent; color:var(--dp-fg-172536, #172536); text-align:left; font:400 14px/1.5 'Segoe UI',sans-serif; cursor:pointer; &:hover { background:var(--dp-bg-f3f6fc, #f3f6fc); } &:focus-visible { outline:2px solid var(--dp-fg-006bff, #006bff); outline-offset:-2px; } } }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-quick-grid), :global(.documentation-browse-grid) { > button { border:0; box-shadow:0 2px 10px rgba(16,30,50,.09); &:hover { box-shadow:0 4px 14px rgba(16,30,50,.14); } } }
+}
+
+.helpdeskSystemShell :global(.deskpilot-documentation .documentation-hero) > h2 { font-size:30px; font-weight:500; letter-spacing:-.3px; }
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation .documentation-hero) > h2 { font-size:25px; } }

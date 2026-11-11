@@ -1,6 +1,6 @@
 export interface IDocumentationTopic {
   id:string; section:string; title:string; summary:string; keywords:string;
-  paragraphs?:string[]; steps?:string[]; note?:string; related?:string[];
+  paragraphs?:string[]; sections?:Array<{id:string;title:string;paragraphs:string[]}>; steps?:string[]; note?:string; related?:string[];
 }
 /** Product help is bundled with the app. No tickets or personal data are searched here. */
 export const documentationTopics:IDocumentationTopic[]=[
@@ -8,7 +8,44 @@ export const documentationTopics:IDocumentationTopic[]=[
     'DeskPilot keeps support requests in one place. Each request becomes a ticket with a title, description, status, and the person handling it.',
     'Use Dashboard for an overview, Tickets to work on requests, and Knowledge Base to read helpful articles. Settings contains the tools available to Helpdesk Admins.',
     'The buttons and tickets you see depend on your role and workspace access. This manual describes the standard roles; your organisation may adjust their permissions.'
-  ],related:['roles','create','quick-help']},
+  ],related:['interface','roles','create','quick-help']},
+  {id:'interface',section:'Getting Started',title:'Get to Know the Interface',summary:'Learn what the main parts of the screen show and what their controls do.',keywords:'interface screen layout tour controls buttons icons navigation header top bar bell notification initials avatar badge menu toolbar search filter sort tabs sidebar gear',sections:[
+    {id:'header',title:'The Top Bar',paragraphs:[
+      'The top bar shows DeskPilot and the name of your support workspace. Check the workspace name if your organisation uses more than one helpdesk.',
+      'The moon or sun switches between light and dark mode. The bell opens your notifications; a number on the bell indicates unread notifications. Your name or initials identifies the signed-in account and opens its account menu.',
+      'A settings icon may also appear here. These workspace-level settings are separate from the main Settings tab and may require a Super Admin.'
+    ]},
+    {id:'main-tabs',title:'The Main Tabs',paragraphs:[
+      'Dashboard shows totals, charts, and support performance. Tickets is the working list of requests. Knowledge Base contains reusable guidance. Settings contains the management sections available to your role. User Guide is this application manual.',
+      'The highlighted tab shows where you are. Changing tabs changes the part of DeskPilot you are viewing; it does not change the status of a ticket.'
+    ]},
+    {id:'ticket-list',title:'The Ticket List',paragraphs:[
+      'The page title tells you which list you are viewing. New opens the ticket creation form. The views below the title, such as All Tickets, My Assigned Tickets, and Created by Me, choose whose requests to display within your access.',
+      'Search narrows the visible results. Status and date filters narrow them further. The ticket count describes the current results, not necessarily every ticket in the workspace. Sort controls change the order of the results.',
+      'Each ticket row or mobile card shows its number, title, and available details such as status, priority, or assignee. A sparkle beside a title means you have not opened that ticket yet. A status badge describes its current stage; priority describes its urgency.',
+      'Refresh checks for the latest data. Desktop column controls change which fields appear in the table. Export downloads the available results. On mobile, some of these actions are grouped in the configuration menu beside Search.'
+    ]},
+    {id:'ticket-screen',title:'Inside a Ticket',paragraphs:[
+      'The main area shows the ticket title, who submitted it, its date, status, and description. The details column shows information such as the assignee, requester, priority, and classification.',
+      'Comments holds the conversation. Attachments lists the supporting files. Activity shows recorded updates. A Resolution Summary tab appears when a resolution exists. Only the content of the selected tab is shown.',
+      'Resolve and its adjacent status dropdown change the workflow. Edit opens the editable ticket fields. The history control shows saved versions. A disabled control is not available for your role or for that ticket.',
+      'The comment editor expands when selected. Formatting appears above the message, while attachments and Post are inside the editor. File chips show the files selected for that message.'
+    ]},
+    {id:'knowledge-screen',title:'The Knowledge Base',paragraphs:[
+      'Category tabs group the articles. Search helps you find guidance by its title, content, or keywords. An article row shows its title, content, classification, and publication status where those columns are available.',
+      'New Article opens the article editor for Agents and Helpdesk Admins. A title displayed as an editable link can be selected to edit that article. Published articles can also appear in Quick Help.'
+    ]},
+    {id:'settings-screen',title:'The Settings Layout',paragraphs:[
+      'The section menu chooses an area such as Users & Roles, Support Teams, Assignment, or Email & Notifications. The panel on the right contains the controls for that section. Some sections have their own tabs for different views.',
+      'Switches turn options on or off. Text fields and selection lists hold values. Save applies an edit when a Save action is provided; Discard returns to the saved values where available. Some switches save immediately, so read the confirmation or error shown afterward.',
+      'A chevron on a mobile settings row opens its details. The hamburger button beside Settings opens the section menu on smaller screens.'
+    ]},
+    {id:'feedback',title:'Messages, Loading, and Help',paragraphs:[
+      'A spinner means data or an action is still loading. Success messages confirm an action. Warnings may explain that one part succeeded while another needs attention. Error messages explain what could not be completed; read them before retrying.',
+      'Need Help opens Quick Help, which guides you through published support articles. It is different from the notification bell and is not a live chat with an agent.',
+      'On mobile, the account name may be replaced by initials, tables may become lists or cards, and actions may move into menus. The main functions remain the same, although the arrangement changes to fit the screen.'
+    ]}
+  ],note:'The available screens and actions depend on your role and workspace permissions. A hidden or disabled control does not always mean something is broken.',related:['navigation','roles','create','find','quick-help']},
   {id:'roles',section:'Getting Started',title:'Understand Your Role',summary:'What Agents and Helpdesk Admins can do.',keywords:'permissions access rights account users administrator agent visibility who can edit',paragraphs:[
     'Agents handle support requests. They can create tickets, choose an assignee during creation, comment, and update the status of tickets they are allowed to work on. They can see tickets assigned to them and tickets they created or requested, subject to workspace access.',
     'Agents can assign tickets they created themselves. Being assigned someone else’s ticket does not let an agent pass it to another person. Agents cannot close tickets.',
@@ -17,7 +54,7 @@ export const documentationTopics:IDocumentationTopic[]=[
     'Creating a ticket is different from being its requester. The creator entered the record; the requester is the person who needs help. A Helpdesk Admin cannot change another person’s ticket title or description. Changing an existing ticket’s requester requires a Super Admin.'
   ],note:'Workspace connections, Ticket List Schema, and certain site-level settings require a Super Admin. Contact one if a required setting is unavailable.',related:['edit','assign','knowledge-edit','users']},
   {id:'navigation',section:'Getting Started',title:'Find Your Way Around',summary:'Use the navigation, mobile controls, and display options.',keywords:'mobile phone tabs menu hamburger theme dark light appearance desktop',steps:[
-    'Choose a main tab at the top to open Dashboard, Tickets, Knowledge Base, Settings, or Documentation.',
+    'Choose a main tab at the top to open Dashboard, Tickets, Knowledge Base, Settings, or User Guide.',
     'On a small screen, swipe the main tab row if needed. The selected tab moves into view when you change pages.',
     'In mobile Settings, use the menu button beside Settings to choose a section.',
     'Use the moon or sun button in the top bar to change the theme. DeskPilot remembers the choice in this browser.'
@@ -164,7 +201,7 @@ export const documentationTopics:IDocumentationTopic[]=[
 export function searchDocumentation(query:string):IDocumentationTopic[] {
   const words=query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   return documentationTopics.filter(topic=>{
-    const text=[topic.title,topic.section,topic.summary,topic.keywords,...(topic.paragraphs || []),...(topic.steps || []),topic.note || ''].join(' ').toLowerCase();
+    const text=[topic.title,topic.section,topic.summary,topic.keywords,...(topic.paragraphs || []),...(topic.steps || []),...(topic.sections || []).flatMap(section=>[section.title,...section.paragraphs]),topic.note || ''].join(' ').toLowerCase();
     return words.every(word=>text.includes(word));
   }).sort((a,b)=>{
     const score=(topic:IDocumentationTopic):number=>words.reduce((total,word)=>total+(topic.title.toLowerCase().includes(word)?3:0)+(topic.keywords.includes(word)?1:0),0);
