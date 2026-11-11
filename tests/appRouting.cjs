@@ -28,6 +28,7 @@ const app=load(root+'components/HelpdeskApp.tsx',{
  '../pages/DashboardPage':{DashboardPage:p=>h('div',null,'Dashboard content',button('Open dashboard ticket',()=>p.onOpenTicket(123)))},
  '../pages/TicketListPage':{TicketListPage:p=>h('div',null,p.creating?'New ticket form':'Tickets content '+p.view,button('Open list ticket',()=>p.onOpenTicket(123)),button('Show archive',()=>p.onViewChange('Archive')),button('Create ticket',()=>p.onCreatingChange(true)))},
  './TicketDetails':{TicketDetails:p=>h('div',null,'Ticket '+p.ticket.Id,button('Return from ticket',p.onBack))},
+ '../pages/DocumentationPage':{DocumentationPage:()=>h('div',null,'Documentation content')},
  '../pages/FaqPage':{FaqPage:()=>h('div',null,'Knowledge Base content')},
  '../pages/AdministrationPage':{AdministrationPage:p=>h('div',null,'Settings '+p.section,button('Open teams',()=>p.onSectionChange('units')))},
  '../pages/SharePointRolesPage':{SharePointRolesPage:()=>h('div',null,'Users and roles content')}

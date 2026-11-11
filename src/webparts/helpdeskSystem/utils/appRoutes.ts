@@ -4,6 +4,7 @@ export const pagePaths = {
   Tickets: '/tickets',
   'My Assigned Tickets': '/my-tickets',
   FAQs: '/knowledge-base',
+  Documentation: '/documentation',
   Administration: '/settings',
   'Users & Roles': '/users-and-roles'
 } as const;

@@ -1874,3 +1874,31 @@
     .ticketCountRow { margin:0; padding:0; }
   }
 }
+
+.helpdeskSystemShell :global(.deskpilot-documentation) { color:var(--dp-fg-172536, #172536); min-width:0;
+  :global(.documentation-header) { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; padding:16px 20px; background:var(--dp-bg-fff, #fff); border:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:4px; h2 { margin:0; font-size:22px; font-weight:500; } p { margin:4px 0 0; font-size:13px; color:var(--dp-fg-61728b, #61728b); } > :global(.ms-SearchBox) { width:400px; max-width:100%; height:36px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; } }
+  :global(.documentation-layout) { display:grid; grid-template-columns:minmax(230px,290px) minmax(0,1fr); gap:16px; margin-top:14px; align-items:start; }
+  :global(.documentation-topics) { padding:12px 0; background:var(--dp-bg-fff, #fff); border:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:4px; min-width:0;
+    section + section { margin-top:10px; padding-top:10px; border-top:1px solid var(--dp-line-e0e5ef, #e0e5ef); }
+    h3 { margin:4px 14px 6px; font-size:12px; font-weight:600; color:var(--dp-fg-61728b, #61728b); }
+    button { display:block; text-align:left; width:100%; padding:9px 14px; border:0; border-left:3px solid transparent; border-radius:0; background:transparent; color:inherit; font:400 13px/1.5 'Segoe UI',sans-serif; cursor:pointer;
+      &:hover { background:var(--dp-bg-f3f6fc, #f3f6fc); } &[aria-current='page'] { border-left-color:var(--dp-fg-00899b, #00899b); background:var(--dp-bg-e8effc, #e8effc); font-weight:500; } small { display:block; font-size:12px; color:var(--dp-fg-61728b, #61728b); margin-top:3px; font-weight:400; }
+    }
+  }
+  :global(.documentation-result-count) { margin:0 14px 10px; font-size:12px; color:var(--dp-fg-61728b, #61728b); }
+  :global(.documentation-empty) { padding:0 14px; font-size:13px; line-height:1.6; button { padding-left:0; color:var(--dp-fg-244a91, #244a91); } }
+  :global(.documentation-article) { min-width:0; padding:24px; border:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:4px; background:var(--dp-bg-fff, #fff); line-height:1.7; font-size:14px; overflow-wrap:anywhere;
+    > h3 { margin:0 0 6px; font-size:22px; line-height:1.4; font-weight:500; scroll-margin-top:16px; &:focus { outline:none; } &:focus-visible { outline:2px solid var(--dp-fg-006bff, #006bff); outline-offset:4px; } }
+    > p { margin:14px 0; } :global(.documentation-section-name) { margin:0 0 6px; color:var(--dp-fg-61728b, #61728b); font-size:12px; } :global(.documentation-summary) { margin:0 0 20px; color:var(--dp-fg-61728b, #61728b); }
+    ol { padding-left:24px; margin:14px 0; } li { padding-left:4px; margin:10px 0; } li::marker { color:var(--dp-fg-00899b, #00899b); font-weight:600; }
+    footer { margin-top:24px; padding-top:16px; border-top:1px solid var(--dp-line-e0e5ef, #e0e5ef); h4 { margin:0 0 8px; font-size:13px; font-weight:500; } > div { display:flex; flex-wrap:wrap; gap:8px; } button { display:inline-flex; align-items:center; gap:8px; padding:7px 10px; border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; background:transparent; color:var(--dp-fg-244a91, #244a91); font:400 13px/1.4 'Segoe UI',sans-serif; text-align:left; cursor:pointer; i { font-size:10px; } &:hover { background:var(--dp-bg-f3f6fc, #f3f6fc); } } }
+  }
+  :global(.documentation-note) { display:flex; align-items:flex-start; gap:10px; margin-top:20px; padding:12px; border-radius:4px; background:var(--dp-bg-edf3fc, #edf3fc); color:var(--dp-fg-415575, #415575); font-size:13px; > i { margin-top:4px; flex-shrink:0; } p { margin:0; } }
+  button:focus-visible { outline:2px solid var(--dp-fg-006bff, #006bff); outline-offset:-2px; }
+}
+@media(max-width:700px) { .helpdeskSystemShell :global(.deskpilot-documentation) {
+  :global(.documentation-header) { padding:12px; gap:12px; h2 { font-size:20px; } > :global(.ms-SearchBox) { width:100%; min-width:0; } }
+  :global(.documentation-layout) { grid-template-columns:minmax(0,1fr); gap:12px; margin-top:12px; }
+  :global(.documentation-topics) { max-height:240px; overflow-y:auto; overscroll-behavior:contain; padding:8px 0; }
+  :global(.documentation-article) { padding:16px; font-size:14px; > h3 { font-size:19px; } }
+} }

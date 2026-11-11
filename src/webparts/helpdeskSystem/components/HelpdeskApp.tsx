@@ -4,6 +4,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { pagePaths, adminPaths, resolveAppRoute } from '../utils/appRoutes';
 import { MissingWorkspaceNotice } from './WorkspaceSetupPanel';
 import { AdministrationPage } from '../pages/AdministrationPage';
+import { DocumentationPage } from '../pages/DocumentationPage';
 import { FaqPage } from '../pages/FaqPage';
 
 import * as React from 'react';
@@ -21,7 +22,7 @@ import { canUse } from '../services/appRoleRules';
 
 export interface IHelpdeskAppProps { service: ITicketDataSource; currentUserEmail: string; accountActions?: React.ReactNode; portalTitle?: string; settingsContent?: React.ReactNode; }
 
-const pages = ['Dashboard', 'Tickets', 'FAQs', 'Administration', 'Users & Roles'] as const;
+const pages = ['Dashboard', 'Tickets', 'FAQs', 'Administration', 'Users & Roles', 'Documentation'] as const;
 type Page = typeof pages[number] | 'My Assigned Tickets' | 'My Dashboard';
 const appTheme = createTheme({
   defaultFontStyle: { fontFamily: "'Segoe UI', sans-serif" },
@@ -73,7 +74,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
   const appearance = useDeskPilotAppearance();
   const rules = props.service.roleRules;
   const administrationAllowed = rules ? props.service.supportUnits || props.service.access?.superAdmin || ['classifications', 'manageFaqs', 'sla'].some(action => rules.actions.includes(action as 'classifications' | 'manageFaqs' | 'sla')) : !props.service.access?.agent;
-  const permittedPage = (value: Page): boolean => value === 'Users & Roles' ? Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
+  const permittedPage = (value: Page): boolean => value === 'Documentation' ? true : value === 'Users & Roles' ? Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
   const initialPage: Page = rules ? canUse(props.service, 'dashboard') ? 'Dashboard' : canUse(props.service, 'tickets') ? 'Tickets' : canUse(props.service, 'faqs') ? 'FAQs' : 'Administration' : props.service.access?.agent ? 'My Dashboard' : 'Dashboard';
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -136,6 +137,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         {(page === 'Tickets' || (page === 'My Assigned Tickets' && dashboard.assignmentIdentityAvailable)) && (route.creating && !props.service.createTicket ? <MessageBar messageBarType={MessageBarType.error}>You do not have permission to create tickets.</MessageBar> : <TicketListPage service={props.service} onBulkAction={props.service.updateTickets ? (ids, action) => props.service.updateTickets!(ids, action) : undefined} onCreate={props.service.createTicket ? input => props.service.createTicket!(input) : undefined} title={page} currentUserEmail={props.currentUserEmail} assignmentIdentityAvailable={dashboard.assignmentIdentityAvailable} tickets={dashboard.tickets} loading={dashboard.loading} error={dashboard.error} refresh={dashboard.refresh} onOpenTicket={openTicket} creating={route.creating===true} onCreatingChange={value=>routerNavigate(value ? '/tickets/new' : canUse(props.service,'tickets') ? '/tickets' : pagePaths[initialPage])} view={ticketView} onViewChange={view=>routerNavigate({pathname:location.pathname,search:view==='All Tickets' ? '' : '?view='+encodeURIComponent(view)})} />)}
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
         {page === 'FAQs' && <FaqPage service={props.service} />}
+        {page === 'Documentation' && <DocumentationPage />}
         {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} section={route.adminSection || 'home'} onSectionChange={section=>routerNavigate('/settings'+(adminPaths[section] ? '/'+adminPaths[section] : ''))} onSettingsChanged={dashboard.refresh} onUsersAndRoles={()=>navigate('Users & Roles')} />}
         {page === 'Users & Roles' && props.service.roleManagement && <Navigate to="/settings/users-and-roles" replace />}
         </>}
