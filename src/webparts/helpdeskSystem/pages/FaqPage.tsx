@@ -81,7 +81,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean; h
     const [item] = next.splice(index, 1); next.splice(target, 0, item); return next;
   });
   const change = (value: Partial<IFaqInput>): void => setDraft(current => current ? { ...current, ...value } : current);
-  return <section className={styles.secondaryPage}>
+  return <section className={styles.secondaryPage} data-page="knowledge-base">
     <div className={`${styles.secondaryPageHeader} ${styles.faqTitleRow}`}>{!props.hideHeading && <h2 className={styles.toolbarTitle}>{props.manage ? 'Administration — Knowledge Base' : 'Knowledge Base'}</h2>}
     <div className={styles.faqCategoryTabs}>
       <Pivot aria-label="Article categories" overflowBehavior="menu" overflowAriaLabel="All categories" selectedKey={category || '__all'} onLinkClick={item => { if (!busy && !sortRows) setCategory(item?.props.itemKey === '__all' ? '' : item?.props.itemKey || ''); }}>
@@ -97,7 +97,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean; h
       {loading ? <Spinner label="Loading Knowledge Base…" /> : <>
         <div className={styles.ticketToolbar}>
           <div className={styles.ticketControls}>
-            <SearchBox ariaLabel="Search Knowledge Base" placeholder="Search" disabled={Boolean(sortRows) || busy} value={query} onChange={(_, value) => setQuery(value || '')} />
+            <SearchBox showIcon ariaLabel="Search Knowledge Base" placeholder="Search" disabled={Boolean(sortRows) || busy} value={query} onChange={(_, value) => setQuery(value || '')} />
 
             {allowed && <div className={styles.ticketCounts} role="group" aria-label="Filter articles by status">
               {[{ key: 'all', text: 'Total' }, { key: 'published', text: 'Active' }, { key: 'draft', text: 'Inactive' }].map(item => <button key={item.key} type="button" disabled={busy || Boolean(sortRows)} aria-pressed={visibility === item.key} data-active={visibility === item.key} onClick={() => setVisibility(item.key)}>{item.text}<strong style={{ color: item.key === 'published' ? "var(--dp-fg-13794e, #13794e)" : item.key === 'draft' ? "var(--dp-fg-596371, #596371)" : undefined }}>{item.key === 'all' ? faqs.length : faqs.filter(faq => faq.published === (item.key === 'published')).length}</strong></button>)}
@@ -111,7 +111,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean; h
         </div>
         {!error && !filtered.length && <p>{faqs.length ? 'No articles match your search or filters.' : props.manage ? 'No articles yet. Create your first article.' : 'No published articles are available yet.'}</p>}
         {sortRows && <div className={styles.faqSortActions}><span>Drag rows to reorder all articles, then save. Keyboard: Alt + Up/Down.</span><PrimaryButton text={busy ? 'Saving...' : 'Save'} disabled={busy} onClick={() => { void bulk(sortRows.map(item => item.id), { kind: 'sort' }); }} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={() => setSortRows(null)} /></div>}
-        <div className={styles.tableContainer}><table className={styles.ticketTable}><caption className={styles.ticketCountRow}><div className={styles.ticketCountContent}>        {allowed && !sortRows && selected.size > 0 && <div className={styles.bulkActions}>
+        <div className={styles.tableContainer} role="region" aria-label="Knowledge Base articles, scroll sideways for more columns" tabIndex={0}><table className={styles.ticketTable} data-preserve-table="true" aria-label="Knowledge Base articles"><caption className={styles.ticketCountRow}><div className={styles.ticketCountContent}>        {allowed && !sortRows && selected.size > 0 && <div className={styles.bulkActions}>
           {selected.size > 0 && <><strong aria-live="polite">{selected.size} selected</strong><DefaultButton text="Make Active" disabled={busy} onClick={() => { void bulk(Array.from(selected), { kind: 'publish', published: true }); }} /><DefaultButton text="Make Inactive" disabled={busy} onClick={() => { void bulk(Array.from(selected), { kind: 'publish', published: false }); }} /><DefaultButton text="Delete" disabled={busy} onClick={() => setDeleting(faqs.filter(item => selected.has(item.id)))} /></>}
         </div>}
 {!selected.size && <span>{(sortRows || filtered).length} articles in this view</span>}</div></caption><thead><tr>

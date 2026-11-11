@@ -68,7 +68,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
       : <TextField key={item.key} label={item.label} required={item.required} type="text" value={input[item.key] || ''} disabled={saving} onChange={(_, value) => change(item.key, value || '')} />;
   };
   return <section className={styles.newTicketPage} aria-labelledby="new-ticket-title">
-    <div className={styles.newTicketHeader}><div><h2 id="new-ticket-title" tabIndex={-1} ref={heading}>New Ticket</h2><p>Create a support request and describe the help you need.</p></div><DefaultButton styles={cancelButtonStyles} text="Back to Tickets" iconProps={{iconName:'Back'}} disabled={saving || resolving} onClick={props.onDismiss} /></div>
+    <div className={styles.newTicketHeader}><div><h2 id="new-ticket-title" tabIndex={-1} ref={heading}>New Ticket</h2><p>Create a support request and describe the help you need.</p></div><DefaultButton styles={cancelButtonStyles} text="Back to Tickets" ariaLabel="Back to Tickets" title="Back to Tickets" iconProps={{iconName:'Back'}} disabled={saving || resolving} onClick={props.onDismiss} /></div>
     {createdTicketId && <MessageBar>Ticket #{createdTicketId} already exists. Retry uploads to finish attaching your files without creating another ticket.</MessageBar>}
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     {loading ? <Spinner label="Loading ticket fields?" /> : options && <form onSubmit={event => { void submit(event); }} className={styles.newTicketForm}>

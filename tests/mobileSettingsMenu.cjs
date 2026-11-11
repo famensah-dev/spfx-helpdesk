@@ -1,0 +1,20 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript');
+const {JSDOM}=require('jsdom');const dom=new JSDOM('<div id="app"></div>',{url:'https://example.com',pretendToBeVisual:true});
+global.window=dom.window;global.document=dom.window.document;global.navigator=dom.window.navigator;
+const React=require('react'),ReactDOM=require('react-dom'),{act,Simulate}=require('react-dom/test-utils'),h=React.createElement;
+const source=ts.transpileModule(fs.readFileSync('src/webparts/helpdeskSystem/components/HelpdeskSettingsHub.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.React}}).outputText;
+const m={exports:{}};const css={default:new Proxy({},{get:(_,key)=>key})};
+const fluent={Icon:()=>null,SearchBox:p=>h('input',{'aria-label':p.ariaLabel,value:p.value,onChange:e=>p.onChange(e,e.target.value)}),PanelType:{smallFixedNear:1},Panel:p=>p.isOpen?h('div',{role:'dialog','aria-label':p.headerText},h('button',{'aria-label':p.closeButtonAriaLabel,onClick:p.onDismiss},'Close'),p.children):null};
+new Function('require','module','exports',source)(key=>key==='@fluentui/react'?fluent:key.endsWith('.scss')?css:require(key),m,m.exports);
+const links=[{key:'roles',title:'Users & Roles',description:'Manage users',group:'People & Teams',icon:'People'},{key:'categories',title:'Categories',description:'Manage categories',group:'Ticket Configuration',icon:'Tag'}];
+const host=document.getElementById('app');let opened;
+(async()=>{
+ await act(async()=>ReactDOM.render(h(m.exports.HelpdeskSettingsHub,{links,activeKey:'roles',onOpen:key=>{opened=key;}},h('div',null,'Settings content')),host));
+ const toggle=host.querySelector('[aria-label="Open settings menu"]');assert.equal(toggle.getAttribute('aria-expanded'),'false');assert(!host.querySelector('[role="dialog"]'));
+ await act(async()=>toggle.click());let dialog=host.querySelector('[role="dialog"]');assert(dialog);assert.equal(toggle.getAttribute('aria-expanded'),'true');
+ await act(async()=>Simulate.change(dialog.querySelector('input'),{target:{value:'categories'}}));dialog=host.querySelector('[role="dialog"]');assert(!dialog.textContent.includes('Users & Roles'));
+ await act(async()=>[...dialog.querySelectorAll('nav button')].find(button=>button.textContent==='Categories').click());assert.equal(opened,'categories');assert(!host.querySelector('[role="dialog"]'),'Selecting a setting closes the drawer');
+ await act(async()=>toggle.click());await act(async()=>host.querySelector('[aria-label="Close settings menu"]').click());assert(!host.querySelector('[role="dialog"]'));
+ assert(host.querySelector('.settingsSplitLayout > nav'),'Desktop sidebar remains available');
+ await act(async()=>ReactDOM.unmountComponentAtNode(host));dom.window.close();console.log('Mobile Settings menu passed: open, search, selection, dismissal and desktop navigation retained.');process.exit(0);
+})().catch(error=>{console.error(error);dom.window.close();process.exit(1);});

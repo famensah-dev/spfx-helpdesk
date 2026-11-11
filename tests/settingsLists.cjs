@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript');
+const {JSDOM}=require('jsdom');const dom=new JSDOM('<div id="root"><table><thead><tr><th><input type="checkbox" aria-label="Select all"></th><th>Name</th><th>Email</th><th></th></tr></thead><tbody><tr><td><input type="checkbox"></td><td>Ada</td><td>ada@example.com</td><td><button>Edit</button></td></tr></tbody></table></div>');
+const moduleUnderTest={exports:{}};
+new Function('require','module','exports',ts.transpileModule(fs.readFileSync('src/webparts/helpdeskSystem/components/HelpdeskSettingsHub.tsx','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.React}}).outputText)(name=>name==='react'?require('react'):{},moduleUnderTest,moduleUnderTest.exports);
+const {labelSettingsTables}=moduleUnderTest.exports,root=dom.window.document.getElementById('root');
+const button=root.querySelector('button'),checkbox=root.querySelector('tbody input');
+labelSettingsTables(root);let cells=root.querySelectorAll('tbody td');
+assert.deepEqual([...cells].map(cell=>cell.dataset.settingsLabel),['Select','Name','Email','Actions']);
+assert.equal(cells[1].dataset.settingsPrimary,'true');assert(!cells[0].dataset.settingsPrimary);
+assert.equal(root.querySelector('button'),button,'Keep existing action nodes and handlers');assert.equal(root.querySelector('tbody input'),checkbox);
+root.querySelector('tbody').insertAdjacentHTML('beforeend','<tr><td><input type="checkbox"></td><td>Ben</td><td>ben@example.com</td><td><button>Remove</button></td></tr>');
+labelSettingsTables(root);assert.equal(root.querySelectorAll('tbody tr')[1].cells[2].dataset.settingsLabel,'Email','Label async/paginated rows');
+root.querySelector('thead th:nth-child(3)').textContent='User Email';labelSettingsTables(root);assert.equal(root.querySelector('tbody td:nth-child(3)').dataset.settingsLabel,'User Email');
+assert.equal(root.querySelector('thead th:nth-child(2)').textContent,'Name','Keep accessible column headers');
+root.insertAdjacentHTML('beforeend','<table data-preserve-table="true" data-settings-list="true"><thead><tr><th>Article</th></tr></thead><tbody><tr><td>Knowledge article</td></tr></tbody></table>');
+labelSettingsTables(root);
+assert(!root.querySelector('[data-preserve-table]').hasAttribute('data-settings-list'),'Keep Knowledge Base tables out of mobile list conversion');
+dom.window.close();console.log('Settings lists passed: field labels, primary text, selection/actions retained and dynamic rows.');

@@ -1702,3 +1702,97 @@
   .mobileTicketCountSort { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; > .ticketCountContent { flex:1; } > button { min-width:0; height:30px; padding:0 3px; border:0; background:transparent; color:var(--dp-fg-526783, #526783); :global(.ms-Button-label) { font-size:12px; font-weight:400; } :global(.ms-Button-menuIcon) { font-size:10px; } } }
   .mobileTicketUnread { display:inline-flex; align-items:center; justify-content:center; line-height:0; }
 }
+.dashboardMobileTools, .dashboardRecentMobile { display:none; }
+@media (max-width:640px) {
+  .mobileTicketHeader { margin:-10px -8px 0; padding:12px 10px 8px; background:var(--dp-bg-fff, #fff); > button { border-radius:4px; height:32px; min-height:32px; padding:0 10px; } }
+  .mobileTicketTools { gap:0; margin-bottom:4px; }
+  .mobileTicketViews.ticketTabs { display:flex; justify-content:flex-start; gap:0; margin:0 -8px 10px; padding:0 8px; background:var(--dp-bg-fff, #fff); border-bottom:1px solid var(--dp-line-dce5f1, #dce5f1); button { flex:0 1 auto; padding:7px 6px; min-height:36px; font-size:12px; color:var(--dp-fg-244a91, #244a91); border-radius:0; &[aria-current='page'] { font-weight:600; color:var(--dp-fg-1b385c, #1b385c); border-bottom-color:var(--dp-line-1b385c, #1b385c); } } }
+  .mobileTicketToolRow { margin-bottom:4px; align-items:center; :global(.ms-TextField-fieldGroup) { height:34px; border-radius:4px; &::after { border-radius:4px; } } :global(.ms-TextField-field) { font-size:12px; padding:0 9px; } > button { display:flex; align-items:center; justify-content:center; width:34px; min-width:34px; height:34px; padding:0; border-radius:4px; :global(.ms-Button-flexContainer) { justify-content:center; width:100%; } :global(.ms-Button-icon) { margin:0; font-size:16px; line-height:1; } &:hover { background:var(--dp-bg-f0f2f5, #f0f2f5); color:var(--dp-fg-172536, #172536); } } }
+  .mobileTicketSelection { margin-bottom:4px; .ticketCountContent { min-height:0; margin:0; } }
+  .mobileTicketCountSort { gap:4px; align-items:center; > button { height:26px; } }
+  .mobileTicketCard { border-radius:5px; margin-bottom:8px; }
+  .analyticsDashboard { padding:0 0 56px; gap:10px; }
+  .analyticsDashboard .dashboardTopRow { display:flex; flex-direction:column; align-items:stretch; gap:10px; margin:0; padding:12px; background:var(--dp-bg-fff, #fff); }
+  .dashboardTopRow .dashboardTitle { margin:0; h2 { font-size:18px; } p { font-size:12px; line-height:1.45; margin-top:4px; } }
+  .dashboardTopRow .dashboardTopFilters { display:none; }
+  .dashboardMobileTools { display:flex; gap:8px; align-items:center; > :first-child { flex:1; min-width:0; } > button { height:34px; border-radius:4px; } > :global(.ms-Button--icon) { flex-shrink:0; width:34px; min-width:34px; border:1px solid var(--dp-line-dce5f1, #dce5f1); color:var(--dp-fg-172536, #172536); background:var(--dp-bg-fff, #fff); } }
+  .analyticsDashboard .dashboardSummaryCards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .analyticsDashboard .dashboardSummaryCard { min-height:88px; padding:12px 10px; gap:8px; border-radius:5px; &[data-has-comparison='false'] .dashboardComparison { display:none; } }
+  .dashboardSummaryCard .dashboardMetricIcon { width:28px; height:28px; border-radius:5px; i { font-size:16px; } }
+  .dashboardSummaryCard .dashboardMetricValue { font-size:23px; }
+  .dashboardSummaryCard .dashboardMetricLabel { font-size:12px; }
+  .dashboardSummaryCard .dashboardComparison { margin-top:6px; min-height:0; font-size:10px; }
+  .analyticsDashboard .dashboardAdvancedFilters { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; padding:12px; }
+  .analyticsDashboard .dashboardChartsGrid { grid-template-columns:minmax(0,1fr); gap:10px; }
+  .dashboardChartCard { padding:12px; }
+  .dashboardChartCard .dashboardChartCanvas { height:190px; }
+  .dashboardCardHeading { margin-bottom:10px; h3 { font-size:14px; } }
+  .dashboardChartCard .dashboardStatusChart { flex-direction:column; min-height:0; gap:12px; }
+  .dashboardStatusChart .dashboardDonut { width:100%; height:170px; flex:auto; }
+  .dashboardStatusLegend { width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; min-width:0; }
+  .dashboardChartCard .dashboardBars { min-height:0; }
+  .dashboardRecentScroll { display:none; }
+  .dashboardRecentMobile { display:flex; flex-direction:column; gap:8px; button { display:flex; flex-direction:column; gap:8px; width:100%; padding:10px; border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:4px; background:var(--dp-bg-fff, #fff); color:var(--dp-fg-172536, #172536); text-align:left; font:inherit; cursor:pointer; > span { display:flex; align-items:center; justify-content:space-between; gap:8px; } strong { font-size:13px; line-height:1.45; font-weight:500; overflow-wrap:anywhere; } small { color:var(--dp-fg-526783, #526783); font-size:11px; } &:disabled { cursor:default; } } }
+}
+@media (max-width:640px) {
+  .mobileTicketViews.ticketTabs button {
+    &, &:hover, &[aria-current='page'], &[aria-current='page']:hover { border-bottom-color:transparent !important; }
+    &[aria-current='page'] .mobileTicketTabLabel::after { content:''; position:absolute; width:40%; height:2px; left:50%; bottom:-8px; transform:translateX(-50%); background:currentColor; }
+  }
+  .mobileTicketTabLabel { display:inline-block; position:relative; }
+}
+@media (max-width:640px) {
+  .mobileTicketToolRow {
+    :global(.ms-TextField-fieldGroup), :global(.ms-TextField-fieldGroup)::after { border-radius:18px; }
+    > button { border-radius:18px; }
+  }
+  .mobileTicketViews.ticketTabs button[aria-current='page'] { color:var(--dp-active-subtab-text, var(--dp-fg-1b385c, #1b385c)); }
+}
+@media (max-width:640px) {
+  .mainContent:has(.mobileTicketPage) { padding-inline:0; }
+  .pageContent.ticketPage.mobileTicketPage { gap:0; padding:0 8px 72px; }
+  .mobileTicketHeader { margin:0 -8px; padding:14px 16px 8px; }
+  .mobileTicketTools { margin:0 -8px 4px; padding:0 16px 14px; border:0; border-radius:0; background:var(--dp-bg-fff, #fff); }
+  .mobileTicketViews.ticketTabs { margin:0 0 10px; padding:0; gap:12px; border-bottom:0;
+    button { padding-inline:4px; }
+    button::after, button.activeNav::after, button.activeNav:hover::after, button[aria-current='page']::after { content:none !important; display:none !important; }
+    button[aria-current='page'] .mobileTicketTabLabel::after { background:var(--dp-active-subtab, currentColor); }
+  }
+  .mobileTicketToolRow {
+    margin:0;
+    :global(.ms-SearchBox) { height:34px; border:1px solid var(--dp-line-dce5f1, #dce5f1); border-radius:4px; background:var(--dp-bg-fff, #fff); &::after { border-radius:4px; } }
+    :global(.ms-SearchBox-field) { font-size:12px; color:var(--dp-fg-172536, #172536); &::placeholder { font-size:12px; } }
+    :global(.ms-SearchBox-iconContainer) { display:flex; align-items:center; justify-content:center; width:28px; }
+    :global(.ms-SearchBox-icon) { font-size:17px; }
+    > button { border-radius:4px; }
+  }
+  .mobileTicketToolRow > button, .dashboardMobileTools > :global(.ms-Button--icon) {
+    display:inline-flex; align-items:center; justify-content:center; padding:0;
+    :global(.ms-Button-flexContainer) { display:flex; align-items:center; justify-content:center; width:100%; height:100%; }
+    :global(.ms-Button-icon) { display:flex; align-items:center; justify-content:center; margin:0; width:18px; height:18px; line-height:18px; font-size:16px; }
+    :global(.ms-Button-menuIcon) { display:none; }
+  }
+}
+@media (max-width:640px) {
+  .newTicketPage .newTicketHeader { flex-wrap:nowrap; align-items:center; gap:12px; > div:first-child { flex:1; min-width:0; } h2 { margin:0; font-size:20px; } > div > p { display:none; }
+    > :global(.ms-Button) { flex:0 0 36px; min-width:36px; width:36px; height:36px; padding:0; :global(.ms-Button-label) { display:none; } :global(.ms-Button-icon) { margin:0; font-size:17px; } :global(.ms-Button-flexContainer) { justify-content:center; } }
+  }
+}
+@media (max-width:700px) {
+  .secondaryPage[data-page='knowledge-base'] {
+    min-width:0;
+    .ticketListCard { min-width:0; padding:12px; }
+    .ticketListCard .ticketToolbar { display:flex; flex-direction:column; align-items:stretch; gap:10px; padding:0 0 10px; }
+    .ticketToolbar .ticketControls { display:grid; grid-template-columns:minmax(0,1fr) 34px; align-items:center; gap:8px; width:100%; min-width:0; }
+    .ticketControls > :global(.ms-SearchBox) { grid-column:1; grid-row:1; width:100%; min-width:0; max-width:none; height:34px; border-radius:4px; }
+    .ticketControls :global(.ms-SearchBox-field) { font-size:12px; }
+    .ticketControls :global(.ms-SearchBox-icon) { font-size:15px; }
+    .ticketControls > :global(.ms-Button--icon) { grid-column:2; grid-row:1; width:34px; height:34px; padding:0; :global(.ms-Button-flexContainer) { justify-content:center; } :global(.ms-Button-icon) { margin:0; } }
+    .ticketControls > .ticketCounts { grid-column:1 / -1; grid-row:2; display:flex; flex-wrap:wrap; gap:6px; overflow:visible; min-width:0; max-width:100%; padding:0; button { min-width:0; min-height:32px; padding:4px 8px; font-size:12px; } }
+    .ticketToolbar .ticketActions { display:flex; flex-wrap:wrap; gap:8px; margin:0; > button { min-height:34px; flex:1 1 100px; } }
+    .tableContainer { width:100%; max-width:100%; min-width:0; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+    table[data-preserve-table] { display:table; min-width:680px; width:100%; }
+    .faqQuestionCell { min-width:160px; white-space:normal; }
+    .faqAnswerCell { min-width:200px; }
+  }
+}

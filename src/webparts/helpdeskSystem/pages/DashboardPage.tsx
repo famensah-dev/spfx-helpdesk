@@ -152,6 +152,18 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
     </div>}
     <div className={styles.dashboardTopRow}>
       <div className={styles.dashboardTitle}><h2>{props.title || 'Admin Dashboard'}</h2><p>Overview of IT support requests, status and performance.</p></div>
+      <div className={styles.dashboardMobileTools}>
+        <DefaultButton className={styles.dashboardDateRange} text={dateLabel} iconProps={{iconName:'Calendar'}} menuProps={{items:[...periods.map(period=>({key:period.key,text:period.text,onClick:()=>setFilters(current=>({...current,startDate:period.start,endDate:period.end}))})),{key:'all',text:'All Time',onClick:()=>setFilters(current=>({...current,startDate:null,endDate:null}))},{key:'custom',text:'Custom Range',onClick:()=>setFiltersOpen(true)}]}} />
+        <IconButton iconProps={{iconName:'Equalizer'}} menuIconProps={{iconName:''}} ariaLabel="Dashboard filters and actions" menuProps={{items:[
+          {key:'department',text:'Department',disabled:!hasDepartment,subMenuProps:{items:options(departments,'All Departments').map(option=>({...option,canCheck:true,checked:department===option.key,onClick:()=>setDepartment(String(option.key))}))}},
+          {key:'assigned',text:'Assigned To',subMenuProps:{items:[{key:'',text:'All Assigned To'},{key:'unassigned',text:'Unassigned'},...assignedUsers].map(option=>({...option,canCheck:true,checked:String(filters.assignedTo || '')===option.key,onClick:()=>setFilters(current=>({...current,assignedTo:String(option.key)}))}))}},
+          {key:'status',text:'Status',subMenuProps:{items:options(displayedStatuses,'All Statuses').map(option=>({...option,canCheck:true,checked:(filters.status || '')===option.key,onClick:()=>setFilters(current=>({...current,status:String(option.key)}))}))}},
+          {key:'priority',text:'Priority',subMenuProps:{items:options(priorities,'All Priorities').map(option=>({...option,canCheck:true,checked:(filters.priority || '')===option.key,onClick:()=>setFilters(current=>({...current,priority:String(option.key)}))}))}},
+          {key:'dates',text:'Custom Date Range',onClick:()=>setFiltersOpen(value=>!value)},
+          {key:'clear',text:'Clear Filters',iconProps:{iconName:'ClearFilter'},onClick:clear},
+          {key:'refresh',text:'Refresh Dashboard',iconProps:{iconName:'Refresh'},disabled:loading,onClick:()=>{void refresh();}}
+        ]}} />
+      </div>
       <div className={styles.dashboardTopFilters}>
         <DefaultButton className={styles.dashboardDateRange} text={dateLabel} iconProps={{ iconName: 'Calendar' }} menuProps={{ items: [
           ...periods.map(period => ({ key: period.key, text: period.text, onClick: () => setFilters(current => ({ ...current, startDate: period.start, endDate: period.end })) })),
@@ -176,7 +188,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
       <div className={styles.dashboardSummaryCards}>{cards.map((card, index) => {
         const change = card.value !== null && card.previous != null && card.previous > 0 ? (card.value - card.previous) / card.previous * 100 : null;
         const favorable = change !== null && (index === 1 ? change >= 0 : change <= 0);
-        return <article className={styles.dashboardSummaryCard} key={card.label}>
+        return <article className={styles.dashboardSummaryCard} key={card.label} data-has-comparison={card.previous!==null}>
           <span className={styles.dashboardMetricIcon} style={{ background: card.color }}><Icon iconName={card.icon} /></span>
           <div><strong className={styles.dashboardMetricValue}>{card.value === null ? '—' : index === 5 ? card.value.toFixed(1) : card.value.toLocaleString()}</strong><span className={styles.dashboardMetricLabel}>{card.label}</span>
             <div className={styles.dashboardComparison} data-direction={change === null || change === 0 || index === 0 ? 'neutral' : favorable ? 'good' : 'bad'}>
@@ -204,7 +216,7 @@ export const DashboardPage: React.FC<IDashboardPageProps> = (props) => {
         <ChartCard title="Open Tickets by Aging" className={styles.dashboardAgingCard} note="Elapsed time since creation, as of today."><Breakdown rows={getOpenTicketAging(visible, now)} colors={['#28b47d', '#2d88ff', '#ffc329', '#ff962e', '#f45663']} /></ChartCard>
         <div className={styles.dashboardTicketsRow}>
         <ChartCard title="Recent Tickets" className={styles.dashboardRecentCard} action={props.onViewTickets && <button className={styles.adminAvailabilityLink} onClick={props.onViewTickets}>View All</button>}>
-          <div className={styles.dashboardRecentScroll}><table className={styles.dashboardRecentTable}><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>{recent.map(ticket => <tr key={ticket.Id}>
+          <div className={styles.dashboardRecentMobile}>{recent.slice(0,5).map(ticket=><button type="button" key={ticket.Id} disabled={!props.onOpenTicket} onClick={()=>props.onOpenTicket?.(ticket.Id)}><span><small>#{ticket.Id}</small><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></span><strong>{ticket.Title}</strong><span><span className={styles.dashboardPriorityBadge} data-priority={ticket.Priority}>{ticket.Priority}</span><small>{formatDate(new Date(ticket.Created))}</small></span></button>)}{!recent.length && <p>No recent tickets in this view.</p>}</div><div className={styles.dashboardRecentScroll}><table className={styles.dashboardRecentTable}><thead><tr><th>ID</th><th>Title</th><th>Category</th><th>Status</th><th>Priority</th><th>Created</th></tr></thead><tbody>{recent.map(ticket => <tr key={ticket.Id}>
             <td>#{ticket.Id}</td><td>{props.onOpenTicket ? <button title={ticket.Title} onClick={() => props.onOpenTicket!(ticket.Id)}>{ticket.Title}</button> : ticket.Title}</td><td title={ticket.Category}>{ticket.Category || '—'}</td><td><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></td><td><span className={styles.dashboardPriorityBadge} data-priority={ticket.Priority}>{ticket.Priority}</span></td><td>{formatDate(new Date(ticket.Created))}</td>
           </tr>)}</tbody></table>{!recent.length && <div className={styles.dashboardChartEmpty}>No recent tickets in this view.</div>}</div>
         </ChartCard>
