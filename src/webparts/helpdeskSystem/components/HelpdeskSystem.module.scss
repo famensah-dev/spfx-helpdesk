@@ -2074,7 +2074,7 @@
     &::-webkit-scrollbar-thumb { background:var(--dp-line-d6e1ee, #d6e1ee); }
     &::-webkit-scrollbar-thumb:hover { background:var(--dp-line-bccce1, #bccce1); }
     :global(.documentation-home) { margin-bottom:14px; padding-bottom:16px; border-bottom:1px solid var(--dp-line-e0e5ef, #e0e5ef); border-radius:0; }
-    section + section { border-top:0; }
+    section + section { border-top:1px solid var(--dp-line-e0e5ef, #e0e5ef); }
     :global(.documentation-group-toggle) { gap:8px; font-weight:500; padding:9px 6px; > i:first-child { font-size:10px; flex:0 0 12px; } > span { flex:1; } }
     :global(.documentation-topic-tree) { margin-left:20px; border-left:0;
       > button { padding:8px 10px; border-radius:4px; line-height:1.5; &::before { content:none; } &[aria-current='page'] { border-radius:4px; background:var(--dp-bg-f0f2f5, #f0f2f5); color:var(--dp-fg-172536, #172536); font-weight:500; } }
