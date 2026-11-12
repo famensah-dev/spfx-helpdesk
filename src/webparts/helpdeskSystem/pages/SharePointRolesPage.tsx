@@ -4,12 +4,12 @@ import { UNSAFE_NavigationContext } from 'react-router-dom';
 import { DefaultButton, Dialog, DialogFooter, Dropdown, Icon, IconButton, MessageBar, MessageBarType, PrimaryButton, SearchBox, Spinner } from '@fluentui/react';
 import { SharePointUsersPage } from './SharePointUsersPage';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
-import { defaultRoleConfiguration, validateRoleConfiguration } from '../interfaces/IRoleManagement';
+import { defaultRoleConfiguration, validateRoleConfiguration, settingsPageKeys, settingsPageLabels, roleSettingsPages } from '../interfaces/IRoleManagement';
 import type { IDeskPilotRole, IRoleConfiguration, RoleAction } from '../interfaces/IRoleManagement';
 import styles from '../components/HelpdeskSystem.module.scss';
 
 function currentRoleChanged(draft: IDeskPilotRole, current?: IDeskPilotRole): boolean {
-  return !current || draft.scope !== current.scope || draft.actions.length !== current.actions.length || draft.actions.some(action => !current.actions.includes(action));
+  return !current || roleSettingsPages(draft).length !== roleSettingsPages(current).length || roleSettingsPages(draft).some(page=>!roleSettingsPages(current).includes(page)) || draft.scope !== current.scope || draft.actions.length !== current.actions.length || draft.actions.some(action => !current.actions.includes(action));
 }
 const labels: Record<RoleAction, string> = { dashboard: 'Dashboard Page', tickets: 'Tickets Page', faqs: 'Knowledge Base', create: 'Create Tickets', edit: 'Edit Ticket Details and Attachments', status: 'Change Status / Record Response', assign: 'Assign Tickets', priority: 'Change Priority', archive: 'Archive Tickets', comment: 'Add Comments', manageFaqs: 'Manage Knowledge Base', classifications: 'Manage Categories and Issue Types', sla: 'Manage SLA Priorities' };
 const permissionGroups: Array<{ name: string; actions: RoleAction[] }> = [
@@ -92,7 +92,9 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     return (accessFilter === 'all' || enabled === (accessFilter === 'enabled')) && (name + ' ' + description).toLowerCase().includes(query);
   };
   const visibleScopes = scopeOptions.filter(option => matchesPermission(option.text, 'Ticket Visibility', displayedRole?.scope === option.key));
-  const visibleGroups = permissionGroups.map((group, index) => ({ ...group, number: index + 2, actions: group.actions.filter(action => matchesPermission(labels[action], descriptions[action] + ' ' + group.name, Boolean(displayedRole?.actions.includes(action)))) })).filter(group => group.actions.length);
+  const displayedSettingsPages=displayedRole ? roleSettingsPages(displayedRole) : [];
+  const settingsRows=settingsPageKeys.filter(key=>key!=='members' && matchesPermission(settingsPageLabels[key], 'Page access Settings', displayedSettingsPages.includes(key)));
+  const visibleGroups = permissionGroups.map((group, index) => ({ ...group, number: index + 2, actions: group.actions.filter(action => matchesPermission(labels[action], descriptions[action] + ' ' + group.name, Boolean(displayedRole?.actions.includes(action)))) })).filter(group => group.actions.length || (group.name==='Page access' && settingsRows.length));
   const prepareApply = (): void => {
     if (!draft || !saved.current) return;
     try { validateRoleConfiguration({ ...saved.current, roles: saved.current.roles.map(role => role.id === draft.id ? draft : role) }); setError(''); setConfirmation({ role: draft, restore: false }); }
@@ -118,6 +120,8 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
   const permissionChanges = confirmation && currentRole ? [
     ...confirmation.role.actions.filter(action => !currentRole.actions.includes(action)).map(action => `Allow: ${labels[action]}`),
     ...currentRole.actions.filter(action => !confirmation.role.actions.includes(action)).map(action => `Remove: ${labels[action]}`),
+    ...roleSettingsPages(confirmation.role).filter(page=>!roleSettingsPages(currentRole).includes(page)).map(page=>'Show: '+settingsPageLabels[page]),
+    ...roleSettingsPages(currentRole).filter(page=>!roleSettingsPages(confirmation.role).includes(page)).map(page=>'Hide: '+settingsPageLabels[page]),
     ...(confirmation.role.scope !== currentRole.scope ? [`Ticket view: ${scopeOptions.find(option => option.key === confirmation.role.scope)?.text}`] : [])
   ] : [];
   return <section className={`${styles.pageContent} ${styles.ticketPage}`} data-page="users-and-roles">
@@ -149,23 +153,21 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
         <div className={styles.ticketActions}>
         {currentRole && <DefaultButton text="Edit" iconProps={{ iconName: 'Edit' }} disabled={busy || Boolean(draft) || currentRole.id==='requester'} onClick={() => { setDraft({ ...currentRole, actions: [...currentRole.actions] }); setMessage(''); setError(''); }} />}
         {draft && <><PrimaryButton text="Save" iconProps={{iconName:'Save'}} disabled={busy || !dirty} onClick={prepareApply} /><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={()=>{setDraft(undefined);setError('');}} /></>}
-        {currentRole && <DefaultButton text="Restore Defaults" iconProps={{ iconName: 'Undo' }} disabled={busy || Boolean(draft)} onClick={() => { const role = defaultRoleConfiguration().roles.find(item => item.id === selectedRoleId); if (role) setConfirmation({ role, restore: true }); }} />}
+        {currentRole && <IconButton ariaLabel="More permission actions" title="More permission actions" iconProps={{iconName:'MoreVertical'}} menuIconProps={{iconName:''}} disabled={busy || Boolean(draft)} menuProps={{items:[{key:'restore',text:'Restore default permissions',onClick:()=>{const role=defaultRoleConfiguration().roles.find(item=>item.id===selectedRoleId);if(role)setConfirmation({role,restore:true});}}]}} />}
         </div>
       </div>
       {displayedRole && <div className={styles.tableContainer} data-permissions-table="true">
         <table className={`${styles.ticketTable} ${styles.rolePermissionsTable}`} aria-label={`${displayedRole.name} permissions`}>
-          <thead><tr><th scope="col">Permission</th><th scope="col">Description</th><th scope="col">Access</th></tr></thead>
+          <thead><tr><th scope="col">Access</th><th scope="col">Permission</th><th scope="col">Description</th></tr></thead>
           <tbody>
             {visibleScopes.length > 0 && <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>1. Ticket Visibility</th></tr>}
             {visibleScopes.map(option => <tr key={option.key}>
-              <td>{option.text}</td><td>{option.description}</td>
-              <td><button type="button" role="radio" aria-checked={displayedRole.scope === option.key} aria-label={option.text} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'] }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span><span>{displayedRole.scope === option.key ? 'Allowed' : 'Not allowed'}</span></button></td>
+              <td><button type="button" role="radio" aria-checked={displayedRole.scope === option.key} aria-label={option.text} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'] }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span></button></td><td>{option.text}</td><td>{option.description}</td>
             </tr>)}
           </tbody>
           {visibleGroups.map(group => <tbody key={group.name}>
             <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>{group.number}. {group.name}</th></tr>
             {group.actions.map(action => <tr key={action}>
-              <td>{labels[action]}</td><td>{descriptions[action]}</td>
               <td><button type="button" role="switch" aria-label={labels[action]} aria-checked={displayedRole.actions.includes(action)} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => {
               if (!draft) return;
               const checked = !draft.actions.includes(action);
@@ -173,7 +175,15 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
               if (checked && action === 'manageFaqs' && !actions.includes('faqs')) actions = [...actions, 'faqs'];
               if (!checked && action === 'faqs') actions = actions.filter(value => value !== 'manageFaqs');
               setDraft({ ...draft, actions });
-              }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span><span>{displayedRole.actions.includes(action) ? 'Allowed' : 'Not allowed'}</span></button></td>
+              }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span></button></td><td>{labels[action]}</td><td>{descriptions[action]}</td>
+            </tr>)}
+            {group.name==='Page access' && settingsRows.map(key=><tr key={'page-'+key}>
+              <td><button type="button" role="switch" aria-label={settingsPageLabels[key]} aria-checked={key!=='schema' && displayedSettingsPages.includes(key)} disabled={busy || !draft || key==='schema'} className={styles.roleScopeSwitch} onClick={()=>{
+                if(!draft || key==='schema')return;
+                const pages=roleSettingsPages(draft);
+                setDraft({...draft,pageAccess:pages.includes(key) ? pages.filter(page=>page!==key) : [...pages,key]});
+              }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span></button></td>
+              <td>{settingsPageLabels[key]}</td><td>{key==='schema' ? 'Fixed to Super Admin access.' : key==='settings' ? 'Show the Settings page. Individual sections must also be enabled.' : 'Show this Settings section when its required management permissions are available.'}</td>
             </tr>)}
           </tbody>)}
           {!visibleScopes.length && !visibleGroups.length && <tbody><tr><td colSpan={3}>No permissions match your search and access filter.</td></tr></tbody>}

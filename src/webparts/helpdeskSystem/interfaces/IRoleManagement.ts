@@ -1,11 +1,25 @@
 export const roleActions = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla'] as const;
 export type RoleAction = typeof roleActions[number];
 export type TicketScope = 'own' | 'assigned' | 'assignedOrCreated' | 'newUnassigned' | 'all';
-export interface IDeskPilotRole { id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
+export const settingsPageKeys = ['settings','roles','units','categories','subcategories','issueTypes','sla','email','assignment','faqs','members','schema'] as const;
+export type SettingsPageKey = typeof settingsPageKeys[number];
+export const settingsPageLabels:Record<SettingsPageKey,string> = {settings:'Settings Page',roles:'Settings: Users & Roles',units:'Settings: Support Teams',categories:'Settings: Categories',subcategories:'Settings: Subcategories',issueTypes:'Settings: Issue Types',sla:'Settings: SLA & Priorities',email:'Settings: Email & Notifications',assignment:'Settings: Assignment',faqs:'Settings: Knowledge Base',members:'Settings: Users',schema:'Settings: Ticket List Schema (Super Admin only)'};
+export interface IDeskPilotRole { pageAccess?: SettingsPageKey[]; id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
 export interface IWorkspaceSettings { title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
 export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
 export interface IRoleManagement { load(): Promise<IRoleConfiguration>; save(configuration: IRoleConfiguration): Promise<void>; }
+/** Infer access for older saved roles until their page access is explicitly edited. */
+export function roleSettingsPages(role: IDeskPilotRole): SettingsPageKey[] {
+  if (role.pageAccess) return role.pageAccess;
+  if (role.id === 'superAdmin') return [...settingsPageKeys];
+  if (role.id === 'admin') return settingsPageKeys.filter(key=>key!=='schema');
+  const pages:SettingsPageKey[]=[];
+  if(role.actions.includes('classifications'))pages.push('categories','subcategories','issueTypes');
+  if(role.actions.includes('sla'))pages.push('sla');
+  if(role.actions.includes('manageFaqs'))pages.push('faqs');
+  return pages.length ? ['settings',...pages] : [];
+}
 export function assignedRole(configuration: IRoleConfiguration, userId: number): IDeskPilotRole | undefined {
   const assignment = configuration.assignments.find(item => item.userId === userId && item.disabled !== true);
   return assignment ? configuration.roles.find(role => role.id === assignment.roleId) : undefined;
@@ -25,6 +39,7 @@ export function validateRoleConfiguration(value: IRoleConfiguration): void {
   for (const role of value.roles) {
     if(role.id==='requester' && (role.scope!=='own' || ![2,4].includes(role.actions.length) || !role.actions.includes('create') || !role.actions.includes('faqs') || role.actions.some(action=>!['create','faqs','tickets','comment'].includes(action)) || (role.actions.length===4 && (!role.actions.includes('tickets') || !role.actions.includes('comment')))))throw new Error('Requester permissions are fixed: create tickets, view and comment on own requests, and read published Knowledge Base articles.');
     if (!ids.includes(role.id) || !role.name || !['own', 'assigned', 'assignedOrCreated', 'newUnassigned', 'all'].includes(role.scope) || !Array.isArray(role.actions) || role.actions.some(action => !roleActions.includes(action))) throw new Error('Invalid role rules.');
+    if (role.pageAccess !== undefined && (!Array.isArray(role.pageAccess) || role.pageAccess.some(page=>!settingsPageKeys.includes(page)) || new Set(role.pageAccess).size!==role.pageAccess.length)) throw new Error('Invalid settings page access.');
     if (role.actions.includes('manageFaqs') && !role.actions.includes('faqs')) throw new Error(`${role.name}: enable the FAQs page before enabling FAQ management.`);
   }
   if(!value.roles.some(role=>role.id==='agent') || !value.roles.some(role=>role.id==='admin'))throw new Error('Agent and Helpdesk Admin roles are required.');

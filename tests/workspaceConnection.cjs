@@ -20,7 +20,7 @@ const requests=[];const ctx={pageContext:{web:{absoluteUrl:origin},user:{display
  assert.equal(await new SharePointGroupAccess(ctx,connection.siteUrl).currentRole(),'agent');
  assert(requests.every(url=>url.startsWith(connection.siteUrl+'/_api/web/')));
  const {SharePointRoleManagement}=load(root+'services/SharePointRoleManagement.ts',{...http,'../interfaces/IRoleManagement':load(root+'interfaces/IRoleManagement.ts')});
- requests.length=0;ctx.spHttpClient.get=async url=>{requests.push(url);if(url.includes('/currentuser?'))return Response.json({Id:7});if(url.includes("Title eq 'Workspace'"))return Response.json({value:[{Id:2,Rules:JSON.stringify({workspace:{title:'Helpdesk',listName:'Tickets'}})}]});return Response.json({value:[]});};
+ requests.length=0;ctx.spHttpClient.get=async url=>{requests.push(url);if(url.includes('/currentuser?'))return Response.json({Id:7});if(url.includes("Title eq 'Workspace'"))return Response.json({value:[{Id:2,Rules:JSON.stringify({workspace:{title:'Helpdesk',description:'',listName:'Tickets',listId:''}})}]});return Response.json({value:[]});};
  const roles=new SharePointRoleManagement(ctx,false,undefined,'requester',connection.siteUrl);await roles.load();assert(requests.length>0);assert(requests.every(url=>url.startsWith(connection.siteUrl+'/_api/web/')));
  // Exercise the service factory itself, not just its connection screen.
  const constructors={};
@@ -35,6 +35,20 @@ const requests=[];const ctx={pageContext:{web:{absoluteUrl:origin},user:{display
  const source=await createSharePointService(factoryContext,'Tickets',undefined,connection);
  assert.equal(source.access.siteUrl,connection.siteUrl);assert.deepEqual(source.workspaceConnection,connection);
  assert.equal(constructors.SharePointGroupAccess[1],connection.siteUrl);assert.equal(constructors.SharePointRoleManagement[4],connection.siteUrl);assert.equal(constructors.WorkspaceMaintenanceService[2],connection.siteUrl);assert.equal(constructors.SharePointTicketViews[0],connection.siteUrl);assert.equal(constructors.GraphTicketService[1].siteUrl,connection.siteUrl);assert.equal(constructors.GraphNotificationService[4],connection.pageUrl);
+
+ // Department folders must not silently widen the saved Agent ticket scope.
+ let agentRolePassed;
+ const agentDefinitions=load(root+'interfaces/IRoleManagement.ts').defaultRoleConfiguration();
+ agentDefinitions.roles[0].scope='assignedOrCreated';
+ agentDefinitions.workspace={title:'Helpdesk',description:'',listName:'Tickets',listId:''};
+ dependencies['./SharePointGroupAccess']={SharePointGroupAccess:class {async currentRole(){return 'agent';}}};
+ dependencies['./SharePointRoleManagement']={SharePointRoleManagement:class {async load(){return structuredClone(agentDefinitions);}}};
+ dependencies['./appRoleRules']={applyAppRoleRules:(source,role)=>{agentRolePassed=role;return source;}};
+ const agentFactory=load(root+'services/SharePointTicketService.ts',dependencies).createSharePointService;
+ const agentContext={...factoryContext,spHttpClient:{get:async url=>Response.json(url.includes('EffectiveBasePermissions')?{Low:0}:url.includes('currentuser')?{Id:16}:{Url:connection.siteUrl})}};
+ await agentFactory(agentContext,'Tickets',undefined,connection);assert.equal(agentRolePassed.scope,'assignedOrCreated');
+ agentDefinitions.workspace.departmentFolders={enabled:true};
+ await agentFactory(agentContext,'Tickets',undefined,connection);assert.equal(agentRolePassed.scope,'assignedOrCreated','Department folders do not grant all-ticket scope');
  const {JSDOM}=require('jsdom');const dom=new JSDOM('<div id="app"></div>',{url:origin+'/_layouts/15/teamshostedapp.aspx#/tickets',pretendToBeVisual:true});global.window=dom.window;global.document=dom.window.document;global.navigator=dom.window.navigator;
  const React=require('react'),ReactDOM=require('react-dom'),{act,Simulate}=require('react-dom/test-utils'),h=React.createElement;
  const button=({text,ariaLabel,onClick,disabled,type})=>h('button',{onClick,disabled,type,'aria-label':ariaLabel},text||ariaLabel);

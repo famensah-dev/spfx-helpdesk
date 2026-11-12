@@ -115,5 +115,16 @@ const ticket={Id:5,Title:'Printer offline',Status:'Assigned',Priority:'Medium',C
  await service.changed({...ticket,Status:'Resolved',ChangeVersion:'manual-resolution-3'},{status:'In Progress',assignedToId:11},false,false);
  assert.equal(emails.length,beforeOverride+1,'Explicit suppression must override enabled automatic resolution email');
  assert.equal((await service.getSettings()).enabled,true,'An action override must not change saved settings');
+ failSend=false;claimLost=false;
+ const replyCount=emails.length;
+ await service.reply(ticket,'Hello <script>unsafe</script>','reply-test');
+ assert.equal(emails.length,replyCount+1);
+ assert.equal(emails[emails.length-1].message.toRecipients[0].emailAddress.address,'requester@example.com');
+ assert(!emails[emails.length-1].message.body.content.includes('<script>'));
+ await assert.rejects(service.reply(ticket,'Hello','reply-test'),/already submitted/);
+ assert.equal(emails.length,replyCount+1,'Reply is not sent twice');
+ await assert.rejects(service.reply({...ticket,RequesterEmail:'',Requester:{}},'Hello','missing-recipient'),/valid email/);
+ failSend=true;await assert.rejects(service.reply(ticket,'Hello','failed-reply'),/Check email history/);
+ failSend=false;await assert.rejects(service.reply(ticket,'Hello','failed-reply'),/already submitted/);
  dom.window.close();console.log('Notification checks passed: Graph 202, safe templates, recipients, event transitions, duplicate prevention, failures, shared sender, inbox scope, admin controls, breach alerts and mutation hooks.');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

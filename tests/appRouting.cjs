@@ -18,7 +18,7 @@ const h=React.createElement;
 const button=(text,onClick)=>h('button',{onClick},text);
 const fluent={createTheme:()=>({}),ThemeProvider:({children})=>h('div',null,children),Icon:()=>null,MessageBar:({children})=>h('div',{role:'alert'},children),MessageBarType:{error:1,warning:2},Spinner:({label})=>h('div',null,label),DefaultButton:({text,onClick})=>button(text,onClick)};
 const style={default:new Proxy({},{get:(_,key)=>String(key)})};
-const rules=load(root+'services/appRoleRules.ts');
+const rules=load(root+'services/appRoleRules.ts',{'../interfaces/IRoleManagement':load(root+'interfaces/IRoleManagement.ts')});
 let data={tickets:[{Id:123,Title:'Printer offline'}],loading:false,error:null,warnings:[],assignmentIdentityAvailable:true,filteredTickets:[],refresh:async()=>{}};
 const app=load(root+'components/HelpdeskApp.tsx',{
  'react-router-dom':Router,'@fluentui/react':fluent,'../utils/appRoutes':routes,'../services/appRoleRules':rules,'./HelpdeskSystem.module.scss':style,

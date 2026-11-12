@@ -1,9 +1,16 @@
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { ITicket, IUserLookup } from '../interfaces/ITicket';
-import type { IDeskPilotRole, RoleAction } from '../interfaces/IRoleManagement';
+import { roleSettingsPages } from '../interfaces/IRoleManagement';
+import type { SettingsPageKey, IDeskPilotRole, RoleAction } from '../interfaces/IRoleManagement';
 
 export function canUse(service: ITicketDataSource | undefined, action: RoleAction): boolean {
   return !service?.roleRules || service.roleRules.actions.includes(action);
+}
+export function canAccessSettings(service: ITicketDataSource | undefined, page: SettingsPageKey = 'settings'): boolean {
+  if(service?.access?.superAdmin)return true;
+  if(page==='schema')return !service?.access && !service?.roleRules;
+  if(service?.roleRules){const pages=roleSettingsPages(service.roleRules);return pages.includes('settings') && (page==='settings' || pages.includes(page));}
+  return !service?.access?.agent;
 }
 function matchesUser(person: IUserLookup | undefined, userId: number, email: string, aadId?: string): boolean {
   return Boolean(userId > 0 && person?.Id === userId) || Boolean(email && person?.Email?.toLowerCase() === email.toLowerCase()) || Boolean(aadId && person?.AadId?.toLowerCase() === aadId.toLowerCase());
@@ -94,6 +101,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   if(source.deleteComment)result.deleteComment=async(id,commentId)=>{requireAction('comment');await requireTicket(id);await source.deleteComment!(id,commentId);};
   if (source.getHistory) result.getHistory = async id => { await requireTicket(id); return source.getHistory!(id); };
   if (source.markCommentAsSolution) result.markCommentAsSolution = source.access?.admin || source.access?.superAdmin ? async (id, commentId, replace) => { requireAction('edit'); await requireTicket(id); await source.markCommentAsSolution!(id,commentId,replace); } : undefined;
+  if (source.sendRequesterReply) result.sendRequesterReply = role.actions.includes('comment') ? async (id, text, requestId) => { requireAction('comment'); await requireTicket(id); await source.sendRequesterReply!(id, text, requestId); } : undefined;
   if (source.addComment) result.addComment = role.actions.includes('comment') ? async (id, text, options) => { requireAction('comment'); await requireTicket(id); await source.addComment!(id, text, options); } : undefined;
   if (source.uploadCommentAttachments) result.uploadCommentAttachments = role.actions.includes('comment') ? async (id, commentId, files, progress) => {requireAction('comment'); await requireTicket(id); await source.uploadCommentAttachments!(id,commentId,files,progress);} : undefined;
   if (source.getAttachments) result.getAttachments = async id => {await requireTicket(id); return source.getAttachments!(id);};

@@ -92,6 +92,11 @@ export async function createSharePointService(context: WebPartContext, listName:
       if(!response.ok)throw new Error('Unable to resolve the team lead for an SLA alert.');const user=await response.json();await mail.slaBreach(ticket,kind,String((user.d||user).Email||''));
     };
   }
+  source.sendRequesterReply=async(id,text,requestId)=>{
+    const ticket=(await visibleSource.getTickets()).tickets.find(item=>item.Id===id);
+    if(!ticket)throw new Error('This ticket is outside your view.');
+    await mail.reply(ticket,text,requestId);
+  };
   tickets.notificationEnabled=()=>mail.enabled();
   tickets.onTicketChanged=(ticket,before,created,resolutionEmail)=>mail.changed(ticket,before,created,resolutionEmail);
   if(admin){
@@ -134,7 +139,6 @@ export async function createSharePointService(context: WebPartContext, listName:
     };
     source.roleManagement = roles; source.roleRules = role; return source;
   }
-  const effectiveRole=workspaceSettings.departmentFolders && role.id==='agent' ? {...role,scope:'all' as const} : role;
-  visibleSource=applyAppRoleRules(source, effectiveRole, currentUserId, access.email, aadId);
+  visibleSource=applyAppRoleRules(source, role, currentUserId, access.email, aadId);
   return visibleSource;
 }

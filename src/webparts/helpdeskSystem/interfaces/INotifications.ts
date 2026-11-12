@@ -5,7 +5,7 @@ export const recipientNames={requester:'Requester',creator:'Created by',assignee
 export type RecipientRole=keyof typeof recipientNames;
 export interface INotificationRule {email:boolean;inApp:boolean;subject:string;body:string;to:RecipientRole[];cc:RecipientRole[];extraTo:string[];extraCc:string[];}
 export interface IEmailSettings {enabled:boolean;autoInvite?:boolean;sender:'current'|'shared';sharedMailbox:string;replyTo:string;appUrl:string;rules:Record<NotificationEvent,INotificationRule>;}
-export interface INotificationRecord {id:string;ticketId:number;event:NotificationEvent;subject:string;created:string;status:string;error:string;recipients:string[];inApp:boolean;}
+export interface INotificationRecord {id:string;ticketId:number;event:NotificationEvent|'reply';subject:string;created:string;status:string;error:string;recipients:string[];inApp:boolean;}
 export interface IChangeSnapshot {status:string;assignedToId:number;}
 export interface INotificationService {
   canManage:boolean;

@@ -71,5 +71,15 @@ test('Permission search and access filters follow the selected role',async()=>{
   click('Discard and Leave');
   assert.equal(find(node=>node.props.role==='switch').props.disabled,true,'Discard returns to saved permissions');
   assert.equal(writes.length,0,'Discard does not save');
+  click('Helpdesk Admin');filters().props.onChange(null,{key:'all'});render();click('Edit');
+  const settingsPermission=find(node=>node.props.role==='switch' && node.props['aria-label']==='Settings: Subcategories');
+  assert(settingsPermission.props['aria-checked']);settingsPermission.props.onClick();render();
+  assert(!find(node=>node.props['aria-label']==='Settings: Subcategories').props['aria-checked']);
+  assert(find(node=>node.props['aria-label']==='Settings: Ticket List Schema (Super Admin only)').props.disabled);
+  click('Save');assert(find(node=>node.props.children?.includes('Hide: Settings: Subcategories')),'Confirmation includes page access changes');
+  click('Confirm Apply');await Promise.resolve();render();
+  assert.equal(writes.length,1);const savedAdmin=writes[0].roles.find(role=>role.id==='admin');
+  assert(savedAdmin.pageAccess.includes('settings'));assert(!savedAdmin.pageAccess.includes('subcategories'));
+  assert.deepEqual(savedAdmin.actions,config.roles.find(role=>role.id==='admin').actions,'Page access changes do not change management permissions');
 });
 

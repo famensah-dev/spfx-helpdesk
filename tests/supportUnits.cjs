@@ -4,7 +4,7 @@ const ts=require('typescript');
 function load(file,deps={}){const module={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name] || require(name),module,module.exports);return module.exports;}
 const contracts=load('src/webparts/helpdeskSystem/interfaces/IWorkspaceSetup.ts');
 const {GraphSupportUnitsService,matchingSupportUnit,nextUnitMember}=load('src/webparts/helpdeskSystem/services/graph/GraphSupportUnitsService.ts',{'../../interfaces/IWorkspaceSetup':contracts});
-const {applyAppRoleRules}=load('src/webparts/helpdeskSystem/services/appRoleRules.ts');
+const {applyAppRoleRules}=load('src/webparts/helpdeskSystem/services/appRoleRules.ts',{'../interfaces/IRoleManagement':load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts')});
 const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
 (async()=>{
   const store={

@@ -86,6 +86,16 @@ export class SharePointRoleManagement implements IRoleManagement {
       items.push(...page.value); next = page['odata.nextLink'] || page['@odata.nextLink'];
     }
     await this.groups?.sync(configuration.assignments,items.map(item=>Number(item.Title)).filter(id=>Number.isSafeInteger(id)&&id>0));
+    if(this.groups?.initialize){
+      const principals=await this.groups.initialize();
+      const rules=JSON.stringify({workspace:configuration.workspace,rolePolicies:configuration.roles});
+      let entry=items.find(item=>item.Title==='Workspace');
+      if(!entry)entry=await this.write<AccessItem>(this.users+'/items',{Title:'Workspace',Rules:rules});
+      const path=this.users+'/items('+entry.Id+')';await this.secure(path);
+      const info=await this.info();
+      for(const principal of principals)await this.write(path+'/roleassignments/addroleassignment(principalid='+principal.Id+',roledefid='+info.read+')');
+      if(entry.Rules!==rules)await this.write(path,{Rules:rules},{'IF-MATCH':'*','X-HTTP-Method':'MERGE'});
+    }
     const active = configuration.assignments.filter(item => !item.disabled);
     // Remove revoked users before updating or granting any new assignments.
     for (const item of items) {
@@ -101,16 +111,6 @@ export class SharePointRoleManagement implements IRoleManagement {
       const path = `${this.users}/items(${item.Id})`;
       await this.secure(path, user.userId);
       if (item.Rules !== rules) await this.write(path, { Rules: rules }, { 'IF-MATCH': '*', 'X-HTTP-Method': 'MERGE' });
-    }
-    if(configuration.workspace && this.groups?.initialize){
-      const principals=await this.groups.initialize();
-      const rules=JSON.stringify({workspace:configuration.workspace});
-      let entry=items.find(item=>item.Title==='Workspace');
-      if(!entry)entry=await this.write<AccessItem>(this.users+'/items',{Title:'Workspace',Rules:rules});
-      const path=this.users+'/items('+entry.Id+')';await this.secure(path);
-      const info=await this.info();
-      for(const principal of principals)await this.write(path+'/roleassignments/addroleassignment(principalid='+principal.Id+',roledefid='+info.read+')');
-      if(entry.Rules!==rules)await this.write(path,{Rules:rules},{'IF-MATCH':'*','X-HTTP-Method':'MERGE'});
     }
     await this.retireLegacyList();
   }
@@ -131,12 +131,21 @@ export class SharePointRoleManagement implements IRoleManagement {
   public async load(): Promise<IRoleConfiguration> {
     if (!this.owner && this.groupRole !== 'admin') {
       const user = await this.read<{ Id: number }>(`${this.web}/currentuser?$select=Id`);
+      const published=async():Promise<{workspace?:IRoleConfiguration['workspace'];rolePolicies?:IRoleConfiguration['roles']} | undefined>=>{
+        const items=await this.read<{value:AccessItem[]}>(this.users+"/items?$select=Id,Rules&$filter=Title eq 'Workspace'&$top=2");
+        if(items.value.length!==1)return undefined;
+        return JSON.parse(items.value[0].Rules);
+      };
       const fallback=async():Promise<IRoleConfiguration>=>{
         if(!this.groupRole)throw new Error('You do not have access to this DeskPilot workspace. Contact your helpdesk administrator.');
-        const metadata=await this.read<{value:AccessItem[]}>(this.users+"/items?$select=Id,Rules&$filter=Title eq 'Workspace'&$top=2");
-        if(metadata.value.length!==1)throw new Error('A site owner must open DeskPilot to publish workspace settings for role groups.');
-        const workspace=JSON.parse(metadata.value[0].Rules).workspace;
-        return {...defaultRoleConfiguration(),workspace,assignments:[{userId:user.Id,name:this.context.pageContext.user.displayName,email:this.context.pageContext.user.email,roleId:this.groupRole}]};
+        const settings=await published();
+        const role=settings?.rolePolicies?.find(item=>item.id===this.groupRole) || (this.groupRole==='requester' ? defaultRoleConfiguration().roles.find(item=>item.id==='requester') : undefined);
+        if(!role || !settings)throw new Error('Your saved DeskPilot role has not been published for group access. A site owner must open DeskPilot and save Roles & Permissions, then refresh. Built-in defaults have not been substituted.');
+        const configuration=defaultRoleConfiguration();
+        configuration.roles=configuration.roles.map(item=>item.id===role.id ? role : item);
+        configuration.workspace=settings.workspace;
+        configuration.assignments=[{userId:user.Id,name:this.context.pageContext.user.displayName,email:this.context.pageContext.user.email,roleId:this.groupRole}];
+        return upgradeRoleConfiguration(configuration);
       };
       const response=await this.context.spHttpClient.get(`${this.users}/items?$select=Id,Rules&$filter=Title eq '${user.Id}'&$top=2`,SPHttpClient.configurations.v1,{headers:{Accept:'application/json;odata=nometadata','odata-version':''}});
       if(response.status===403 && this.groupRole)return fallback();
@@ -147,9 +156,12 @@ export class SharePointRoleManagement implements IRoleManagement {
       const projection = JSON.parse(data.value[0].Rules);
       if (projection.assignment?.userId !== user.Id || projection.assignment.disabled || projection.assignment.roleId !== projection.role?.id) throw new Error('Invalid user access entry. Contact a site owner.');
       const config = defaultRoleConfiguration();
-      config.roles = config.roles.map(role => role.id === projection.role.id ? projection.role : role);
-      config.assignments = [projection.assignment]; validateRoleConfiguration(config);
-      config.workspace = projection.workspace;
+      const settings=await published();
+      const effectiveRole=settings?.rolePolicies?.find(item=>item.id===(this.groupRole || projection.role.id)) || projection.role;
+      if(this.groupRole && effectiveRole.id!==this.groupRole)throw new Error('Your saved role does not match your DeskPilot group. A site owner must save Roles & Permissions and you must refresh.');
+      config.roles = config.roles.map(role => role.id === effectiveRole.id ? effectiveRole : role);
+      config.assignments = [{...projection.assignment,roleId:effectiveRole.id}]; validateRoleConfiguration(config);
+      config.workspace = settings?.workspace || projection.workspace;
       return upgradeRoleConfiguration(config);
     }
     const response = await this.context.spHttpClient.get(`${this.root}?$select=Id`, SPHttpClient.configurations.v1);

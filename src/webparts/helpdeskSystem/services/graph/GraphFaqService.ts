@@ -58,7 +58,7 @@ export class GraphFaqService {
       const active = columns.find(item => item.name.toLowerCase() === 'active' && item.boolean);
       const parent = subcategory ? columns.find(item => (item.displayName?.toLowerCase() === 'category' || item.name.toLowerCase() === 'category') && item.lookup) : undefined;
       if (subcategory && (!parent?.lookup || parent.lookup.allowMultipleValues || parent.lookup.listId.toLowerCase() !== schema.categoryColumn.lookup?.listId.toLowerCase())) throw new Error('The FAQ subcategory list must have a single Category lookup to the FAQ category source list.');
-      const items = await this.graph.getAll<{ id: string; fields: Record<string, unknown> }>(`${path}/items?$expand=fields&$top=200`);
+      const items = await this.graph.getAll<{ id: string; fields: Record<string, unknown> }>(`${path}/items?$expand=fields($select=${[title.name, ...(active ? [active.name] : []), ...(parent ? [parent.name + 'LookupId'] : [])].join(',')})&$top=200`);
       return items.map(item => ({ id: item.id, name: String(item.fields[title.name] || ''), parentId: parent ? String(item.fields[`${parent.name}LookupId`] || '') : '', active: active ? item.fields[active.name] === true : true })).filter(item => item.name);
     };
     const [categoryOptions, subcategoryOptions] = await Promise.all([read(schema.categoryColumn, false), read(schema.subcategoryColumn, true)]);

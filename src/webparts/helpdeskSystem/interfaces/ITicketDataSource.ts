@@ -54,6 +54,7 @@ export interface ITicketDataSource {
   getComments?(id: number): Promise<ITicketComment[]>;
   deleteComment?(id:number,commentId:string):Promise<void>;
   markCommentAsSolution?(id: number, commentId: string, replaceExisting?: boolean): Promise<void>;
+  sendRequesterReply?(id: number, text: string, requestId: string): Promise<void>;
   addComment?(id: number, text: string, options?: ICommentPostOptions): Promise<void>;
   getHistory?(id: number): Promise<ITicketVersion[]>;
 }

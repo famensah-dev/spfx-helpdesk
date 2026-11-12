@@ -18,7 +18,7 @@ import { TicketDetails } from './TicketDetails';
 import styles from './HelpdeskSystem.module.scss';
 import { useHelpdeskDashboard } from '../hooks/useHelpdeskDashboard';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
-import { canUse } from '../services/appRoleRules';
+import { canUse, canAccessSettings } from '../services/appRoleRules';
 
 export interface IHelpdeskAppProps { service: ITicketDataSource; currentUserEmail: string; accountActions?: React.ReactNode; portalTitle?: string; settingsContent?: React.ReactNode; }
 
@@ -66,6 +66,7 @@ const darkAppTheme = createTheme({
   semanticColors: { bodyBackground:'#132238', bodyText:'#f1f3f5', inputBackground:'#1a2c43', inputText:'#f1f3f5', inputBorder:'#405872', infoBackground:'#1c3551', infoIcon:'#91baff', warningBackground:'#3c311a', warningIcon:'#f6c75f', successBackground:'#143c32', successIcon:'#79d8b0', errorBackground:'#482832', errorIcon:'#ff9faf' },
   components: {
     ...darkenStyles(appTheme.components) as typeof appTheme.components,
+    PersonaCoin: { styles: { initials: { color: '#ffffff !important' } } },
     Layer: { styles: { root: { selectors: darkControlSelectors } } }
   }
 });
@@ -73,8 +74,8 @@ const darkAppTheme = createTheme({
 export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElement {
   const appearance = useDeskPilotAppearance();
   const rules = props.service.roleRules;
-  const administrationAllowed = rules ? props.service.supportUnits || props.service.access?.superAdmin || ['classifications', 'manageFaqs', 'sla'].some(action => rules.actions.includes(action as 'classifications' | 'manageFaqs' | 'sla')) : !props.service.access?.agent;
-  const permittedPage = (value: Page): boolean => value === 'Documentation' ? Boolean(props.service.access?.superAdmin) : value === 'Users & Roles' ? Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
+  const administrationAllowed = canAccessSettings(props.service) && (rules ? props.service.supportUnits || props.service.access?.superAdmin || ['classifications', 'manageFaqs', 'sla'].some(action => rules.actions.includes(action as 'classifications' | 'manageFaqs' | 'sla')) : !props.service.access?.agent);
+  const permittedPage = (value: Page): boolean => value === 'Documentation' ? Boolean(props.service.access?.superAdmin) : value === 'Users & Roles' ? canAccessSettings(props.service,'roles') && Boolean(props.service.roleManagement) : value === 'Administration' ? Boolean(administrationAllowed) : value === 'FAQs' ? canUse(props.service, 'faqs') : value === 'Tickets' || value === 'My Assigned Tickets' ? canUse(props.service, 'tickets') : canUse(props.service, 'dashboard');
   const initialPage: Page = rules ? canUse(props.service, 'dashboard') ? 'Dashboard' : canUse(props.service, 'tickets') ? 'Tickets' : canUse(props.service, 'faqs') ? 'FAQs' : 'Administration' : props.service.access?.agent ? 'My Dashboard' : 'Dashboard';
   const location = useLocation();
   const routerNavigate = useNavigate();
@@ -94,7 +95,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
       const active=nav.querySelector<HTMLElement>('[aria-current="page"], [data-active="true"]');
       if(!active)return;
       const bounds=nav.getBoundingClientRect(),tab=active.getBoundingClientRect();
-      const inset=8;
+      const inset=Math.min(70, bounds.width * 0.18);
       if(tab.left<bounds.left+inset)nav.scrollLeft-=bounds.left+inset-tab.left;
       else if(tab.right>bounds.right-inset)nav.scrollLeft+=tab.right-bounds.right+inset;
     };

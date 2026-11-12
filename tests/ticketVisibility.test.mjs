@@ -16,7 +16,7 @@ function load(path, dependencies = {}) {
 const roles = load('../src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts');
 
 
-const {ticketInScope,applyAppRoleRules}=load('../src/webparts/helpdeskSystem/services/appRoleRules.ts');
+const {ticketInScope,applyAppRoleRules}=load('../src/webparts/helpdeskSystem/services/appRoleRules.ts',{'../interfaces/IRoleManagement':load('../src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts')});
 const tickets=[
 {Id:1,Status:'New',AssignedTo:{Id:7}},
 {Id:2,Status:'New',CreatedBy:{Id:7},AssignedTo:{Id:8}},

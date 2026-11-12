@@ -18,7 +18,7 @@ const service = { getFaqs: async manage => { assert.equal(manage, false); return
   { id: 1, question: 'Cannot sign in', answer: 'Reset your password', category: 'Email', subcategory: 'Access', published: true, sortOrder: 1 },
   { id: 2, question: 'SECRET DRAFT', category: 'Secret', published: false, sortOrder: 0 }
 ]; }, getCreationOptions: async () => ({ classification: { categories: [{ id: '10', name: 'Email' }], subcategories: [{ id: '11', parentId: '10', name: 'Access' }] }, fields: [] }) };
-async function click(text) { const button = [...host.querySelectorAll('button')].find(item => item.textContent === text); assert(button, 'Missing button: ' + text); await act(async () => { button.click(); }); }
+async function click(text) { const button = [...host.querySelectorAll('button')].find(item => item.textContent === text || item.getAttribute('aria-label')?.toLowerCase() === text.toLowerCase()); assert(button, 'Missing button: ' + text); await act(async () => { button.click(); }); }
 async function render(canCreate = true) { await act(async () => { ReactDOM.render(h(Guide, { service, canCreate, onCreate: value => { draft = value; } }), host); }); }
 (async () => {
   await render();

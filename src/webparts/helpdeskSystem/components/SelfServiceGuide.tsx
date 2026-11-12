@@ -113,13 +113,12 @@ export function SelfServiceGuide(props: { service: ITicketDataSource; canCreate:
     <Panel isOpen={open} onDismiss={() => { if (!loading) setOpen(false); }} type={PanelType.custom} customWidth="440px" headerText="Quick Help" closeButtonAriaLabel="Close Quick Help" isLightDismiss={!loading} styles={{ main: { maxWidth: '100vw' }, content: { padding: 20 }, commands: { paddingTop: 0 }, navigation: { alignItems: 'center', minHeight: 64, padding: '12px 20px', boxSizing: 'border-box' }, header: { padding: 0, alignSelf: 'center', minWidth: 0 }, headerText: { margin: 0, lineHeight: '32px' }, closeButton: { margin: 0, width: 32, height: 32, background: 'transparent', border: 0, color: "var(--dp-fg-52647a, #52647a)" } }}>
       <div className={styles.guide}>
         <p className={styles.intro}>Find a helpful article or let us help you create a support ticket.</p>
-        <div className={styles.utilityNavigation}><button type="button" disabled={loading || (category === undefined && !escalating && !solved)} onClick={back}><Icon iconName="Back" />Back</button><button type="button" disabled={loading} onClick={reset}>Start Again</button></div>
-        {category && <p className={styles.path}>{[category, subcategory].filter(Boolean).join(' / ')}</p>}
+        <div className={styles.utilityNavigation}><p className={styles.path}>{[category, subcategory].filter(Boolean).join(' / ') || 'Quick Help'}</p><button type="button" aria-label="Back" title="Back" disabled={loading || (category === undefined && !escalating && !solved)} onClick={back}><Icon iconName="ChevronLeft" /></button><button type="button" aria-label="Start again" title="Start again" disabled={loading} onClick={reset}><Icon iconName="ChevronRight" /></button></div>
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
         {loading ? <Spinner label="Loading help..." /> : solved ? <div role="status"><h3>Glad That Helped!</h3><p>You can come back here whenever you need help.</p><PrimaryButton text="Done" onClick={() => { setOpen(false); reset(); }} /></div> : escalating ? <>
           <h3>Tell Us a Little More</h3><p>We will include the guides you reviewed so you do not have to repeat yourself.</p>
           <TextField label="What Do You Need Help With?" multiline rows={4} maxLength={4000} value={details} onChange={(_, value) => setDetails(value || '')} />
-          <PrimaryButton text="Continue to Ticket Form" iconProps={{ iconName: 'Forward' }} onClick={() => { void create(); }} />
+          <PrimaryButton text="Continue to Ticket Form" onRenderIcon={()=>null} onRenderText={()=> <span>Continue to Ticket Form <Icon iconName="ChevronRight" /></span>} onClick={() => { void create(); }} />
         </> : article ? <>
           <h3>{article.question}</h3><div className={styles.answer}><RichTextContent value={article.answer} /></div>
           <h4>Did This Solve Your Issue?</h4><div className={styles.navigation}><PrimaryButton text="Yes, It Helped" onClick={() => setSolved(true)} /><DefaultButton text="No, I Still Need Help" onClick={() => props.canCreate ? setEscalating(true) : setArticle(undefined)} /></div>

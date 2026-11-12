@@ -30,6 +30,13 @@ const AssigneeLabel: React.FC<{ person?: ITicket['AssignedTo'] }> = ({ person })
   const name = person.Title || person.Email || 'Assigned user';
   return <span className={styles.ticketAssigneeLabel}><span aria-hidden="true"><PersonaCoin text={name} size={PersonaSize.size24} /></span><span>{name}</span></span>;
 };
+const TicketCreatedTime = ({value}:{value:string}):React.ReactElement|null => {
+  const created=new Date(value);
+  if(!Number.isFinite(created.getTime()))return null;
+  const today=created.toDateString()===new Date().toDateString();
+  const label=today ? created.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}) : created.toLocaleString(undefined,{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'});
+  return <time dateTime={created.toISOString()} title={created.toLocaleString()} aria-label={'Created '+created.toLocaleString()}>{label}</time>;
+};
 const columns = ['ID', 'Title', 'Description', 'Status', 'Priority', 'Assigned to', 'Assigned Team', 'Issue Category', 'Issue Subcategory', 'Issue Type', 'Ticket Type', 'Requested By', 'Requester Email', 'Created By', 'Ticket Source', 'Department / Unit', 'Created Date', 'Last Updated', 'Expected Resolution Date', 'Started At', 'First Response At', 'Resolved At', 'Closed At', 'Resolution Summary', 'Escalated'];
 const durationOptions = [{key: 'today', text: 'Today'}, {key: 'thisWeek', text: 'This Week'}, {key: 'month', text: 'This Month'}, {key: 'year', text: 'This Year'}, {key: 'all', text: 'All Time'}];
 const defaultColumns = ['ID', 'Title', 'Status', 'Priority', 'Assigned to', 'Requested By', 'Created Date'];
@@ -196,7 +203,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   return <section className={`${styles.pageContent} ${styles.ticketPage} ${styles.mobileTicketPage}`} aria-label={title}>
     <Dialog hidden={!bulkBusy} dialogContentProps={{title:'Updating tickets',showCloseButton:false}} modalProps={{isBlocking:true}}>
       <div role="status" aria-live="polite" aria-busy="true">
-        <Spinner size={SpinnerSize.large} label="Updating tickets… Please wait until the changes are saved and the list refreshes." />
+        <Spinner size={SpinnerSize.large} label="Please wait until tickets are saved and updated." styles={{label:{fontSize:16,lineHeight:24,color:'var(--dp-fg-172536, #172536)'}}} />
       </div>
     </Dialog>
     <div className={styles.mobileTicketHeader}><h2>{title}</h2><PrimaryButton text="New" iconProps={{iconName:'Add'}} disabled={!onCreate || loading || Boolean(error)} onClick={()=>setCreating(true)} /></div>
@@ -290,8 +297,8 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         <button type="button" className={styles.mobileTicketCardOpen} onClick={()=>onOpenTicket ? onOpenTicket(ticket.Id) : setDetailId(ticket.Id)} aria-label={'Open ticket #'+ticket.Id+': '+ticket.Title}>
           <span className={styles.mobileTicketCardTop}><span>#{ticket.Id}{viewed.opened && !viewed.opened.has(ticket.Id) && <span className={styles.mobileTicketUnread} role="img" aria-label="Unopened ticket"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.5 1.5v5M3 3l4 4M1.5 11.5h5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" /></svg></span>}</span><span className={styles.statusPill} data-status={normalizeStatus(ticket.Status)}>{normalizeStatus(ticket.Status)}</span></span>
           <strong className={styles.mobileTicketCardTitle}>{ticket.Title}</strong>
-          <span className={styles.mobileTicketCardBottom}><span>Requested by {ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || 'Not available'}</span><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} />{ticket.Priority}</span></span>
-          {ticket.AssignedTo?.Title && <span className={styles.mobileTicketCardAgent}>Assigned to {ticket.AssignedTo.Title}</span>}
+          <span className={styles.mobileTicketCardBottom}><span>From {ticket.Requester?.Title || ticket.Requester?.Email || ticket.RequesterEmail || 'Not available'}</span><span className={styles.priorityLabel} data-priority={ticket.Priority}><span className={styles.priorityDot} />{ticket.Priority}</span></span>
+          <span data-ticket-card-footer="true">{ticket.AssignedTo?.Title && <span className={styles.mobileTicketCardAgent}>Assigned to {ticket.AssignedTo.Title}</span>}<TicketCreatedTime value={ticket.Created} /></span>
         </button>
       </article>)}</div>
     </div><p className={styles.mobileTableHint}>Swipe sideways to see more columns.</p><div className={styles.tableContainer} tabIndex={0} role="region" aria-label="Tickets table, scroll sideways for more columns"><table className={styles.ticketTable}><caption className={styles.ticketCountRow}><div className={styles.ticketCountContent}>{selectedTickets.length > 0 ? <div className={styles.bulkActions} role="group" aria-label="Selected ticket actions">

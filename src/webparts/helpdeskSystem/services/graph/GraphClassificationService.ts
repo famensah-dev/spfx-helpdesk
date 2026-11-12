@@ -30,7 +30,7 @@ export async function loadClassification(graph: GraphClient, sitePath: string, l
     checkType(order, 'number', 'Number');
     const relationship = parent ? find(parent.label) : undefined;
     if (parent && (!relationship?.lookup || relationship.lookup.allowMultipleValues || relationship.lookup.listId.toLowerCase() !== parent.listId.toLowerCase())) throw new Error(`${list.displayName}.${parent.label} must be a single lookup to the correct parent list.`);
-    const items = await graph.getAll<{ id: string; fields: Record<string, unknown> }>(`${path}/items?$expand=fields&$top=200`);
+    const items = await graph.getAll<{ id: string; fields: Record<string, unknown> }>(`${path}/items?$expand=fields($select=${[title.name, active.name, order.name, ...(relationship ? [relationship.name + 'LookupId'] : [])].join(',')})&$top=200`);
     return items.filter(item => item.fields[active.name] === true).map(item => {
       const parentId = relationship ? String(item.fields[`${relationship.name}LookupId`] || '') : undefined;
       const name = String(item.fields[title.name] || '').trim();

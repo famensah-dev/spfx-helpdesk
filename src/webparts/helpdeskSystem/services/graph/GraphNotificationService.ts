@@ -70,6 +70,24 @@ export class GraphNotificationService {
     const recipient=(address:string):{emailAddress:{address:string}}=>({emailAddress:{address}});
     await this.graph.post('/me/sendMail',{message:{subject,body:{contentType:'HTML',content:html},toRecipients:to.map(recipient),ccRecipients:cc.map(recipient),...(settings.sender==='shared'?{from:recipient(settings.sharedMailbox.trim())}:{}),...(settings.replyTo?{replyTo:[recipient(settings.replyTo.trim())]}:{})},saveToSentItems:true});
   }
+  public async reply(ticket:ITicket,text:string,requestId:string):Promise<void>{
+    const email=ticket.RequesterEmail || ticket.Requester?.Email || '';
+    if(!isEmail(email))throw new Error('The requester needs a valid email address.');
+    if(!text.trim() || !requestId.trim())throw new Error('A reply message is required.');
+    const settings=await this.getSettings();
+    const context=(await this.context())!;
+    const key=ticket.Id+':reply:'+requestId;
+    const filter=encodeURIComponent("fields/NotificationKey eq '"+key.replace(/'/g,"''")+"'");
+    if((await this.graph.getAll<Item>(context.log+'/items?$expand=fields&$filter='+filter+'&$top=1')).length)throw new Error('This reply was already submitted or attempted. Check email history before sending it again.');
+    const subject='Re: #'+ticket.Id+' '+ticket.Title;
+    const escape=(value:string):string=>value.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const html='<p>Hello '+escape(ticket.Requester?.Title || 'there')+',</p><p>'+escape(text).replace(/\r?\n/g,'<br>')+'</p><p>'+escape(this.actor.name)+'</p>';
+    const claim=await this.graph.post<Item>(context.log+'/items',{fields:{Title:'Reply to requester',NotificationKey:key,TicketId:ticket.Id,Event:'reply',Subject:subject,Audience:JSON.stringify([email]),InApp:false,DeliveryStatus:'Pending',Error:''}});
+    let error='';
+    try{await this.send(settings,subject,html,[email],[]);}catch(reason){error=reason instanceof Error?reason.message:'Email submission could not be confirmed.';}
+    try{await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:error?'Failed or unconfirmed':'Accepted',Error:error});}catch{throw new Error('Reply status could not be saved. Check email history before sending again.');}
+    if(error)throw new Error(error+' Check email history before sending again.');
+  }
   public async test(settings:IEmailSettings,event:NotificationEvent):Promise<void>{
     this.requireAdmin();validateEmailSettings(settings);if(!isEmail(this.actor.email))throw new Error('Your email address is unavailable.');
     const ticket:ITicket={Id:123,Title:'Example support request',Status:event==='closed'?'Closed':event==='resolved'?'Resolved':'New',Priority:'Medium',Created:new Date().toISOString(),Modified:new Date().toISOString(),Requester:{Title:'Example requester',Email:this.actor.email},RequesterEmail:this.actor.email,AssignedTo:{Id:1,Title:'Example agent',Email:this.actor.email},AssignedUnit:'Example team',ResolutionSummary:'The issue has been fixed.'};

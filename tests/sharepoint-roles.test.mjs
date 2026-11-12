@@ -24,7 +24,7 @@ test('Created by Me matches requester identity without using names or assignees'
   assert.equal(isTicketCreatedBy({CreatedBy:{Email:'flow@example.com'},Requester:{Email:'me@example.com'}},'me@example.com'),false);
   assert.equal(isTicketCreatedBy({CreatedBy:{Email:'flow@example.com'},Requester:{Email:'me@example.com'}},'flow@example.com'),true);
 });
-const { applyAppRoleRules, ticketInScope, canUse } = load('../src/webparts/helpdeskSystem/services/appRoleRules.ts');
+const { applyAppRoleRules, ticketInScope, canUse } = load('../src/webparts/helpdeskSystem/services/appRoleRules.ts',{'../interfaces/IRoleManagement':load('../src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts')});
 const { SharePointRoleManagement } = load('../src/webparts/helpdeskSystem/services/SharePointRoleManagement.ts', {
   '@microsoft/sp-http': { SPHttpClient: { configurations: { v1: {} } } },
   '../interfaces/IRoleManagement': roles
