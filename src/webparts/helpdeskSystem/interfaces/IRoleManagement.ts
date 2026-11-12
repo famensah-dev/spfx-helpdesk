@@ -1,6 +1,6 @@
 export const roleActions = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla'] as const;
 export type RoleAction = typeof roleActions[number];
-export type TicketScope = 'own' | 'assigned' | 'all';
+export type TicketScope = 'own' | 'assigned' | 'assignedOrCreated' | 'newUnassigned' | 'all';
 export interface IDeskPilotRole { id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
 export interface IWorkspaceSettings { title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
@@ -24,7 +24,7 @@ export function validateRoleConfiguration(value: IRoleConfiguration): void {
   if (new Set(value.roles.map(role => role.id)).size !== value.roles.length) throw new Error('Duplicate roles.');
   for (const role of value.roles) {
     if(role.id==='requester' && (role.scope!=='own' || ![2,4].includes(role.actions.length) || !role.actions.includes('create') || !role.actions.includes('faqs') || role.actions.some(action=>!['create','faqs','tickets','comment'].includes(action)) || (role.actions.length===4 && (!role.actions.includes('tickets') || !role.actions.includes('comment')))))throw new Error('Requester permissions are fixed: create tickets, view and comment on own requests, and read published Knowledge Base articles.');
-    if (!ids.includes(role.id) || !role.name || !['own', 'assigned', 'all'].includes(role.scope) || !Array.isArray(role.actions) || role.actions.some(action => !roleActions.includes(action))) throw new Error('Invalid role rules.');
+    if (!ids.includes(role.id) || !role.name || !['own', 'assigned', 'assignedOrCreated', 'newUnassigned', 'all'].includes(role.scope) || !Array.isArray(role.actions) || role.actions.some(action => !roleActions.includes(action))) throw new Error('Invalid role rules.');
     if (role.actions.includes('manageFaqs') && !role.actions.includes('faqs')) throw new Error(`${role.name}: enable the FAQs page before enabling FAQ management.`);
   }
   if(!value.roles.some(role=>role.id==='agent') || !value.roles.some(role=>role.id==='admin'))throw new Error('Agent and Helpdesk Admin roles are required.');

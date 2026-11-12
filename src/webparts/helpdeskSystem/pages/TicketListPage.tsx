@@ -194,6 +194,11 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
   const detailTicket = tickets.find(ticket => ticket.Id === detailId);
   if (detailTicket) return <TicketDetails key={detailTicket.Id} service={service} refresh={refresh} tickets={tickets} ticket={detailTicket} onBack={() => setDetailId(null)} />;
   return <section className={`${styles.pageContent} ${styles.ticketPage} ${styles.mobileTicketPage}`} aria-label={title}>
+    <Dialog hidden={!bulkBusy} dialogContentProps={{title:'Updating tickets',showCloseButton:false}} modalProps={{isBlocking:true}}>
+      <div role="status" aria-live="polite" aria-busy="true">
+        <Spinner size={SpinnerSize.large} label="Updating tickets… Please wait until the changes are saved and the list refreshes." />
+      </div>
+    </Dialog>
     <div className={styles.mobileTicketHeader}><h2>{title}</h2><PrimaryButton text="New" iconProps={{iconName:'Add'}} disabled={!onCreate || loading || Boolean(error)} onClick={()=>setCreating(true)} /></div>
     <div className={styles.mobileTicketTools}>
       <nav className={`${styles.mobileTicketViews} ${styles.ticketTabs}`} aria-label="Mobile ticket views">{[{key:'All Tickets',text:'All Tickets',disabled:title!=='Tickets'},{key:'My Assigned Tickets',text:'Assigned to Me',disabled:!currentUserEmail || assignmentIdentityAvailable===false},{key:'Created by Me',text:'Created by Me',disabled:false}].map(item=><button type="button" key={item.key} className={tab===item.key ? styles.activeNav : undefined} disabled={item.disabled} aria-current={tab===item.key ? 'page' : undefined} onClick={()=>{setTab(item.key);setPage(0);}}><span className={styles.mobileTicketTabLabel}>{item.text}</span></button>)}</nav>
@@ -225,7 +230,7 @@ export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulk
         { name: 'Archive', icon: 'Lock', disabled: false, hint: 'Archived tickets' }
       ].map(item => <button key={item.name} type="button" disabled={item.disabled} title={item.hint} aria-pressed={tab === item.name} className={tab === item.name ? styles.activeNav : undefined} onClick={() => { setTab(item.name); setPage(0); }}>{/* <Icon iconName={item.icon} /> */}{item.name}</button>)}
     </div>
-    <Dialog hidden={!deleteIds.length} onDismiss={bulkBusy?undefined:()=>setDeleteIds([])} dialogContentProps={{title:'Delete Archived Tickets?',showCloseButton:!bulkBusy}} modalProps={{isBlocking:true}}>
+    <Dialog hidden={!deleteIds.length || bulkBusy} onDismiss={bulkBusy?undefined:()=>setDeleteIds([])} dialogContentProps={{title:'Delete Archived Tickets?',showCloseButton:!bulkBusy}} modalProps={{isBlocking:true}}>
       <p>Delete {deleteIds.length} selected archived ticket(s)? Tickets and their attachments will move to the SharePoint recycle bin. Ticket comments and notification history will be retained.</p>
       <DialogFooter><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={bulkBusy} onClick={()=>setDeleteIds([])} /><PrimaryButton text={bulkBusy?'Deleting?':'Delete Tickets'} iconProps={{iconName:'Delete'}} disabled={bulkBusy} onClick={()=>{void deleteArchived();}} /></DialogFooter>
     </Dialog>

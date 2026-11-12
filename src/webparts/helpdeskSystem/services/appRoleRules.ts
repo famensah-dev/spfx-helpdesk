@@ -19,7 +19,8 @@ export function isAgentCreatedTicket(ticket: ITicket, service: ITicketDataSource
 }
 export function ticketInScope(ticket: ITicket, role: IDeskPilotRole, userId: number, email: string, aadId?: string): boolean {
   if (role.scope === 'all') return true;
-  const people = role.scope === 'own' ? [ticket.Requester] : role.id === 'agent' ? [ticket.AssignedTo, ticket.Requester, ticket.CreatedBy] : [ticket.AssignedTo];
+  if (role.scope === 'newUnassigned') return ticket.Status === 'New' && !ticket.AssignedTo?.Id && !ticket.AssignedTo?.Email && !ticket.AssignedTo?.AadId;
+  const people = role.scope === 'own' ? [ticket.Requester] : role.scope === 'assignedOrCreated' ? [ticket.AssignedTo, ticket.CreatedBy] : [ticket.AssignedTo];
   return people.some(person => matchesUser(person, userId, email, aadId));
 }
 
@@ -40,7 +41,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   const requireManagedTicket = async (id: number): Promise<ITicket> => {
     const ticket = await requireTicket(id);
     // Seeing a submitted request does not make its creator the handling agent.
-    if (role.id === 'agent' && role.scope === 'assigned' && !matchesUser(ticket.AssignedTo, userId, email, aadId)) throw new Error('Only tickets assigned to you can be managed. You can still view and comment on your submitted requests.');
+    if (role.id === 'agent' && ['assigned', 'assignedOrCreated'].includes(role.scope) && !matchesUser(ticket.AssignedTo, userId, email, aadId)) throw new Error('Only tickets assigned to you can be managed. You can still view and comment on your submitted requests.');
     return ticket;
   };
   result.getTickets = async () => {

@@ -28,7 +28,7 @@ export function UserDetailsPanel(props:{user?:IRoleAssignment; configuration:IRo
   },[user?.userId,props.service]);
   const role=props.configuration.roles.find(item=>item.id===user?.roleId);
   const memberships=teams?.members.filter(member=>member.userId===user?.userId) || [];
-  const scope=role?.scope==='own'?'Their own requests':role?.scope==='assigned'?'Tickets assigned to them':role?.scope==='all'?'All tickets allowed by SharePoint access':'Not configured';
+  const scope=role?.scope==='own'?'Their own requests':role?.scope==='assigned'?'Tickets assigned to them':role?.scope==='assignedOrCreated'?'Tickets assigned to them or created by them':role?.scope==='newUnassigned'?'All New tickets without an assignee':role?.scope==='all'?'All tickets allowed by SharePoint access':'Not configured';
   return <Panel isOpen={Boolean(user)} onDismiss={props.onDismiss} headerText="User Details" closeButtonAriaLabel="Close user details" type={PanelType.smallFixedFar}>
     {user && <div className={styles.userDetailsProfile}>
       <div className={styles.userDetailsIdentity}><PersonaCoin text={user.name} size={PersonaSize.size48} /><div><h3>{user.name}</h3><span>{user.email}</span></div></div>
