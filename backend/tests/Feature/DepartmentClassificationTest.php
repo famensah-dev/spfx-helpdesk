@@ -226,6 +226,85 @@ class DepartmentClassificationTest extends TestCase
         $ticket->update(['category_id' => $category]);
     }
 
+    public function test_original_users_page_can_save_assignments_without_cross_department_removal(): void
+    {
+        $user = $this->user('requester', [$this->facilities]);
+        $body = ['assignments' => [['userId' => $user->id, 'roleId' => 'agent', 'disabled' => false]]];
+        $this->asUser($this->owner)->putJson('/api/v1/departments/'.$this->it.'/assignments', $body)->assertNoContent();
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', $body)->assertNoContent();
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'role' => 'agent', 'enabled' => true]);
+        $this->assertDatabaseHas('department_memberships', ['department_id' => $this->it, 'user_id' => $user->id]);
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', ['assignments' => []])->assertNoContent();
+        $this->assertDatabaseMissing('department_memberships', ['department_id' => $this->it, 'user_id' => $user->id]);
+        $this->assertDatabaseHas('department_memberships', ['department_id' => $this->facilities, 'user_id' => $user->id]);
+        $admin = $this->user('admin', [$this->it]);
+        $this->asUser($admin)->putJson('/api/v1/departments/'.$this->it.'/assignments', $body)->assertForbidden();
+        $this->asUser($this->owner)->putJson('/api/v1/departments/'.$this->it.'/assignments', ['assignments' => [['userId' => $this->owner->id, 'roleId' => 'agent']]])->assertUnprocessable();
+    }
+
+    public function test_directory_resolution_requires_owner_and_does_not_grant_access(): void
+    {
+        $input = ['entra_object_id' => (string) Str::uuid(), 'name' => 'Directory User', 'email' => 'directory@example.com'];
+        $admin = $this->user('admin', [$this->it]);
+        $this->asUser($admin)->postJson('/api/v1/directory-users/resolve', $input)->assertForbidden();
+        $this->asUser($this->owner)->postJson('/api/v1/directory-users/resolve', $input)->assertCreated();
+        $this->assertDatabaseHas('users', ['organization_id' => $this->org->id, 'entra_object_id' => $input['entra_object_id'], 'enabled' => false, 'role' => 'requester']);
+        $this->postJson('/api/v1/directory-users/resolve', $input)->assertOk();
+    }
+
+    public function test_workspace_general_settings_are_owner_only_and_persist_in_database(): void
+    {
+        $body = ['title' => 'Hospital Support', 'description' => 'Staff helpdesk'];
+        $this->asUser($this->user('admin', [$this->it]))->putJson('/api/v1/workspace-settings', $body)->assertForbidden();
+        $this->asUser($this->owner)->putJson('/api/v1/workspace-settings', $body)->assertNoContent();
+        $this->getJson('/api/v1/session')->assertJsonPath('workspace.title', 'Hospital Support')->assertJsonPath('workspace.description', 'Staff helpdesk');
+    }
+
+    public function test_existing_schema_page_reads_real_nullable_metadata_without_edit_access(): void
+    {
+        $this->asUser($this->user('admin', [$this->it]))->getJson('/api/v1/ticket-schema')->assertForbidden();
+        $response = $this->asUser($this->owner)->getJson('/api/v1/ticket-schema')->assertOk()->assertJsonPath('canCreateColumns', false);
+        $description = collect($response->json('columns'))->firstWhere('name', 'description');
+        $this->assertFalse($description['required']);
+        $this->assertFalse($description['canEdit']);
+        $this->assertFalse($description['canDelete']);
+    }
+
+    public function test_existing_role_page_settings_are_enforced_by_api_and_parent_options_remain_available(): void
+    {
+        $category = $this->category('Computers', [$this->it]);
+        $admin = $this->user('admin', [$this->it]);
+        DB::table('departments')->where('id', $this->it)->update(['role_settings' => json_encode(['admin' => ['name' => 'Admin', 'scope' => 'all', 'actions' => DepartmentAccess::ACTIONS, 'pageAccess' => ['settings', 'subcategories']]])]);
+        $this->asUser($admin)->getJson('/api/v1/classifications/categories')->assertForbidden();
+        $this->getJson('/api/v1/departments/'.$this->it)->assertForbidden();
+        $this->getJson('/api/v1/classifications/categories?parentsFor=subcategories')->assertOk()->assertJsonCount(1);
+        $this->postJson('/api/v1/classifications/subcategories', ['name' => 'Printer', 'category_id' => $category])->assertOk();
+        $this->getJson('/api/v1/session')->assertJsonPath('roleRules.pageAccess', ['settings', 'subcategories']);
+    }
+
+    public function test_original_ticket_fields_and_assigned_creation_status_are_preserved(): void
+    {
+        $agent = $this->user('agent', [$this->it]);
+        $this->asUser($this->owner)->postJson('/api/v1/tickets', ['title' => 'Printer', 'priority' => 'Low', 'departmentId' => $this->it, 'assignedToId' => $agent->id, 'ticketSource' => 'Phone / Call-in', 'ticketType' => 'Incident', 'dueDate' => '2026-12-01T12:00:00Z'])->assertCreated();
+        $ticket = Ticket::latest('id')->first();
+        $this->assertSame('In Progress', $ticket->status);
+        $this->assertSame('Incident', $ticket->ticket_type);
+        $this->assertNotNull($ticket->due_date);
+        $this->patchJson('/api/v1/tickets/'.$ticket->id, ['ticketSource' => 'Other'])->assertUnprocessable();
+        $this->patchJson('/api/v1/tickets/'.$ticket->id, ['ticketSource' => null])->assertUnprocessable();
+    }
+
+    public function test_agent_can_resolve_submitted_ticket_without_gaining_assignee_management(): void
+    {
+        $creator = $this->user('agent', [$this->it]);
+        $handler = $this->user('agent', [$this->it]);
+        $ticket = $this->ticket($creator, $this->it, $handler);
+        $this->asUser($creator)->patchJson('/api/v1/tickets/'.$ticket->id, ['status' => 'Resolved', 'resolutionSummary' => 'Confirmed working'])->assertNoContent();
+        $this->patchJson('/api/v1/tickets/'.$ticket->id, ['priority' => 'Critical'])->assertForbidden();
+        $this->postJson('/api/v1/tickets/'.$ticket->id.'/response')->assertForbidden();
+        $this->patchJson('/api/v1/tickets/'.$ticket->id, ['status' => 'Closed'])->assertForbidden();
+    }
+
     public function test_database_rejects_wrong_subcategory_parent(): void
     {
         $one = $this->category('One');

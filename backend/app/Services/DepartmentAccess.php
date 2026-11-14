@@ -10,6 +10,10 @@ class DepartmentAccess
 {
     public const ACTIONS = ['dashboard', 'tickets', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications'];
 
+    public const CONFIGURABLE_ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla'];
+
+    public const SETTINGS_PAGES = ['settings', 'roles', 'units', 'categories', 'subcategories', 'issueTypes', 'sla', 'email', 'assignment', 'faqs', 'members', 'schema'];
+
     public const SCOPES = ['assigned', 'assignedOrCreated', 'newUnassigned', 'all'];
 
     public function departments(User $user): Builder
@@ -57,6 +61,25 @@ class DepartmentAccess
     public function can(User $user, ?int $departmentId, string $action): bool
     {
         return $this->allows($user, $departmentId) && in_array($action, $this->rules($user, $departmentId)['actions'], true);
+    }
+
+    public function settingsPages(User $user, ?int $departmentId): array
+    {
+        $implemented = ['settings', 'roles', 'categories', 'subcategories', 'issueTypes'];
+        if ($user->role === 'superAdmin') {
+            return $implemented;
+        }
+        $rules = $this->rules($user, $departmentId);
+        $pages = $rules['pageAccess'] ?? ($user->role === 'admin' ? $implemented : (in_array('classifications', $rules['actions'], true) ? ['settings', 'categories', 'subcategories', 'issueTypes'] : []));
+
+        return array_values(array_intersect($implemented, $pages));
+    }
+
+    public function canAccessSettings(User $user, int $departmentId, string $page): bool
+    {
+        $pages = $this->settingsPages($user, $departmentId);
+
+        return $this->allows($user, $departmentId) && in_array('settings', $pages, true) && in_array($page, $pages, true);
     }
 
     /** No mapping rows means the lookup is shared by all departments in this organization. */

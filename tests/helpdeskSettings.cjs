@@ -8,14 +8,17 @@ const style={default:new Proxy({},{get:(_,key)=>String(key)})};
 const hub=load('src/webparts/helpdeskSystem/components/HelpdeskSettingsHub.tsx',{'./HelpdeskSystem.module.scss':style,'./HelpdeskSettingsLayout.module.scss':style});
 const rules=load('src/webparts/helpdeskSystem/services/appRoleRules.ts',{'../interfaces/IRoleManagement':load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts')});
 const empty=new Proxy({},{get:()=>()=>null});
+const departmentContext=load('src/webparts/helpdeskSystem/components/SettingsDepartmentContext.tsx',{'./HelpdeskSystem.module.scss':style,'./cancelButtonStyles':empty});
 const {AdministrationPage}=load('src/webparts/helpdeskSystem/pages/AdministrationPage.tsx',{
   '../components/HelpdeskSettingsHub':hub,'../components/HelpdeskSystem.module.scss':style,'../services/appRoleRules':rules,
-  '../components/HelpdeskSettingsLayout.module.scss':style,'./SharePointRolesPage':empty,
+  '../components/SettingsDepartmentContext':departmentContext,
+  './LaravelAccessPages':empty,
+  '../components/HelpdeskSettingsLayout.module.scss':style,'./SharePointRolesPage':{SharePointRolesPage:props=>React.createElement('div',{'data-access-view':props.view || 'combined'})},
   '../components/TeamAssignmentMethods':empty,'./EmailSettingsPage':empty,'./SupportUnitsPage':empty,'../components/AutoAssignmentSetting':empty,'../components/WorkspaceSetupPanel':empty,
   './DepartmentMembersPage':empty,'./SlaPrioritiesPage':empty,'../components/TicketSchemaWorkspace':empty,
   '../components/AdminColumnForm':empty,'../components/SearchableSelect':empty,'../components/cancelButtonStyles':empty,'./FaqPage':empty
 });
-const render=service=>renderToStaticMarkup(React.createElement(AdministrationPage,{service,onUsersAndRoles:()=>{}}));
+const render=(service,section)=>renderToStaticMarkup(React.createElement(AdministrationPage,{service,section,onUsersAndRoles:()=>{}}));
 const admin={access:{admin:true,superAdmin:false},roleRules:{id:'admin',actions:[]},supportUnits:{}};
 let html=render(admin);
 assert(html.includes('Settings') && html.includes('Support Teams') && html.includes('Assignment'));
@@ -37,3 +40,10 @@ assert(direct('subcategories').includes('You do not have access'),'Direct subcat
 assert(!rules.canAccessSettings({...custom,roleRules:{...custom.roleRules,pageAccess:['categories']}},'categories'),'Parent Settings page must be enabled');
 assert(!rules.canAccessSettings(custom,'schema'),'Schema remains Super Admin only');
 console.log('Helpdesk Settings checks passed: grouped hub opens first, team/assignment settings remain available to admins, and restricted settings are filtered.');
+const backend={storageProvider:'laravel',access:{admin:true,superAdmin:true},roleRules:{id:'superAdmin',actions:['classifications']},roleManagement:{},settingsScope:{departments:[{id:4,name:'IT'}],selectedId:4,select:()=>{}}};
+html=render(backend,'members');
+assert(html.includes('Departments') && html.includes('Roles &amp; Permissions'),'Laravel settings must expose separate sidebar sections');
+assert(!html.includes('Users &amp; Roles'),'Laravel sidebar must not retain the combined section');
+assert(html.includes('data-access-view="users"'),'Users must open the existing user table directly');
+html=render(backend,'departments');
+assert(!html.includes('Settings department'),'The Departments list must not be replaced by a department-selector toolbar');

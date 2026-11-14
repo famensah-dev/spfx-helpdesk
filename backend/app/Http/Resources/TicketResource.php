@@ -22,6 +22,7 @@ class TicketResource extends JsonResource
             'Category' => $this->category?->name, 'CategoryId' => $this->category_id,
             'Subcategory' => $this->subcategory?->name, 'SubcategoryId' => $this->subcategory_id,
             'IssueType' => $this->issueType?->name, 'IssueTypeId' => $this->issue_type_id,
+            'TicketType' => $this->ticket_type, 'TicketSource' => $this->ticket_source,
             'Status' => $this->status, 'Priority' => $this->priority, 'Archived' => $this->archived,
             'Created' => $this->created_at->toISOString(), 'Modified' => $this->updated_at->toISOString(),
             'AssignedTo' => self::person($this->assignee), 'Requester' => self::person($this->requester),

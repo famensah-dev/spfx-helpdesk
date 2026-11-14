@@ -23,6 +23,8 @@ class SaveTicketRequest extends FormRequest
             'subcategory' => ['sometimes', 'nullable', 'integer'],
             'issueType' => ['sometimes', 'nullable', 'integer'],
             'departmentId' => ['sometimes', 'nullable', 'integer', 'min:1'],
+            'ticketType' => ['sometimes', 'nullable', Rule::in(['Problem', 'Incident', 'Question', 'Request'])],
+            'ticketSource' => ['sometimes', 'nullable', Rule::in(['DeskPilot', 'Email', 'Forms', 'Phone / Call-in', 'Other'])],
             'priority' => [$required, Rule::in(['Low', 'Medium', 'High', 'Critical'])],
             'status' => ['sometimes', Rule::in(['New', 'Assigned', 'In Progress', 'On Hold', 'Waiting on Third Party', 'Resolved', 'Closed', 'Completed', 'Pending', 'Escalated'])],
             'assignedToId' => ['sometimes', 'nullable', 'integer', Rule::exists('users', 'id')->where(fn ($query) => $query->where('organization_id', $this->user()->organization_id)->where('enabled', true)->whereIn('role', ['agent', 'admin', 'superAdmin']))],

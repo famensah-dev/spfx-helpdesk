@@ -47,7 +47,7 @@ export function UserDetailsPanel(props:{user?:IRoleAssignment; configuration:IRo
       })}</ul>}
       <h3>Role Permissions</h3>
       {user.disabled?<p>The assigned DeskPilot role is inactive.</p>:<ul>{role?.actions.map(action=><li key={action}>{actionLabels[action]}</li>)}</ul>}
-      <p className={styles.userDetailsNote}>This shows the saved DeskPilot assignment and configured role. SharePoint permissions and other group memberships also determine effective access.</p>
+      <p className={styles.userDetailsNote}>{props.service.storageProvider==='laravel' ? 'Laravel combines this role with department memberships, enabled account status and organization access. Entra groups can supply department membership.' : 'This shows the saved DeskPilot assignment and configured role. SharePoint permissions and other group memberships also determine effective access.'}</p>
     </div>}
   </Panel>;
 }

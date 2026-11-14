@@ -8,7 +8,7 @@ export interface IDeskPilotRole { pageAccess?: SettingsPageKey[]; id: string; na
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
 export interface IWorkspaceSettings { title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
 export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
-export interface IRoleManagement { load(): Promise<IRoleConfiguration>; save(configuration: IRoleConfiguration): Promise<void>; }
+export interface IRoleManagement { supportedActions?: readonly RoleAction[]; supportedSettingsPages?: readonly SettingsPageKey[]; load(): Promise<IRoleConfiguration>; save(configuration: IRoleConfiguration): Promise<void>; }
 /** Infer access for older saved roles until their page access is explicitly edited. */
 export function roleSettingsPages(role: IDeskPilotRole): SettingsPageKey[] {
   if (role.pageAccess) return role.pageAccess;

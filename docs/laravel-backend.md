@@ -16,6 +16,8 @@ Deployments support a dedicated organization or multiple approved organizations 
 
 ## Current scope
 
+The UI baseline is the `dev` branch. Laravel now implements the original settings-page service contracts instead of separate backend-specific settings panels. See the [dev branch adaptation audit](dev-branch-adaptation-audit.md) for the corrections and remaining functional ports.
+
 Ticket descriptions are optional. The original helpdesk migration now defines a nullable `description`; omitted or blank descriptions are stored as SQL NULL and presented as empty text through the API. This migration edit is for the agreed disposable test-database rebuild. Existing databases do not change merely by deploying this source, and existing data must not be reset in production. The deployed `sql-test-1` image predates this change. On Azure SQL, do not use `migrate:fresh`: the current framework's table-wipe SQL uses unavailable `sp_msforeachtable`. A previously attempted wipe removed foreign keys from the Azure test database; that database needs its schema rebuilt before further application testing.
 
 | Role | Visibility | Operations |
@@ -27,9 +29,9 @@ Ticket descriptions are optional. The original helpdesk migration now defines a 
 
 Only enabled agents/admins with access to the ticket department may be assigned. Agents cannot close/reopen terminal tickets or clear resolution summaries. They can assign tickets they created; other actions follow department permissions and handling scope. Requester identity is immutable. User access, memberships, group mappings and role settings are checked on every request. Super Admins cannot edit their own user access through the API. See [departments and classifications](departments-and-classifications.md) for the full boundaries and group-claim limitations.
 
-Implemented: ticket creation/listing/editing, paginated reads, per-ticket bulk updates, plain text comments, history, first-response tracking, user editing, token validation, department memberships, group mappings, per-department Agent/Admin visibility and action settings, category/subcategory/issue-type tables and API-backed SPFx forms/settings. The default status is New even when a ticket is assigned during creation. Role names remain the four built-in roles; creating custom role types is not implemented.
+Implemented: ticket creation/listing/editing, paginated reads, per-ticket bulk updates, plain text comments, history, first-response tracking, user editing, token validation, department memberships, group mappings, per-department Agent/Admin visibility/action/page settings, classification tables, Ticket Source/Type/Due Date, workspace metadata and read-only schema inspection. Existing React pages consume Laravel adapters. Assigned submissions start In Progress and unassigned submissions New, matching dev. Role names remain the four built-in roles; creating custom role types is not implemented.
 
-**Still to port:** attachments, rich comment formatting, FAQs/knowledge base, custom role types and the remaining settings-page permissions, support units, notifications/email, ticket types, SLA clocks/escalations, view tracking, permanent deletion and SharePoint setup tools. These optional services are not exposed by the adapter. Unsupported creation controls are hidden; attachment attempts through the adapter fail before creating a ticket. Existing lists and their data are not imported. This is a core workflow trial, not a production replacement with feature parity.
+**Still to port:** attachments, rich conversations, FAQs/knowledge base, custom role types and remaining feature permissions, support units/automatic routing, notifications/email, requester/on-behalf edits, department transfers, SLA clocks/escalations, view tracking, permanent deletion and runtime custom-field management. Existing controls are reused; unimplemented operations are disabled or explicitly unavailable rather than silently discarded. Existing lists and their data are not imported. This is not yet a production replacement with feature parity.
 
 ## Local setup
 

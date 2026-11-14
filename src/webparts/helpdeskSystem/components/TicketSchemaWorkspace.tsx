@@ -8,7 +8,7 @@ const columnTypeLabels: Record<string, string> = {personOrGroup: 'Person', dateT
 export function TicketSchemaWorkspace(props: { data: IAdminData; service: IAdministrationService; busy: boolean; input: IColumnInput | null; editing: boolean; error: string; onInput: (value: IColumnInput | null) => void; onNew: () => void; onEdit: (column: IAdminColumn) => void; onInspect: (column: IAdminColumn) => void; onDelete: (column: IAdminColumn) => void; onSave: () => void; onRefresh: () => void; onError: (message: string) => void }): React.ReactElement {
   const [query, setQuery] = React.useState('');
   const [type, setType] = React.useState('');
-  const [filter, setFilter] = React.useState('editable');
+  const [filter, setFilter] = React.useState(props.data.canCreateColumns===false?'':'editable');
   const [sortDirection, setSortDirection] = React.useState<'asc' | 'desc' | null>(null);
   const [copied, setCopied] = React.useState(false);
   const types = Array.from(new Set(props.data.columns.map(column => column.type))).sort();
@@ -19,9 +19,9 @@ export function TicketSchemaWorkspace(props: { data: IAdminData; service: IAdmin
     <div className={styles.schemaTopRow}>
     <div className={styles.schemaHeading}><small>List name</small><h2>{props.data.listName} Schema</h2></div>
     <div className={styles.schemaListSummary}>
-      <div><small>SharePoint site</small><a href={props.data.siteUrl} target="_blank" rel="noopener noreferrer">{props.data.siteUrl?.split('/').filter(Boolean).pop() || 'Helpdesk site'}</a></div>
+      <div><small>{props.data.storageProvider==='laravel'?'Data source':'SharePoint site'}</small>{props.data.storageProvider==='laravel'?<span>Laravel database</span>:<a href={props.data.siteUrl} target="_blank" rel="noopener noreferrer">{props.data.siteUrl?.split('/').filter(Boolean).pop() || 'Helpdesk site'}</a>}</div>
       <div className={styles.schemaListIdentifier}><small>List ID</small><span>{props.data.listId}<IconButton iconProps={{iconName: copied ? 'CheckMark' : 'Copy'}} title={copied ? 'Copied' : 'Copy list ID'} ariaLabel="Copy list ID" onClick={() => { navigator.clipboard.writeText(props.data.listId || '').then(() => setCopied(true)).catch(() => props.onError('Unable to copy the list ID.')); }} /></span></div>
-      <a className={styles.adminSharePointLink} href={props.data.listUrl} target="_blank" rel="noopener noreferrer">Open in SharePoint</a>
+      {props.data.listUrl && <a className={styles.adminSharePointLink} href={props.data.listUrl} target="_blank" rel="noopener noreferrer">Open in SharePoint</a>}
     </div>
     </div>
     <div className={styles.schemaToolbar}>
@@ -29,7 +29,7 @@ export function TicketSchemaWorkspace(props: { data: IAdminData; service: IAdmin
       <Dropdown ariaLabel="Column properties filter" selectedKey={filter} options={[{key: '', text: 'All Columns'}, {key: 'required', text: 'Required Columns'}, {key: 'editable', text: 'Editable Columns'}, {key: 'protected', text: 'Protected Columns'}]} onChange={(_, option) => setFilter(String(option?.key || ''))} />
       <Dropdown ariaLabel="Column type" selectedKey={type} options={[{key: '', text: 'All Column Types'}, ...types.map(value => ({key: value, text: columnTypeLabels[value] || value}))]} onChange={(_, option) => setType(String(option?.key || ''))} />
       <IconButton iconProps={{iconName: 'Refresh'}} ariaLabel="Refresh columns" disabled={props.busy} onClick={props.onRefresh} />
-      <div className={styles.ticketActions}><DefaultButton text="Add Column" iconProps={{iconName: 'Add'}} disabled={props.busy} onClick={props.onNew} /></div>
+      <div className={styles.ticketActions}><DefaultButton text="Add Column" iconProps={{iconName: 'Add'}} disabled={props.busy || props.data.canCreateColumns===false} title={props.data.canCreateColumns===false?'Database columns are managed through Laravel migrations.':undefined} onClick={props.onNew} /></div>
     </div>
     <div className={styles.schemaColumnsLayout}>
       <div className={styles.schemaTableCard}><div className={styles.tableContainer}><table className={styles.ticketTable}><thead><tr><th><button type="button" className={styles.columnSortButton} onClick={() => setSortDirection(value => value === 'asc' ? 'desc' : 'asc')}>Display Name {sortDirection && <Icon iconName={sortDirection === 'desc' ? 'SortDown' : 'SortUp'} />}</button></th><th>Internal Name</th><th>Type</th><th>Required</th><th>Description</th><th>Status</th><th>Actions</th></tr></thead><tbody>{rows.map(column => <tr key={column.id}>

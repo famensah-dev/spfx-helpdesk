@@ -17,7 +17,9 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
-  capabilities?: { attachments: boolean; requesterEditing: boolean; ticketSources: boolean; extendedTicketFields: boolean };
+  storageProvider?: 'laravel';
+  settingsScope?: { departments: Array<{id:number;name:string}>; selectedId?: number; select(id:number):void; create(name:string):Promise<void>; getGroups():Promise<string[]>; saveGroups(ids:string[]):Promise<void> };
+  capabilities?: { attachments: boolean; requesterEditing: boolean; ticketSources: boolean; ticketTypes?: boolean; extendedTicketFields: boolean };
   workspaceConnection?: import('../utils/workspaceConnection').IWorkspaceConnection;
   ticketViews?:import('./ITicketViews').ITicketViews;
   notifications?: import('./INotifications').INotificationService;
@@ -41,6 +43,7 @@ export interface ITicketDataSource {
   deleteFaq?(id: number): Promise<void>;
   updateFaqs?(ids: number[], action: FaqBulkAction): Promise<IFaqBulkResult>;
   searchUsers?(query: string, department?: string): Promise<IOrganizationUser[]>;
+  searchDirectoryUsers?(query:string):Promise<IOrganizationUser[]>;
   getTeamCandidates?(): Promise<IOrganizationUser[]>;
   resolveUser?(user: IOrganizationUser): Promise<IUserLookup>;
   getTickets(): Promise<ITicketQueryResult>;

@@ -28,8 +28,8 @@ class TicketWorkflow
         }
         abort_unless($access->can($user, $departmentId, 'create'), 403);
         $input['departmentId'] = $departmentId;
-        abort_if(! $user->isAdmin() && (($user->role !== 'agent' && ! empty($input['assignedToId'])) || ($input['status'] ?? 'New') !== 'New' || ! empty($input['archived']) || ! empty($input['resolutionSummary']) || ! empty($input['dueDate'])), 403);
-        foreach (['assignedToId' => 'assign', 'archived' => 'archive', 'resolutionSummary' => 'edit', 'dueDate' => 'edit'] as $key => $action) {
+        abort_if(! $user->isAdmin() && (($user->role !== 'agent' && ! empty($input['assignedToId'])) || ($input['status'] ?? 'New') !== 'New' || ! empty($input['archived']) || ! empty($input['resolutionSummary'])), 403);
+        foreach (['assignedToId' => 'assign', 'archived' => 'archive', 'resolutionSummary' => 'edit'] as $key => $action) {
             if (! empty($input[$key]) && ! ($key === 'assignedToId' && $user->role === 'agent')) {
                 abort_unless($access->can($user, $departmentId, $action), 403);
             }
@@ -41,7 +41,7 @@ class TicketWorkflow
         $input = $this->classificationInput($user, $input);
 
         return DB::transaction(function () use ($user, $input) {
-            $ticket = new Ticket(['organization_id' => $user->organization_id, 'requester_id' => $user->id, 'created_by_id' => $user->id, 'status' => 'New']);
+            $ticket = new Ticket(['organization_id' => $user->organization_id, 'requester_id' => $user->id, 'created_by_id' => $user->id, 'status' => empty($input['assignedToId']) ? 'New' : 'In Progress']);
             $this->fill($ticket, $input);
             $ticket->save();
             $this->audit($user, $ticket, 'ticket.created', $ticket->getAttributes());
@@ -57,14 +57,17 @@ class TicketWorkflow
             Gate::forUser($user)->authorize('update', $ticket);
             abort_if(array_key_exists('departmentId', $input) && ($input['departmentId'] === null ? null : (int) $input['departmentId']) !== $ticket->department_id, 422, 'Ticket department cannot be changed through a normal edit.');
             $input = $this->classificationInput($user, $input, $ticket);
+            abort_if(array_key_exists('ticketSource', $input) && $ticket->ticket_source && $input['ticketSource'] !== $ticket->ticket_source, 422, 'Ticket source is fixed once recorded.');
             $this->validateAssignee($user, [...$input, 'departmentId' => $ticket->department_id]);
             $access = app(DepartmentAccess::class);
+            $submittedAgent = $user->role === 'agent' && ($ticket->created_by_id === $user->id || $ticket->requester_id === $user->id);
+            $submittedResolution = $submittedAgent && isset($input['status']) && $input['status'] !== $ticket->status && in_array($input['status'], self::TERMINAL, true) && trim($input['resolutionSummary'] ?? '') !== '';
             if ($user->role !== 'superAdmin') {
                 foreach (['title', 'description'] as $key) {
                     abort_if(array_key_exists($key, $input) && $input[$key] !== $ticket->$key && $ticket->created_by_id !== $user->id, 403, 'Only the ticket creator can change its title or description.');
                 }
             }
-            foreach (['title' => 'title', 'description' => 'description', 'category' => 'category_id', 'subcategory' => 'subcategory_id', 'issueType' => 'issue_type_id', 'priority' => 'priority', 'status' => 'status', 'assignedToId' => 'assigned_to_id', 'archived' => 'archived', 'dueDate' => 'due_date', 'resolutionSummary' => 'resolution_summary'] as $key => $column) {
+            foreach (['title' => 'title', 'description' => 'description', 'category' => 'category_id', 'subcategory' => 'subcategory_id', 'issueType' => 'issue_type_id', 'ticketType' => 'ticket_type', 'ticketSource' => 'ticket_source', 'priority' => 'priority', 'status' => 'status', 'assignedToId' => 'assigned_to_id', 'archived' => 'archived', 'dueDate' => 'due_date', 'resolutionSummary' => 'resolution_summary'] as $key => $column) {
                 if (! array_key_exists($key, $input) || $input[$key] === $ticket->$column) {
                     continue;
                 }
@@ -76,7 +79,7 @@ class TicketWorkflow
                 abort_unless($creatorAssignment || $access->can($user, $ticket->department_id, $action), 403);
                 $scope = $access->rules($user, $ticket->department_id)['scope'];
                 if ($user->role === 'agent' && in_array($scope, ['assigned', 'assignedOrCreated'], true)) {
-                    abort_unless($creatorAssignment || $ticket->assigned_to_id === $user->id || (in_array($key, ['title', 'description', 'category', 'subcategory', 'issueType', 'dueDate'], true) && $ticket->created_by_id === $user->id), 403);
+                    abort_unless($creatorAssignment || $ticket->assigned_to_id === $user->id || ($key === 'status' && $submittedAgent) || ($key === 'resolutionSummary' && $submittedResolution) || (in_array($key, ['title', 'description', 'category', 'subcategory', 'issueType', 'ticketType', 'ticketSource', 'dueDate'], true) && $ticket->created_by_id === $user->id), 403);
                 }
             }
             if (! $user->isAdmin()) {
@@ -144,7 +147,7 @@ class TicketWorkflow
 
     private function fill(Ticket $ticket, array $input): void
     {
-        foreach (['title' => 'title', 'departmentId' => 'department_id', 'description' => 'description', 'category' => 'category_id', 'subcategory' => 'subcategory_id', 'issueType' => 'issue_type_id', 'priority' => 'priority', 'status' => 'status', 'assignedToId' => 'assigned_to_id', 'resolutionSummary' => 'resolution_summary', 'dueDate' => 'due_date', 'archived' => 'archived'] as $key => $column) {
+        foreach (['title' => 'title', 'departmentId' => 'department_id', 'description' => 'description', 'category' => 'category_id', 'subcategory' => 'subcategory_id', 'issueType' => 'issue_type_id', 'ticketType' => 'ticket_type', 'ticketSource' => 'ticket_source', 'priority' => 'priority', 'status' => 'status', 'assignedToId' => 'assigned_to_id', 'resolutionSummary' => 'resolution_summary', 'dueDate' => 'due_date', 'archived' => 'archived'] as $key => $column) {
             if (array_key_exists($key, $input)) {
                 $ticket->$column = $key === 'description' && ($input[$key] === null || trim($input[$key]) === '') ? null : $input[$key];
             }

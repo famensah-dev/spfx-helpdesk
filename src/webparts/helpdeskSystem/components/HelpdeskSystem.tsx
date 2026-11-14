@@ -4,7 +4,6 @@ import * as React from 'react';
 import HelpdeskApp from './HelpdeskApp';
 import { createSharePointService } from '../services/SharePointTicketService';
 import { LaravelTicketService } from '../services/LaravelTicketService';
-import { BackendWorkspaceSettings } from './BackendWorkspaceSettings';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import { Icon, Spinner, TextField, PrimaryButton, DefaultButton } from '@fluentui/react';
 import { SPHttpClient } from '@microsoft/sp-http';
@@ -95,9 +94,8 @@ function RoutedHelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
   service.openWorkspaceSetup = openSettings;
   const user = props.spContext.pageContext.user;
   if (service instanceof LaravelTicketService) {
-    const backendService = service;
-    const actions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access.superAdmin)} canManageSettings={Boolean(service.access.admin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} /></>;
-    return <HelpdeskApp service={service} currentUserEmail={service.access.email} accountActions={actions} portalTitle={service.title || props.portalTitle} settingsContent={settingsOpen && service.access.admin ? <BackendWorkspaceSettings service={backendService} onBack={() => navigate('/')} /> : undefined} />;
+    const actions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access.superAdmin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} /></>;
+    return <HelpdeskApp service={service} currentUserEmail={service.access.email} accountActions={actions} portalTitle={service.title || props.portalTitle} settingsContent={settingsOpen && service.access.superAdmin ? <SettingsPage context={props.spContext} service={service} portalTitle={props.portalTitle} section={route.workspaceSection || 'General'} onSectionChange={section=>navigate('/workspace-settings/'+workspacePaths[section],{state:location.state})} onBack={()=>navigate('/')} /> : undefined} />;
   }
   const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} /></>;
   return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={service.workspaceSettings?.title || props.portalTitle} settingsContent={settingsOpen && service.access?.superAdmin ? <SettingsPage onChangeConnection={teams || service.workspaceConnection ? ()=>setEditingConnection(true) : undefined} context={props.spContext} service={service} portalTitle={props.portalTitle} section={route.workspaceSection || 'General'} onSectionChange={section=>navigate('/workspace-settings/'+workspacePaths[section],{state:location.state})} onBack={()=>navigate(typeof location.state?.from === 'string' && location.state.from.startsWith('/') && !location.state.from.startsWith('//') ? location.state.from : '/')} /> : undefined} />;

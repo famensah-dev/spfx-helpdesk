@@ -13,6 +13,7 @@ return new class extends Migration
             $table->id();
             $table->string('slug')->unique();
             $table->string('name');
+            $table->text('description')->nullable();
             $table->uuid('entra_tenant_id')->nullable()->unique();
             $table->json('allowed_client_ids');
             $table->string('status')->default('trial');
@@ -109,6 +110,8 @@ return new class extends Migration
             $table->foreignId('created_by_id')->nullable();
             $table->text('description')->nullable();
             $table->foreignId('category_id')->nullable();
+            $table->string('ticket_type')->nullable();
+            $table->string('ticket_source')->nullable();
             $table->foreignId('subcategory_id')->nullable();
             $table->foreignId('issue_type_id')->nullable();
             $table->string('status')->default('New');

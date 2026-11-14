@@ -10,18 +10,25 @@ const compiled = ts.transpileModule(fs.readFileSync('src/webparts/helpdeskSystem
 const exportsObject = {};
 vm.runInNewContext(compiled, {
   exports: exportsObject, URL,
-  require: name => {assert.equal(name, '@microsoft/sp-http'); return {AadHttpClient: {configurations: {v1: {}}}};}
+  require: name => {
+    if(name==='../interfaces/IRoleManagement'){
+      const exports={};
+      const source=ts.transpileModule(fs.readFileSync('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts','utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText;
+      vm.runInNewContext(source,{exports});return exports;
+    }
+    assert.equal(name, '@microsoft/sp-http'); return {AadHttpClient: {configurations: {v1: {}}}};
+  }
 });
 const {LaravelTicketService} = exportsObject;
 const session = {access: {admin: false, role: 'requester', email: 'me@example.com', entra_object_id: 'test-user'}, roleRules: {actions: ['tickets', 'create']}, title: 'IT'};
 
-async function fixture(handler) {
+async function fixture(handler, sessionOverride = {}) {
   const requests = [];
   const context = {aadHttpClientFactory: {getClient: async resource => {
     assert.equal(resource, 'api://test');
     return {fetch: async (url, config, options) => {
       requests.push({url, ...options});
-      const value = url.endsWith('/session') ? session : await handler(url, options);
+      const value = url.endsWith('/session') ? {...session,...sessionOverride} : await handler(url, options);
       return {ok: value?.failure !== true, status: value?.failure ? 403 : 200, json: async () => value};
     }};
   }}};
@@ -99,4 +106,52 @@ test('department permission settings are saved to the department API', async () 
   assert.equal(requests.at(-1).url,'https://api.example/api/v1/departments/4');
   assert.equal(requests.at(-1).method,'PATCH');
   assert.deepEqual(JSON.parse(requests.at(-1).body),settings);
+});
+
+const departmentSettings = {
+  roles:{agent:{name:'Agent',scope:'assignedOrCreated',actions:['tickets','create','comment']},admin:{name:'Helpdesk Admin',scope:'all',actions:['tickets','create','classifications']}},
+  members:[{id:9,name:'Agent',email:'agent@example.com',role:'agent',enabled:true},{id:1,name:'Owner',email:'owner@example.com',role:'superAdmin',enabled:true}],entra_group_ids:[]
+};
+const scopedSession = {departments:[{id:4,name:'IT'}]};
+
+test('existing Users and Roles page receives its original contract and saves department rules',async()=>{
+  const {service,requests}=await fixture(()=>departmentSettings,scopedSession);
+  const configuration=await service.roleManagement.load();
+  assert.equal(configuration.assignments.length,1);
+  assert.equal(configuration.assignments[0].userId,9);
+  assert.equal(configuration.assignments[0].department,'IT');
+  configuration.roles.find(role=>role.id==='agent').scope='all';
+  await service.roleManagement.save(configuration);
+  assert.equal(requests.at(-1).method,'PATCH');
+  assert.equal(requests.at(-1).url,'https://api.example/api/v1/departments/4');
+  assert.equal(JSON.parse(requests.at(-1).body).roles.agent.scope,'all');
+});
+
+test('existing user table saves assignments through owner-controlled backend endpoint',async()=>{
+  const {service,requests}=await fixture(()=>departmentSettings,scopedSession);
+  const configuration=await service.roleManagement.load();
+  configuration.assignments[0].disabled=true;
+  await service.roleManagement.save(configuration);
+  assert.equal(requests.at(-1).method,'PUT');
+  assert.equal(requests.at(-1).url,'https://api.example/api/v1/departments/4/assignments');
+  assert.equal(JSON.parse(requests.at(-1).body).assignments[0].disabled,true);
+});
+
+test('classification table receives title, sort order and editable metadata without a fake SharePoint link',async()=>{
+  const {service,requests}=await fixture(()=>[{id:8,name:'Computers',active:true,sort_order:3,department_ids:[4],can_edit:true}],scopedSession);
+  const data=await service.administration.getData('categories');
+  assert.equal(data.entries[0].title,'Computers');
+  assert.equal(data.entries[0].sortOrder,3);
+  assert.equal(data.listUrl,undefined);
+  await service.administration.saveEntry('categories',{title:'Devices',active:false,sortOrder:5},8);
+  const body=JSON.parse(requests.at(-1).body);
+  assert.equal(body.name,'Devices');assert.equal(body.active,false);assert.equal(body.sort_order,5);
+  assert.equal(body.department_ids,undefined);
+});
+
+test('ticket type source and due date are passed through instead of being hidden or discarded',async()=>{
+  const {service,requests}=await fixture(()=>({}));
+  await service.createTicket({title:'Help',description:'',priority:'Low',ticketType:'Incident',ticketSource:'Phone / Call-in',dueDate:'2026-12-01'});
+  const body=JSON.parse(requests.at(-1).body);
+  assert.equal(body.ticketType,'Incident');assert.equal(body.ticketSource,'Phone / Call-in');assert.equal(body.dueDate,'2026-12-01');
 });

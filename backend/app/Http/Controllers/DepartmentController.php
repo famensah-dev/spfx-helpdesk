@@ -36,7 +36,7 @@ class DepartmentController extends Controller
 
         return [
             'roles' => $rules,
-            'members' => DB::table('department_memberships')->join('users', 'users.id', '=', 'department_memberships.user_id')->where('department_memberships.organization_id', $user->organization_id)->where('department_id', $id)->get(['users.id', 'users.name', 'users.email'])->map(fn ($row) => ['id' => (int) $row->id, 'name' => $row->name, 'email' => $row->email]),
+            'members' => DB::table('department_memberships')->join('users', 'users.id', '=', 'department_memberships.user_id')->where('department_memberships.organization_id', $user->organization_id)->where('department_id', $id)->get(['users.id', 'users.name', 'users.email', 'users.role', 'users.enabled', 'users.created_at'])->map(fn ($row) => ['id' => (int) $row->id, 'name' => $row->name, 'email' => $row->email, 'role' => $row->role, 'enabled' => (bool) $row->enabled, 'created_at' => $row->created_at]),
             'entra_group_ids' => DB::table('department_entra_groups')->where('organization_id', $user->organization_id)->where('department_id', $id)->pluck('entra_group_id'),
         ];
     }
@@ -50,13 +50,16 @@ class DepartmentController extends Controller
             'member_ids.*' => ['required', 'integer', 'distinct', Rule::exists('users', 'id')->where('organization_id', $org)],
             'entra_group_ids' => ['sometimes', 'array'], 'entra_group_ids.*' => ['required', 'uuid', 'distinct:ignore_case'],
             'roles' => ['sometimes', 'array:agent,admin'],
-            'roles.agent' => ['required_with:roles', 'array:name,scope,actions'],
-            'roles.admin' => ['required_with:roles', 'array:name,scope,actions'],
+            'roles.agent' => ['required_with:roles', 'array:name,scope,actions,pageAccess'],
+            'roles.admin' => ['required_with:roles', 'array:name,scope,actions,pageAccess'],
             'roles.*.name' => ['required', 'string', 'max:255'],
             'roles.*.scope' => ['required', Rule::in(DepartmentAccess::SCOPES)],
             'roles.*.actions' => ['present', 'array'],
-            'roles.agent.actions.*' => ['required', 'distinct', Rule::in(DepartmentAccess::ACTIONS)],
-            'roles.admin.actions.*' => ['required', 'distinct', Rule::in(DepartmentAccess::ACTIONS)],
+            'roles.agent.actions.*' => ['required', 'distinct', Rule::in(DepartmentAccess::CONFIGURABLE_ACTIONS)],
+            'roles.admin.actions.*' => ['required', 'distinct', Rule::in(DepartmentAccess::CONFIGURABLE_ACTIONS)],
+            'roles.*.pageAccess' => ['sometimes', 'array'],
+            'roles.agent.pageAccess.*' => ['required', 'distinct', Rule::in(DepartmentAccess::SETTINGS_PAGES)],
+            'roles.admin.pageAccess.*' => ['required', 'distinct', Rule::in(DepartmentAccess::SETTINGS_PAGES)],
             'organization_id' => ['prohibited'],
         ]);
         // Membership grants and directory mappings are owner-controlled, independent of role editing.
@@ -83,5 +86,6 @@ class DepartmentController extends Controller
     {
         abort_unless($request->user()->isAdmin(), 403);
         abort_unless($access->allows($request->user(), $id), 404);
+        abort_unless($access->canAccessSettings($request->user(), $id, 'roles'), 403);
     }
 }

@@ -2,18 +2,25 @@
 
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\RoleAssignmentsController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\WorkspaceSettingsController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->middleware(['throttle:120,1', 'entra'])->group(function () {
     Route::get('session', SessionController::class);
+    Route::put('workspace-settings', [WorkspaceSettingsController::class, 'save']);
+    Route::get('ticket-schema', [WorkspaceSettingsController::class, 'schema']);
     Route::get('ticket-options', [ClassificationController::class, 'options']);
     Route::get('departments', [DepartmentController::class, 'index']);
     Route::post('departments', [DepartmentController::class, 'create']);
     Route::get('departments/{id}', [DepartmentController::class, 'show'])->whereNumber('id');
     Route::patch('departments/{id}', [DepartmentController::class, 'save'])->whereNumber('id');
+    Route::put('departments/{id}/assignments', [RoleAssignmentsController::class, 'save'])->whereNumber('id');
+    Route::get('directory-users', [UserController::class, 'directory']);
+    Route::post('directory-users/resolve', [UserController::class, 'resolve']);
     Route::get('classifications/{kind}', [ClassificationController::class, 'index']);
     Route::post('classifications/{kind}', [ClassificationController::class, 'save']);
     Route::patch('classifications/{kind}/{id}', [ClassificationController::class, 'save'])->whereNumber('id');

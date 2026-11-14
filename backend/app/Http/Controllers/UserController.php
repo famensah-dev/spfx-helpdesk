@@ -10,6 +10,34 @@ use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
+    public function directory(Request $request)
+    {
+        abort_unless($request->user()->isAdmin(), 403);
+        $input = $request->validate(['search' => ['required', 'string', 'min:2', 'max:255']]);
+        $query = User::where('organization_id', $request->user()->organization_id);
+        if ($request->user()->role !== 'superAdmin') {
+            $ids = app(DepartmentAccess::class)->departments($request->user())->pluck('departments.id');
+            $query->whereIn('id', DB::table('department_memberships')->where('organization_id', $request->user()->organization_id)->whereIn('department_id', $ids)->select('user_id'));
+        }
+
+        return $query->where(fn ($q) => $q->where('name', 'like', '%'.$input['search'].'%')->orWhere('email', 'like', '%'.$input['search'].'%'))->orderBy('name')->limit(50)->get(['id', 'name', 'email', 'entra_object_id']);
+    }
+
+    public function resolve(Request $request)
+    {
+        abort_unless($request->user()->role === 'superAdmin', 403);
+        $org = $request->user()->organization;
+        $input = $request->validate(['entra_object_id' => ['required', 'uuid'], 'name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255']]);
+        $existing = User::where('organization_id', $org->id)->where('entra_object_id', strtolower($input['entra_object_id']))->first();
+        if ($existing) {
+            return $existing->only(['id', 'name', 'email', 'entra_object_id']);
+        }
+        $request->validate(['email' => [Rule::unique('users')->where('organization_id', $org->id)]]);
+        $user = User::create([...$input, 'entra_object_id' => strtolower($input['entra_object_id']), 'organization_id' => $org->id, 'tenant_id' => $org->entra_tenant_id, 'role' => 'requester', 'enabled' => false]);
+
+        return response()->json($user->only(['id', 'name', 'email', 'entra_object_id']), 201);
+    }
+
     public function index(Request $request)
     {
         abort_unless($request->user()->role === 'superAdmin', 403);

@@ -40,10 +40,13 @@ class ClassificationController extends Controller
             'description' => true, 'assignment' => $request->user()->isAdmin() || $request->user()->role === 'agent',
             'departments' => $departments->map(fn ($row) => ['key' => (string) $row->id, 'name' => $row->name])->values(),
             'departmentValue' => 'id',
+            'ticketSources' => ['DeskPilot', 'Email', 'Forms', 'Phone / Call-in', 'Other'],
             'fields' => [
                 ['key' => 'category', 'label' => 'Category', 'required' => false],
                 ['key' => 'subcategory', 'label' => 'Subcategory', 'required' => false],
                 ['key' => 'issueType', 'label' => 'Issue Type', 'required' => false],
+                ['key' => 'ticketType', 'label' => 'Ticket Type', 'required' => false, 'choices' => ['Problem', 'Incident', 'Question', 'Request']],
+                ['key' => 'dueDate', 'label' => 'Due Date', 'required' => false],
             ],
             'classification' => [
                 'categories' => $categories->map(fn ($row) => $mapped($row, 'category'))->values(),
@@ -57,12 +60,13 @@ class ClassificationController extends Controller
 
     public function index(Request $request, string $kind)
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        $parentRead = $kind === 'categories' && $request->query('parentsFor') === 'subcategories';
+        $this->authorizePage($request, $parentRead ? 'subcategories' : $kind);
 
         $org = $request->user()->organization_id;
 
-        return DB::table($this->table($kind))->where('organization_id', $org)->orderBy('sort_order')->orderBy('name')->get()->filter(function ($row) use ($request, $kind) {
-            return $request->user()->role === 'superAdmin' || $this->canManage($request, $kind, $row->id, false);
+        return DB::table($this->table($kind))->where('organization_id', $org)->orderBy('sort_order')->orderBy('name')->get()->filter(function ($row) use ($request, $kind, $parentRead) {
+            return $request->user()->role === 'superAdmin' || $this->canManage($request, $kind, $row->id, false, $parentRead ? 'subcategories' : null);
         })->map(function ($row) use ($request, $kind, $org) {
             $row->id = (int) $row->id;
             $row->active = (bool) $row->active;
@@ -81,7 +85,7 @@ class ClassificationController extends Controller
 
     public function save(Request $request, string $kind, ?string $id = null)
     {
-        abort_unless($request->user()->isAdmin(), 403);
+        $this->authorizePage($request, $kind);
         $table = $this->table($kind);
         $org = $request->user()->organization_id;
         $existing = $id === null ? null : DB::table($table)->where('organization_id', $org)->where('id', $id)->first();
@@ -100,11 +104,12 @@ class ClassificationController extends Controller
         $departmentIds = $input['department_ids'] ?? null;
         unset($input['department_ids']);
         if ($kind === 'subcategories') {
-            abort_unless($this->canManage($request, 'categories', (int) ($input['category_id'] ?? $existing->category_id)), 403);
+            abort_unless($this->canManage($request, 'categories', (int) ($input['category_id'] ?? $existing->category_id), true, 'subcategories'), 403);
         } elseif ($request->user()->role !== 'superAdmin' && ($departmentIds !== null || ! $existing)) {
             abort_unless(! empty($departmentIds), 403, 'Only Super Admins may manage organization-wide options.');
             foreach ($departmentIds as $departmentId) {
                 abort_unless(app(DepartmentAccess::class)->can($request->user(), $departmentId, 'classifications'), 403);
+                abort_unless(app(DepartmentAccess::class)->canAccessSettings($request->user(), $departmentId, $kind === 'issue-types' ? 'issueTypes' : $kind), 403);
             }
         }
 
@@ -128,12 +133,13 @@ class ClassificationController extends Controller
         });
     }
 
-    private function canManage(Request $request, string $kind, int $id, bool $write = true): bool
+    private function canManage(Request $request, string $kind, int $id, bool $write = true, ?string $pageOverride = null): bool
     {
         $user = $request->user();
         if ($user->role === 'superAdmin') {
             return true;
         }
+        $page = $pageOverride ?? ($kind === 'issue-types' ? 'issueTypes' : $kind);
         if ($kind === 'subcategories') {
             $id = (int) DB::table('subcategories')->where('organization_id', $user->organization_id)->where('id', $id)->value('category_id');
             $kind = 'categories';
@@ -144,6 +150,16 @@ class ClassificationController extends Controller
         }
         $access = app(DepartmentAccess::class);
 
-        return $write ? $ids->every(fn ($id) => $access->can($user, $id, 'classifications')) : $ids->contains(fn ($id) => $access->can($user, $id, 'classifications'));
+        $allowed = fn ($id) => $access->can($user, $id, 'classifications') && $access->canAccessSettings($user, $id, $page);
+
+        return $write ? $ids->every($allowed) : $ids->contains($allowed);
+    }
+
+    private function authorizePage(Request $request, string $kind): void
+    {
+        $this->table($kind);
+        $access = app(DepartmentAccess::class);
+        $page = $kind === 'issue-types' ? 'issueTypes' : $kind;
+        abort_unless($request->user()->role === 'superAdmin' || $access->departments($request->user())->pluck('id')->contains(fn ($id) => $access->can($request->user(), $id, 'classifications') && $access->canAccessSettings($request->user(), $id, $page)), 403);
     }
 }
