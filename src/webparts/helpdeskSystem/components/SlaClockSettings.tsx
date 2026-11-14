@@ -23,6 +23,6 @@ export function SlaClockSettings(props:{service:ISlaService;rules?:ISlaClockRule
     {rules.pausePending&&<p className={styles.ruleHint}>Pauses are recorded for status changes made in DeskPilot. Older tickets without reliable pause history show Unknown. Email and Forms automations must maintain SlaPauseIntervals when they change status.</p>}
     {row('Mark Tickets at Risk','Shows an amber SLA state so agents can act before a breach.',rules.markAtRisk,'markAtRisk',<TextField ariaLabel="At-risk percentage" type="number" min={1} max={99} suffix="% of time" value={String(rules.atRiskPercent)} disabled={disabled||!rules.markAtRisk} onChange={(_,value)=>change({atRiskPercent:Number(value)})} styles={{root:{width:140}}}/>)}
     {row('Notify Team Lead on Breach','Sends an alert when a target is missed.',rules.notifyTeamLead,'notifyTeamLead')}
-    {rules.notifyTeamLead&&<p className={styles.ruleHint}>Checked while a Helpdesk Admin has DeskPilot open. Enable Ticket Notifications and configure team leads first. Edit the SLA Breach template under Email &amp; Notifications. Unattended alerts need background automation.</p>}
+    {rules.notifyTeamLead&&<p className={styles.ruleHint}>Checked while a Admin has DeskPilot open. Enable Ticket Notifications and configure team leads first. Edit the SLA Breach template under Email &amp; Notifications. Unattended alerts need background automation.</p>}
   </section>;
 }

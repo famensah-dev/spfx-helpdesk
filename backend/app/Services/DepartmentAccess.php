@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 
 class DepartmentAccess
 {
-    public const ACTIONS = ['dashboard', 'tickets', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications'];
+    public const ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications', 'manageFaqs'];
 
     public const CONFIGURABLE_ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla'];
 
@@ -44,15 +44,19 @@ class DepartmentAccess
             return ['id' => 'superAdmin', 'name' => 'Super Admin', 'scope' => 'all', 'actions' => self::ACTIONS];
         }
         $defaults = [
-            'requester' => ['name' => 'Requester', 'scope' => 'own', 'actions' => ['tickets', 'create', 'comment']],
-            'agent' => ['name' => 'Agent', 'scope' => 'assignedOrCreated', 'actions' => ['dashboard', 'tickets', 'create', 'edit', 'status', 'comment']],
-            'admin' => ['name' => 'Helpdesk Admin', 'scope' => 'all', 'actions' => self::ACTIONS],
+            'requester' => ['name' => 'Requester', 'scope' => 'own', 'actions' => ['tickets', 'faqs', 'create', 'comment']],
+            'agent' => ['name' => 'Agent', 'scope' => 'assignedOrCreated', 'actions' => ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'comment']],
+            'admin' => ['name' => 'Administrator', 'scope' => 'all', 'actions' => self::ACTIONS],
         ];
         $rule = $defaults[$user->role] ?? ['name' => 'No access', 'scope' => 'own', 'actions' => []];
         if ($departmentId !== null && $user->role !== 'requester') {
             $json = DB::table('departments')->where('organization_id', $user->organization_id)->where('id', $departmentId)->value('role_settings');
             $saved = $json ? json_decode($json, true, 512, JSON_THROW_ON_ERROR) : [];
             $rule = $saved[$user->role] ?? $rule;
+        }
+
+        if ($user->role === 'admin') {
+            $rule['name'] = 'Administrator';
         }
 
         return ['id' => $user->role, ...$rule];
@@ -65,7 +69,7 @@ class DepartmentAccess
 
     public function settingsPages(User $user, ?int $departmentId): array
     {
-        $implemented = ['settings', 'roles', 'categories', 'subcategories', 'issueTypes'];
+        $implemented = ['settings', 'roles', 'categories', 'subcategories', 'issueTypes', 'faqs'];
         if ($user->role === 'superAdmin') {
             return $implemented;
         }

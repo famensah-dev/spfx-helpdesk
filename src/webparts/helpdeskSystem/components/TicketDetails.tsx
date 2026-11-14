@@ -242,7 +242,7 @@ export function TicketDetails(props: { ticket: ITicket; tickets: ITicket[]; serv
   const [priorityOptions, setPriorityOptions] = React.useState<string[]>([]);
   React.useEffect(() => { let active = true; if (service?.getPriorities) service.getPriorities().then(values => {if (active) setPriorityOptions(values);}).catch(reason => {if (active) setError(reason instanceof Error ? reason.message : 'Unable to load priorities.');}); return () => {active = false;}; }, [service]);
   const openStatus = (next:TicketStatus):void => {
-    if (next === 'Closed' && !canCloseTicket) {setError('Only Helpdesk Admins can close tickets.');return;}
+    if (next === 'Closed' && !canCloseTicket) {setError('Only Admins can close tickets.');return;}
     setResolutionDraft('');setStatusError('');setStatusTarget(next);
   };
   const confirmStatus = async ():Promise<void> => {

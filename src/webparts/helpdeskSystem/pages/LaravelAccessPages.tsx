@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { DefaultButton, Dialog, DialogFooter, MessageBar, MessageBarType, PrimaryButton, Spinner, TextField } from '@fluentui/react';
+import { DefaultButton, Dialog, DialogFooter, Icon, MessageBar, MessageBarType, PrimaryButton, Spinner, TextField } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { IDeskPilotRole, IRoleConfiguration } from '../interfaces/IRoleManagement';
 import { roleSettingsPages, settingsPageLabels } from '../interfaces/IRoleManagement';
@@ -7,19 +7,16 @@ import { SharePointRolesPage } from './SharePointRolesPage';
 import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import styles from '../components/HelpdeskSystem.module.scss';
 import roleStyles from './LaravelRoles.module.scss';
+import { DepartmentGroupPicker } from '../components/DepartmentGroupPicker';
 
-const descriptions:Record<string,string>={
-  requester:'Submit support requests and follow tickets requested or created by them.',
-  agent:'Handle assigned tickets and follow their submitted requests, according to department permissions.',
-  admin:'Manage helpdesk tickets and configured permissions within their departments.',
-  superAdmin:'Manage all departments, users and application settings within this organization.'
-};
 const permissionLabels:Record<string,string>={dashboard:'View dashboards',tickets:'View tickets',create:'Create tickets',edit:'Edit ticket details',status:'Change ticket status',assign:'Assign tickets',priority:'Change ticket priority',archive:'Archive tickets',comment:'Comment on tickets',classifications:'Manage categories, subcategories and issue types'};
 
-export function LaravelRolesPage(props:{service:ITicketDataSource}):React.ReactElement {
+export function LaravelRolesPage(props:{service:ITicketDataSource;onDetailChange?:(role?:IDeskPilotRole)=>void;onBackAction?:(action?:()=>void)=>void}):React.ReactElement {
   const [configuration,setConfiguration]=React.useState<IRoleConfiguration>();
   const [selected,setSelected]=React.useState<IDeskPilotRole>();
   const [error,setError]=React.useState('');
+  const backToRoles=React.useCallback(()=>setSelected(undefined),[]);
+  React.useEffect(()=>{props.onDetailChange?.(selected);},[selected,props.onDetailChange]);
   React.useEffect(()=>{
     let active=true;
     props.service.roleManagement!.load().then(value=>{if(active)setConfiguration(value);}).catch(reason=>{if(active)setError(reason instanceof Error?reason.message:String(reason));});
@@ -27,18 +24,16 @@ export function LaravelRolesPage(props:{service:ITicketDataSource}):React.ReactE
   },[props.service]);
   if(error)return <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>;
   if(!configuration)return <Spinner label="Loading roles" />;
-  if(selected && selected.id!=='superAdmin')return <SharePointRolesPage key={selected.id} service={props.service} hideHeading view="roles" roleId={selected.id} cardLayout onBack={()=>setSelected(undefined)} onSaved={setConfiguration} />;
-  if(selected)return <div className={roleStyles.workspace}><header className={roleStyles.header}><div><h2>Super Admin permissions</h2><p>Organization-wide access</p></div><DefaultButton text="Back to roles" onClick={()=>setSelected(undefined)} /></header><MessageBar>Super Admin has access across every department in this organization. Its permissions are fixed.</MessageBar><div className={roleStyles.group}><h3 className={roleStyles.cardHeader}>Application access</h3><div className={roleStyles.groupRows}>{(props.service.roleManagement?.supportedActions || []).map(action=><label key={action} className={roleStyles.permission}><input type="checkbox" checked disabled /><span>{permissionLabels[action] || action}</span></label>)}</div></div></div>;
+  if(selected)return <SharePointRolesPage key={selected.id} service={props.service} hideHeading view="roles" roleId={selected.id} cardLayout fixedRole={selected.id==='superAdmin'?{...selected,actions:[...(props.service.roleManagement?.supportedActions || [])],pageAccess:[...(props.service.roleManagement?.supportedSettingsPages || [])]}:undefined} hideRoleHeading onBackAction={props.onBackAction} onBack={backToRoles} onSaved={setConfiguration} />;
   const roles=[...configuration.roles,{id:'superAdmin',name:'Super Admin',scope:'all',actions:[]}];
   return <div className={roleStyles.workspace}>
-    <header className={roleStyles.header}><div><h2>Roles &amp; Permissions</h2><p>Manage user roles and their permissions for the selected department.</p></div><DefaultButton text="Manage Permissions" iconProps={{iconName:'Permissions'}} onClick={()=>setSelected(configuration.roles.find(role=>role.id==='admin') || configuration.roles[0])} /></header>
     <div className={roleStyles.grid} aria-label="Application roles">{roles.map(role=>{
       const fixed=role.id==='superAdmin';
       const actions=fixed ? [...(props.service.roleManagement?.supportedActions || [])] : role.actions.filter(action=>!props.service.roleManagement?.supportedActions || props.service.roleManagement.supportedActions.includes(action));
       const pages=(fixed ? props.service.roleManagement?.supportedSettingsPages || [] : roleSettingsPages(role as IDeskPilotRole)).filter(page=>!props.service.roleManagement?.supportedSettingsPages || props.service.roleManagement.supportedSettingsPages.includes(page));
       const permissions=[...actions.map(action=>permissionLabels[action] || action),...pages.map(page=>settingsPageLabels[page])];
       const users=configuration.assignments.filter(user=>user.roleId===role.id && !user.disabled);
-      return <article key={role.id} className={roleStyles.card} aria-label={`${role.name} role`}><div className={roleStyles.cardHeader}><div><h3>{role.name}</h3><p className={roleStyles.muted}>{fixed?'Organization-wide role':`${users.length} active ${users.length===1?'user':'users'} in this department`}</p></div></div><div className={roleStyles.cardBody}><div className={roleStyles.cardSummary}><span>{permissions.length} permissions</span><DefaultButton text="Manage" ariaLabel={`Manage permissions for ${role.name}`} iconProps={{iconName:'Settings'}} onClick={()=>setSelected(role as IDeskPilotRole)} /></div><div className={roleStyles.chips}>{permissions.slice(0,6).map(permission=><span className={roleStyles.chip} key={permission}>{permission}</span>)}{permissions.length>6 && <span className={roleStyles.chip}>+{permissions.length-6} more</span>}</div><p className={roleStyles.muted} style={{marginTop:16}}>{descriptions[role.id]}</p></div><footer className={roleStyles.footer}>{fixed || role.id==='requester'?'Built-in role · fixed permissions':'Built-in role · department permissions'}</footer></article>;
+      return <article key={role.id} className={roleStyles.card} aria-label={`${role.name} role`}><div className={roleStyles.cardHeader}><div><h3>{role.name}</h3><p className={roleStyles.muted}>{fixed?'Organization-wide role':`${users.length} active ${users.length===1?'user':'users'} in this department`}</p></div><button type="button" className={roleStyles.manageButton} aria-label={`Manage permissions for ${role.name}`} onClick={()=>setSelected(role as IDeskPilotRole)}><Icon iconName="Settings" aria-hidden="true" /><span>Manage</span></button></div><div className={roleStyles.cardBody}><div className={roleStyles.cardSummary}><span>{permissions.length} permissions</span></div><div className={roleStyles.chips}>{permissions.slice(0,6).map(permission=><span className={roleStyles.chip} key={permission}>{permission}</span>)}{permissions.length>6 && <span className={`${roleStyles.chip} ${roleStyles.moreChip}`}>+{permissions.length-6} more</span>}</div></div></article>;
     })}</div>
   </div>;
 }
@@ -75,7 +70,7 @@ export function LaravelDepartmentsPage(props:{service:ITicketDataSource;onChange
     <Dialog hidden={!viewing} onDismiss={busy?undefined:()=>setViewing(undefined)} dialogContentProps={{title:scope.departments.find(department=>department.id===viewing)?.name || 'Department access'}} modalProps={{isBlocking:true}}>
       {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {busy && <Spinner label="Loading or saving department access" />}
-      <TextField label="Entra group object IDs" multiline rows={5} value={groups} readOnly={!owner} disabled={busy || !groupsLoaded} onChange={(_,value)=>{setGroups(value || '');setError('');}} description="One group ID per line. Group membership supplies department access; application roles are managed separately." />
+      {viewing && groupsLoaded && <DepartmentGroupPicker key={viewing} service={props.service} ids={groups.split(/[\s,;]+/).filter(Boolean)} readOnly={!owner} disabled={busy} onChange={ids=>{setGroups(ids.join('\n'));setError('');}} />}
       <DialogFooter><DefaultButton text="Close" styles={cancelButtonStyles} disabled={busy} onClick={()=>setViewing(undefined)} />{owner && <PrimaryButton text="Save group mappings" disabled={busy || !groupsLoaded || Boolean(error)} onClick={()=>{run(async()=>{await scope.saveGroups(groups.split(/[\s,;]+/).filter(Boolean));setViewing(undefined);setMessage('Group mappings saved.');}).catch(()=>undefined);}} />}</DialogFooter>
     </Dialog>
   </>;

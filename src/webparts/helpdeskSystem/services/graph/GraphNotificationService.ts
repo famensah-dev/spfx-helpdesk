@@ -22,7 +22,7 @@ export class GraphNotificationService {
     if(!settings||!log){if(optional)return undefined;throw new Error('Run Initialize workspace to add email settings and notification history, then reload DeskPilot.');}
     this.paths={settings:path+'/'+encodeURIComponent(settings),log:path+'/'+encodeURIComponent(log)};return this.paths;
   }
-  private requireAdmin():void {if(!this.canManage)throw new Error('Only Helpdesk Admins can configure or test email notifications.');}
+  private requireAdmin():void {if(!this.canManage)throw new Error('Only Admins can configure or test email notifications.');}
   private async settingItems(path:string):Promise<Item[]>{return this.graph.getAll<Item>(path+"/items?$expand=fields&$filter=fields/SettingKey eq 'Configuration'&$top=2");}
   public async getSettings(optional=false):Promise<IEmailSettings>{
     if(optional && this.cache && this.cache.expires>Date.now())return this.cache.value;

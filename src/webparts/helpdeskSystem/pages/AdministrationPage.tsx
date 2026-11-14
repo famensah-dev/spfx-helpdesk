@@ -16,6 +16,7 @@ import { TicketSchemaWorkspace } from '../components/TicketSchemaWorkspace';
 import * as React from 'react';
 import { DefaultButton, PrimaryButton, IconButton, TextField, Checkbox, Dialog, DialogType, MessageBar, MessageBarType, Spinner, SpinnerSize, SearchBox, Dropdown, Icon } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
+import type { IDeskPilotRole } from '../interfaces/IRoleManagement';
 import type { AdminPage, IAdminData, IAdminColumn, IColumnInput, IClassificationInput, IClassificationEntry } from '../interfaces/IAdministration';
 import { AdminColumnForm, newColumn } from '../components/AdminColumnForm';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -24,7 +25,7 @@ import { FaqPage } from './FaqPage';
 import styles from '../components/HelpdeskSystem.module.scss';
 
 const tabs: Array<{key: AdminPage | 'faqs' | 'sla' | 'members' | 'units'; text: string}> = [{key: 'schema', text: 'Ticket List Schema'}, {key: 'categories', text: 'Categories'}, {key: 'subcategories', text: 'Subcategories'}, {key: 'issueTypes', text: 'Issue Types'}, {key: 'sla', text: 'SLA & Priorities'}, {key: 'faqs', text: 'Knowledge Base'}, {key: 'members', text: 'Users'}, {key: 'units', text: 'Support Teams'}];
-export function AdministrationPage(props: { service: ITicketDataSource; onSettingsChanged?: () => Promise<void>; onUsersAndRoles?:()=>void; section?:AdminSection; onSectionChange?:(section:AdminSection)=>void }): React.ReactElement {
+export function AdministrationPage(props: { service: ITicketDataSource; onSettingsChanged?: () => Promise<void>; onUsersAndRoles?:()=>void; onGeneralSettings?:()=>void; section?:AdminSection; onSectionChange?:(section:AdminSection)=>void }): React.ReactElement {
   const [scopeVersion,setScopeVersion]=React.useState(0);
   const laravel=props.service.storageProvider==='laravel';
   const availableTabs = tabs.filter(tab => !(laravel && tab.key === 'members') && canAccessSettings(props.service, tab.key) && (tab.key !== 'schema' || !props.service.access || props.service.access.superAdmin) && (tab.key !== 'members' || props.service.members) && (tab.key !== 'units' || props.service.supportUnits) && (tab.key === 'units' || tab.key === 'members' || tab.key === 'schema' || canUse(props.service, tab.key === 'sla' ? 'sla' : tab.key === 'faqs' ? 'manageFaqs' : 'classifications')));
@@ -35,6 +36,10 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   const [data, setData] = React.useState<IAdminData | null>(null);
   const [loading, setLoading] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
+  const [roleDetail,setRoleDetail]=React.useState<IDeskPilotRole>();
+  const roleDetailOpen=Boolean(roleDetail);
+  const [roleBack,setRoleBack]=React.useState<()=>void>();
+  const registerRoleBack=React.useCallback((action?:()=>void):void=>setRoleBack(()=>action),[]);
   const [error, setError] = React.useState('');
   const [message, setMessage] = React.useState('');
   const [query, setQuery] = React.useState('');
@@ -87,19 +92,19 @@ export function AdministrationPage(props: { service: ITicketDataSource; onSettin
   if(props.service.supportUnits && canAccessSettings(props.service,'assignment'))hubLinks.push({key:'assignment',title:'Assignment',description:'Enable category-based assignment through support teams.',icon:'Flow',group:'Automation'});
   if(props.service.roleManagement && canAccessSettings(props.service,'roles')){
     if(laravel)hubLinks.unshift(
-      {key:'departments',title:'Departments',description:'Manage departments and their Entra group mappings.',icon:'Group',group:'People & Teams'},
-      {key:'members',title:'Users',description:'Manage users and department access.',icon:'Contact',group:'People & Teams'},
-      {key:'permissions',title:'Roles & Permissions',description:'View roles, descriptions and configured permissions.',icon:'Permissions',group:'People & Teams'}
+      {key:'members',title:'Users',description:'Manage users and department access.',icon:'Contact',group:''},
+      {key:'departments',title:'Departments',description:'Manage departments and their Entra group mappings.',icon:'Group',group:''},
+      {key:'permissions',title:'Roles & Permissions',description:'View roles and configured permissions.',icon:'Permissions',group:''}
     );
     else hubLinks.unshift({key:'roles',title:'Users & Roles',description:'Manage app access and role permissions.',icon:'Permissions',group:'People & Teams'});
   }
+  if(props.onGeneralSettings && props.service.access?.superAdmin)hubLinks.unshift({key:'general',title:'General',description:'Manage general workspace settings.',icon:'Settings',group:''});
   if(!hubLinks.some(link=>link.key===page))return <MessageBar messageBarType={MessageBarType.error}>You do not have access to this settings page.</MessageBar>;
   
   const modal = {isBlocking: true, styles: {main: {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760, borderRadius: 6, selectors: {'@media (min-width: 480px)': {width: 'min(760px, calc(100vw - 32px))', maxWidth: 760}}}}};
-  return <HelpdeskSettingsHub links={hubLinks} activeKey={page} disabled={busy} onOpen={key=>setPage(key as AdminSection)}><section className={styles.secondaryPage}>
-    {page!=='departments' && <SettingsDepartmentContext service={props.service} onChange={()=>setScopeVersion(current=>current+1)} />}
+  return <HelpdeskSettingsHub links={hubLinks} activeKey={page} sectionTitle={page==='permissions' && roleDetail?roleDetail.name+' Permissions':undefined} detailName={page==='permissions'?roleDetail?.name:undefined} onDetailBack={roleBack} disabled={busy} onOpen={key=>{if(key==='general')props.onGeneralSettings?.();else setPage(key as AdminSection);}} sectionActions={page!=='departments' && props.service.settingsScope ? <><SettingsDepartmentContext service={props.service} compact disabled={busy || (page==='permissions' && roleDetailOpen)} onChange={()=>setScopeVersion(current=>current+1)} />{laravel && page==='permissions' && !roleDetailOpen && <PrimaryButton styles={{label:{fontSize:14}}} text="New Role" iconProps={{iconName:'Add'}} disabled title="Custom role creation will be available after the backend roles update." />}{laravel && page==='permissions' && roleDetailOpen && <button type="button" className={layout.sectionBack} disabled={!roleBack} onClick={roleBack}><Icon iconName="Back" aria-hidden="true" />Back</button>}</> : undefined}><section className={styles.secondaryPage}>
 
-    {laravel && page === 'departments' ? <LaravelDepartmentsPage service={props.service} onChange={()=>setScopeVersion(current=>current+1)} /> : laravel && page === 'permissions' ? <LaravelRolesPage key={scopeVersion} service={props.service} /> : laravel && page === 'members' ? <SharePointRolesPage key={scopeVersion} service={props.service} hideHeading view="users" /> : page === 'roles' && props.service.roleManagement ? <SharePointRolesPage key={scopeVersion} service={props.service} hideHeading /> : page === 'email' ? <EmailSettingsPage service={props.service} /> : page === 'assignment' ? <div className={layout.assignment}><AutoAssignmentSetting service={props.service} /><div className={layout.method}><h3>Assignment Method</h3><p>How to pick an agent within the matched team.</p><TeamAssignmentMethods service={props.service} /></div><div className={layout.note}><Icon iconName="Info" /><span>Teams are matched by category. Assignment runs for tickets created in DeskPilot; email and forms need background automation.</span></div></div> : page === 'units' ? <SupportUnitsPage service={props.service} hideHeading /> : page === 'members' ? <DepartmentMembersPage service={props.service} /> : page === 'sla' ? <SlaPrioritiesPage canSetup={!props.service.access || props.service.access.superAdmin} service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage hideHeading /> : <>
+    {laravel && page === 'departments' ? <LaravelDepartmentsPage service={props.service} onChange={()=>setScopeVersion(current=>current+1)} /> : laravel && page === 'permissions' ? <LaravelRolesPage key={scopeVersion} service={props.service} onDetailChange={setRoleDetail} onBackAction={registerRoleBack} /> : laravel && page === 'members' ? <SharePointRolesPage key={scopeVersion} service={props.service} hideHeading view="users" /> : page === 'roles' && props.service.roleManagement ? <SharePointRolesPage key={scopeVersion} service={props.service} hideHeading /> : page === 'email' ? <EmailSettingsPage service={props.service} /> : page === 'assignment' ? <div className={layout.assignment}><AutoAssignmentSetting service={props.service} /><div className={layout.method}><h3>Assignment Method</h3><p>How to pick an agent within the matched team.</p><TeamAssignmentMethods service={props.service} /></div><div className={layout.note}><Icon iconName="Info" /><span>Teams are matched by category. Assignment runs for tickets created in DeskPilot; email and forms need background automation.</span></div></div> : page === 'units' ? <SupportUnitsPage service={props.service} hideHeading /> : page === 'members' ? <DepartmentMembersPage service={props.service} /> : page === 'sla' ? <SlaPrioritiesPage canSetup={!props.service.access || props.service.access.superAdmin} service={props.service.sla} onChanged={props.onSettingsChanged} /> : page === 'faqs' ? <FaqPage service={props.service} manage hideHeading /> : <>
       <MissingWorkspaceNotice service={props.service} error={error} />
     {error && !columnInput && !entryInput && !deleting && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
       {message && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setMessage('')}>{message}</MessageBar>}

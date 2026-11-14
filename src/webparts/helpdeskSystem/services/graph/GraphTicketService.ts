@@ -339,7 +339,7 @@ export class GraphTicketService implements ITicketDataSource {
     if(!Number.isFinite(age)||age<0||age>=10*60*1000)throw new Error('Comments can be deleted only within 10 minutes of posting.');
     const ticket=(await this.getTickets()).tickets.find(value=>value.Id===ticketId);
     if(!ticket)throw new Error('Ticket is unavailable.');
-    if(String(ticket.SolutionCommentId)===commentId)throw new Error('A Helpdesk Admin must clear this comment as the solution before it can be deleted.');
+    if(String(ticket.SolutionCommentId)===commentId)throw new Error('A Admin must clear this comment as the solution before it can be deleted.');
     if(Date.now()-Date.parse(item.createdDateTime)>=10*60*1000)throw new Error('The 10-minute deletion window has expired.');
     await this.graph.delete(`${schema.path}/items/${commentId}`);
   }
@@ -517,7 +517,7 @@ export class GraphTicketService implements ITicketDataSource {
       if (!Number.isSafeInteger(id) || id<=0) throw new Error('Ticket creation returned no valid ID. Refresh before trying again.');
       try { await this.routeNewTicket(id); }
       catch (reason) {
-        const error = new Error(`Ticket #${id} was created, but automatic routing could not be confirmed. Ask a Helpdesk Admin to check its assignment. ${reason instanceof Error ? reason.message : ''}`) as Error & {createdTicketId:number};
+        const error = new Error(`Ticket #${id} was created, but automatic routing could not be confirmed. Ask a Admin to check its assignment. ${reason instanceof Error ? reason.message : ''}`) as Error & {createdTicketId:number};
         error.createdTicketId=id; throw error;
       }
     }

@@ -75,9 +75,9 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
     if ((contentChanged && !createdByAgent(ticket)) || (input.resolutionSummary !== undefined && !statusSummary) || input.priority !== ticket.Priority || (input.assignedToId !== (ticket.AssignedTo?.Id || null) && !createdByAgent(ticket))) await requireManagedTicket(id);
     if (input.resolutionSummary !== undefined) {
       requireAction('edit');
-      if (!input.resolutionSummary.trim() && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can clear the resolution summary.');
+      if (!input.resolutionSummary.trim() && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Admins can clear the resolution summary.');
     }
-    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
+    if (input.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Admins can close tickets.');
     if (contentChanged) requireAction('edit');
     if (input.status !== ticket.Status) requireAction('status');
     if (input.priority !== ticket.Priority) requireAction('priority');
@@ -93,7 +93,7 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
       if (action.kind === 'assign' && createdByAgent(await requireTicket(id))) continue;
       if (action.kind === 'assign') requireAction('assign');
       const ticket = action.kind === 'status' ? await requireTicket(id) : await requireManagedTicket(id);
-      if (action.kind === 'status' && action.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Helpdesk Admins can close tickets.');
+      if (action.kind === 'status' && action.status === 'Closed' && ticket.Status !== 'Closed' && !source.access?.admin && !source.access?.superAdmin) throw new Error('Only Admins can close tickets.');
     }
     return source.updateTickets!(ids, action);
   } : undefined;

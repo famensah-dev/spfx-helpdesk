@@ -106,9 +106,9 @@ export class GraphFaqService {
     const access = await this.getAccess(true);
     if(id!==undefined && (!Number.isSafeInteger(id) || id<=0))throw new Error('Invalid article ID.');
     const current=id ? await this.graph.get<{fields:Record<string,unknown>;eTag?:string}>(schema.path+'/items/'+id+'?$expand=fields') : undefined;
-    if(draftOnly ? (!access.canSubmitDraft || id!==undefined || input.published) : current ? (!access.canEditArticles || !this.mayEdit(current.fields,schema)) : !access.canCreate)throw new Error('Only the creator, publisher, a Helpdesk Admin, or an agent allowed to edit this article can save it.');
+    if(draftOnly ? (!access.canSubmitDraft || id!==undefined || input.published) : current ? (!access.canEditArticles || !this.mayEdit(current.fields,schema)) : !access.canCreate)throw new Error('Only the creator, publisher, a Admin, or an agent allowed to edit this article can save it.');
     const storedGrant=Boolean(current && schema.agentEditing && current.fields[schema.agentEditing]===true);
-    if(input.agentEditingEnabled!==undefined && input.agentEditingEnabled!==storedGrant && !this.actor.admin)throw new Error('Only a Helpdesk Admin can change agent editing access.');
+    if(input.agentEditingEnabled!==undefined && input.agentEditingEnabled!==storedGrant && !this.actor.admin)throw new Error('Only a Admin can change agent editing access.');
     if(input.agentEditingEnabled && !schema.agentEditing)throw new Error('Initialize workspace to add Knowledge Base editing permissions.');
     if (!input.question.trim() || input.question.trim().length > 255) throw new Error('Enter a question of 1–255 characters.');
     if (!input.answer.trim()) throw new Error('Enter an answer.');

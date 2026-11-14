@@ -18,7 +18,7 @@ const {AdministrationPage}=load('src/webparts/helpdeskSystem/pages/Administratio
   './DepartmentMembersPage':empty,'./SlaPrioritiesPage':empty,'../components/TicketSchemaWorkspace':empty,
   '../components/AdminColumnForm':empty,'../components/SearchableSelect':empty,'../components/cancelButtonStyles':empty,'./FaqPage':empty
 });
-const render=(service,section)=>renderToStaticMarkup(React.createElement(AdministrationPage,{service,section,onUsersAndRoles:()=>{}}));
+const render=(service,section)=>renderToStaticMarkup(React.createElement(AdministrationPage,{service,section,onUsersAndRoles:()=>{},onGeneralSettings:()=>{}}));
 const admin={access:{admin:true,superAdmin:false},roleRules:{id:'admin',actions:[]},supportUnits:{}};
 let html=render(admin);
 assert(html.includes('Settings') && html.includes('Support Teams') && html.includes('Assignment'));
@@ -42,8 +42,17 @@ assert(!rules.canAccessSettings(custom,'schema'),'Schema remains Super Admin onl
 console.log('Helpdesk Settings checks passed: grouped hub opens first, team/assignment settings remain available to admins, and restricted settings are filtered.');
 const backend={storageProvider:'laravel',access:{admin:true,superAdmin:true},roleRules:{id:'superAdmin',actions:['classifications']},roleManagement:{},settingsScope:{departments:[{id:4,name:'IT'}],selectedId:4,select:()=>{}}};
 html=render(backend,'members');
+const topLinks=html.match(/<nav[^>]*aria-label="Settings sections"[^>]*><section>([\s\S]*?)<\/section>/)?.[1] || '';
+assert(!topLinks.includes('<h3>'),'The primary settings links have no group heading');
+const topLabels=[...topLinks.matchAll(/<span>([^<]+)<\/span>/g)].map(match=>match[1]);
+assert.deepEqual(topLabels,['General','Users','Departments','Roles &amp; Permissions']);
 assert(html.includes('Departments') && html.includes('Roles &amp; Permissions'),'Laravel settings must expose separate sidebar sections');
 assert(!html.includes('Users &amp; Roles'),'Laravel sidebar must not retain the combined section');
 assert(html.includes('data-access-view="users"'),'Users must open the existing user table directly');
+html=render(backend,'permissions');
+const titleRow=html.match(/<header class="settingsSectionHeader">([\s\S]*?)<\/header>/)?.[1] || '';
+assert(titleRow.includes('New Role') && titleRow.includes('Settings department'),'Department selection and New Role belong in the section title row');
+assert(!titleRow.includes('Manage Permissions'),'Permissions are managed on each role rather than from a title-bar action');
+assert(!html.includes('Choose the department whose settings'),'The separate explanatory department row must be removed');
 html=render(backend,'departments');
 assert(!html.includes('Settings department'),'The Departments list must not be replaced by a department-selector toolbar');

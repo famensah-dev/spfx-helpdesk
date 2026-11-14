@@ -136,6 +136,29 @@ return new class extends Migration
             $table->foreign(['organization_id', 'requester_id'])->references(['organization_id', 'id'])->on('users');
             $table->foreign(['organization_id', 'assigned_to_id'])->references(['organization_id', 'id'])->on('users');
         });
+        Schema::create('knowledge_articles', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('organization_id')->constrained();
+            $table->foreignId('department_id');
+            $table->foreignId('created_by_id');
+            $table->foreignId('published_by_id')->nullable();
+            $table->foreignId('source_ticket_id')->nullable();
+            $table->foreignId('category_id')->nullable();
+            $table->foreignId('subcategory_id')->nullable();
+            $table->string('question', 500);
+            $table->text('answer');
+            $table->text('keywords')->nullable();
+            $table->boolean('published')->default(false);
+            $table->boolean('agent_editing_enabled')->default(false);
+            $table->integer('sort_order')->default(0);
+            $table->timestamps();
+            $table->unique(['organization_id', 'id']);
+            $table->index(['organization_id', 'department_id', 'published']);
+            foreach (['department_id' => 'departments', 'created_by_id' => 'users', 'published_by_id' => 'users', 'source_ticket_id' => 'tickets', 'category_id' => 'categories', 'subcategory_id' => 'subcategories'] as $column => $target) {
+                $table->foreign(['organization_id', $column])->references(['organization_id', 'id'])->on($target);
+            }
+            $table->foreign(['organization_id', 'category_id', 'subcategory_id'], 'articles_subcategory_parent_fk')->references(['organization_id', 'category_id', 'id'])->on('subcategories');
+        });
         Schema::create('ticket_comments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained();
@@ -179,6 +202,7 @@ return new class extends Migration
         Schema::dropIfExists('organization_events');
         Schema::dropIfExists('audit_events');
         Schema::dropIfExists('ticket_comments');
+        Schema::dropIfExists('knowledge_articles');
         Schema::dropIfExists('tickets');
         Schema::dropIfExists('subcategories');
         Schema::dropIfExists('category_departments');

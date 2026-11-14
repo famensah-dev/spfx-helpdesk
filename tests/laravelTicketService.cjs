@@ -33,7 +33,7 @@ async function fixture(handler, sessionOverride = {}) {
     }};
   }}};
   const service = await LaravelTicketService.create(context, 'https://api.example/api/v1', 'api://test');
-  return {service, requests};
+  return {service, requests, context};
 }
 
 test('all scoped pages are loaded from the API', async () => {
@@ -117,6 +117,7 @@ const scopedSession = {departments:[{id:4,name:'IT'}]};
 test('existing Users and Roles page receives its original contract and saves department rules',async()=>{
   const {service,requests}=await fixture(()=>departmentSettings,scopedSession);
   const configuration=await service.roleManagement.load();
+  assert.equal(configuration.roles.find(role=>role.id==='admin').name,'Administrator','Previously saved role names must display as Admin');
   assert.equal(configuration.assignments.length,1);
   assert.equal(configuration.assignments[0].userId,9);
   assert.equal(configuration.assignments[0].department,'IT');
@@ -154,4 +155,24 @@ test('ticket type source and due date are passed through instead of being hidden
   await service.createTicket({title:'Help',description:'',priority:'Low',ticketType:'Incident',ticketSource:'Phone / Call-in',dueDate:'2026-12-01'});
   const body=JSON.parse(requests.at(-1).body);
   assert.equal(body.ticketType,'Incident');assert.equal(body.ticketSource,'Phone / Call-in');assert.equal(body.dueDate,'2026-12-01');
+});
+
+test('tenant group picker uses read-only Graph queries and escapes search input',async()=>{
+  const {service,context,requests}=await fixture(()=>({}),{access:{...session.access,superAdmin:true}});
+  const calls=[];
+  const group={id:'11111111-1111-4111-8111-111111111111',displayName:"Nurses' group",mail:'nurses@example.com'};
+  let failure;
+  context.msGraphClientFactory={getClient:async()=>({api(path){calls.push(['path',path]);const query={select(value){calls.push(['select',value]);return query;},filter(value){calls.push(['filter',value]);return query;},top(value){calls.push(['top',value]);return query;},async get(){if(failure)throw failure;return path==='/groups'?{value:[group]}:group;}};return query;}})};
+  const groups=await service.searchDirectoryGroups("Nurses'");
+  assert.equal(groups[0].displayName,"Nurses' group");
+  assert(calls.some(([key,value])=>key==='filter' && value.includes("Nurses''")));
+  assert.equal((await service.getDirectoryGroup(group.id)).displayName,group.displayName);
+  await assert.rejects(()=>service.getDirectoryGroup('../users'),/Invalid group identifier/);
+  failure={statusCode:403};
+  await assert.rejects(()=>service.searchDirectoryGroups('Nurses'),/Group.ReadBasic.All approval/);
+  service.access.superAdmin=false;
+  const before=calls.length;
+  await assert.rejects(()=>service.searchDirectoryGroups('Nurses'),/Only Super Admins/);
+  assert.equal(calls.length,before);
+  assert.equal(requests.length,1,'Directory browsing must not write assignments or department mappings');
 });

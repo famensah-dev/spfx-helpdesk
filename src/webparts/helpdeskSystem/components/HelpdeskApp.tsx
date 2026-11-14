@@ -139,7 +139,7 @@ export default function HelpdeskApp(props: IHelpdeskAppProps): React.ReactElemen
         {personal && !dashboard.assignmentIdentityAvailable && <section className={styles.secondaryPage}><div className={styles.secondaryPageHeader}><h2>{page}</h2></div><div className={styles.ticketListCard}><div className={styles.placeholder}><p>Your assignments cannot be shown until SharePoint person identities are available.</p></div></div></section>}
         {page === 'FAQs' && <FaqPage service={props.service} />}
         {page === 'Documentation' && <DocumentationPage />}
-        {page === 'Administration' && administrationAllowed && <AdministrationPage service={props.service} section={route.adminSection || 'home'} onSectionChange={section=>routerNavigate('/settings'+(adminPaths[section] ? '/'+adminPaths[section] : ''))} onSettingsChanged={dashboard.refresh} onUsersAndRoles={()=>navigate('Users & Roles')} />}
+        {page === 'Administration' && administrationAllowed && <AdministrationPage onGeneralSettings={()=>routerNavigate('/workspace-settings/general',{state:{from:location.pathname}})} service={props.service} section={route.adminSection || 'home'} onSectionChange={section=>routerNavigate('/settings'+(adminPaths[section] ? '/'+adminPaths[section] : ''))} onSettingsChanged={dashboard.refresh} onUsersAndRoles={()=>navigate('Users & Roles')} />}
         {page === 'Users & Roles' && props.service.roleManagement && <Navigate to="/settings/users-and-roles" replace />}
         </>}
         </>}

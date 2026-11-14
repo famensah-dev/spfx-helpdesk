@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ClassificationController;
 use App\Http\Controllers\DepartmentController;
+use App\Http\Controllers\KnowledgeArticleController;
 use App\Http\Controllers\RoleAssignmentsController;
 use App\Http\Controllers\SessionController;
 use App\Http\Controllers\TicketController;
@@ -14,6 +15,11 @@ Route::prefix('v1')->middleware(['throttle:120,1', 'entra'])->group(function () 
     Route::put('workspace-settings', [WorkspaceSettingsController::class, 'save']);
     Route::get('ticket-schema', [WorkspaceSettingsController::class, 'schema']);
     Route::get('ticket-options', [ClassificationController::class, 'options']);
+    Route::get('knowledge-articles/access', [KnowledgeArticleController::class, 'access']);
+    Route::get('knowledge-articles', [KnowledgeArticleController::class, 'index']);
+    Route::post('knowledge-articles', [KnowledgeArticleController::class, 'save']);
+    Route::patch('knowledge-articles/{id}', [KnowledgeArticleController::class, 'save'])->whereNumber('id');
+    Route::delete('knowledge-articles/{id}', [KnowledgeArticleController::class, 'destroy'])->whereNumber('id');
     Route::get('departments', [DepartmentController::class, 'index']);
     Route::post('departments', [DepartmentController::class, 'create']);
     Route::get('departments/{id}', [DepartmentController::class, 'show'])->whereNumber('id');
@@ -32,6 +38,7 @@ Route::prefix('v1')->middleware(['throttle:120,1', 'entra'])->group(function () 
     Route::patch('tickets/{ticket}', [TicketController::class, 'update']);
     Route::get('tickets/{ticket}/comments', [TicketController::class, 'comments']);
     Route::post('tickets/{ticket}/comments', [TicketController::class, 'addComment']);
+    Route::delete('tickets/{ticket}/comments/{comment}', [TicketController::class, 'deleteComment'])->whereNumber('comment');
     Route::get('tickets/{ticket}/history', [TicketController::class, 'history']);
     Route::post('tickets/{ticket}/response', [TicketController::class, 'response']);
 });

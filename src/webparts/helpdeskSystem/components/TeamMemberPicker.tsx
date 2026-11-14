@@ -30,7 +30,7 @@ export function TeamMemberPicker({service,users,onChange,disabled,existingUserId
   const visible=[...candidates.values()].filter(user=>!term||(user.displayName+' '+user.email+' '+user.userPrincipalName).toLowerCase().includes(term)).sort((a,b)=>a.displayName.localeCompare(b.displayName));
   return <div className={styles.teamMemberPicker}>
     <SearchBox ariaLabel="Search team candidates" placeholder="Search DeskPilot or organization users" value={query} disabled={disabled} onChange={(_,value)=>setQuery(value||'')} />
-    <div className={styles.teamMemberPickerHeading}><span>{term?'Matching users':'DeskPilot agents & helpdesk admins'}</span><span>{users.length} selected</span></div>
+    <div className={styles.teamMemberPickerHeading}><span>{term?'Matching users':'DeskPilot agents & admins'}</span><span>{users.length} selected</span></div>
     {loading&&<Spinner label="Loading DeskPilot users..." />}
     {searching&&<Spinner label="Searching Organization..." />}
     {rosterError&&<MessageBar messageBarType={MessageBarType.warning}>{rosterError}</MessageBar>}

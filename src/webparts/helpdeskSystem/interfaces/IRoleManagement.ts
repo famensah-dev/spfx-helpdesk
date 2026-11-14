@@ -7,7 +7,7 @@ export const settingsPageLabels:Record<SettingsPageKey,string> = {settings:'Sett
 export interface IDeskPilotRole { pageAccess?: SettingsPageKey[]; id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
 export interface IWorkspaceSettings { title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
-export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
+export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; roleMembers?: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
 export interface IRoleManagement { supportedActions?: readonly RoleAction[]; supportedSettingsPages?: readonly SettingsPageKey[]; load(): Promise<IRoleConfiguration>; save(configuration: IRoleConfiguration): Promise<void>; }
 /** Infer access for older saved roles until their page access is explicitly edited. */
 export function roleSettingsPages(role: IDeskPilotRole): SettingsPageKey[] {
@@ -26,7 +26,7 @@ export function assignedRole(configuration: IRoleConfiguration, userId: number):
 }
 export const defaultRoleConfiguration = (): IRoleConfiguration => ({ roles: [
   { id: 'agent', name: 'Agent', scope: 'assigned', actions: ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'comment'] },
-  { id: 'admin', name: 'Helpdesk Admin', scope: 'all', actions: [...roleActions] },
+  { id: 'admin', name: 'Administrator', scope: 'all', actions: [...roleActions] },
   { id: 'requester', name: 'Requester', scope: 'own', actions: ['create', 'faqs', 'tickets', 'comment'] }
 ], assignments: [] });
 
@@ -42,7 +42,7 @@ export function validateRoleConfiguration(value: IRoleConfiguration): void {
     if (role.pageAccess !== undefined && (!Array.isArray(role.pageAccess) || role.pageAccess.some(page=>!settingsPageKeys.includes(page)) || new Set(role.pageAccess).size!==role.pageAccess.length)) throw new Error('Invalid settings page access.');
     if (role.actions.includes('manageFaqs') && !role.actions.includes('faqs')) throw new Error(`${role.name}: enable the FAQs page before enabling FAQ management.`);
   }
-  if(!value.roles.some(role=>role.id==='agent') || !value.roles.some(role=>role.id==='admin'))throw new Error('Agent and Helpdesk Admin roles are required.');
+  if(!value.roles.some(role=>role.id==='agent') || !value.roles.some(role=>role.id==='admin'))throw new Error('Agent and Admin roles are required.');
   if(value.assignments.some(item=>!value.roles.some(role=>role.id===item.roleId)))throw new Error('Invalid user assignments: unknown role.');
   if (new Set(value.assignments.map(item => item.userId)).size !== value.assignments.length || value.assignments.some(item => !Number.isInteger(item.userId) || item.userId < 1 || !item.email || !ids.includes(item.roleId))) throw new Error('Invalid user assignments.');
   for (const item of value.assignments) {
@@ -56,6 +56,7 @@ export function validateRoleConfiguration(value: IRoleConfiguration): void {
 /** Upgrade existing two-role workspaces without changing their configured permissions. */
 export function upgradeRoleConfiguration(value:IRoleConfiguration):IRoleConfiguration {
   validateRoleConfiguration(value);
+  value={...value,roles:value.roles.map(role=>role.id==='admin'?{...role,name:'Administrator'}:role)};
   if(value.roles.some(role=>role.id==='requester'))return {...value,roles:value.roles.map(role=>role.id==='requester' ? defaultRoleConfiguration().roles.find(item=>item.id==='requester')! : role)};
   return {...value,roles:[...value.roles,defaultRoleConfiguration().roles.find(role=>role.id==='requester')!]};
 }

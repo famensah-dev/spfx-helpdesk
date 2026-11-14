@@ -184,7 +184,7 @@ export class SharePointRoleManagement implements IRoleManagement {
     return config;
   }
   public async save(configuration: IRoleConfiguration): Promise<void> {
-    if (!this.owner && this.groupRole !== 'admin') throw new Error('Only SharePoint site owners or Helpdesk Admins can manage DeskPilot roles.');
+    if (!this.owner && this.groupRole !== 'admin') throw new Error('Only SharePoint site owners or Admins can manage DeskPilot roles.');
     if(!this.owner){
       if(!this.itemId || !this.etag)throw new Error('Reload access settings before saving.');
       const current=await this.configurationItem(this.itemId);

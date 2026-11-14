@@ -10,13 +10,13 @@ const positive = (value:number):boolean => Number.isSafeInteger(value) && value 
 const isSettings = (item:Item):boolean => item.fields.RecordType==='Settings' || item.fields.Title==='__DeskPilotAssignmentSettings';
 export function matchingSupportUnit(data:ISupportUnitData, categoryId:number):ISupportUnit | undefined {
   const matches = data.units.filter(unit => unit.active && unit.categoryIds.includes(categoryId));
-  if (matches.length > 1) throw new Error('Multiple active units handle this category. Ask a Helpdesk Admin to correct them.');
+  if (matches.length > 1) throw new Error('Multiple active units handle this category. Ask a Admin to correct them.');
   return matches[0];
 }
 function categoryIds(value:unknown):number[] {
   if (value === undefined || value === null || value === '') return [];
   let parsed:unknown;
-  try {parsed=JSON.parse(String(value));} catch {throw new Error('Invalid unit category configuration. Ask a Helpdesk Admin to review the unit.');}
+  try {parsed=JSON.parse(String(value));} catch {throw new Error('Invalid unit category configuration. Ask a Admin to review the unit.');}
   if (!Array.isArray(parsed) || parsed.some(id => !positive(id))) throw new Error('Invalid unit category configuration.');
   return [...new Set(parsed as number[])];
 }

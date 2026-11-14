@@ -23,7 +23,7 @@ export function EmailSettingsPage({service}:{service:ITicketDataSource}):React.R
   React.useEffect(()=>{let active=true;api?.getSettings().then(value=>{if(active){setSettings(value);setSaved(JSON.stringify(value));}}).catch(reason=>{if(active)setError(reason instanceof Error ? reason.message : 'Unable to load email settings.');}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[api]);
   const loadHistory=React.useCallback(async():Promise<void>=>{if(!api?.canManage)return;setLoading(true);setError('');try{setHistory(await api.history());}catch(reason){setError(reason instanceof Error ? reason.message : 'Unable to load notification history.');}finally{setLoading(false);}},[api]);
   React.useEffect(()=>{if(tab==='History')void loadHistory();},[tab,loadHistory]);
-  if(!api?.canManage)return <MessageBar messageBarType={MessageBarType.error}>Helpdesk Admin access is required.</MessageBar>;
+  if(!api?.canManage)return <MessageBar messageBarType={MessageBarType.error}>Admin access is required.</MessageBar>;
   const dirty=Boolean(settings && JSON.stringify(settings)!==saved);
   const rule=settings?.rules[event];
   const placeholders=emailTokens.filter(token=>service.access?.superAdmin || (event==='invited' ? ['UserName','UserEmail','UserRole','AppLink'].includes(token) : !['WorkspaceName','ChangedBy','Event','UserName','UserEmail','UserRole','AppLink'].includes(token))).map(key=>({key,label:key.replace(/([a-z])([A-Z])/g,'$1 $2')}));

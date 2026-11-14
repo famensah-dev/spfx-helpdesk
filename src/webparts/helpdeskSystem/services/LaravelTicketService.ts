@@ -7,6 +7,7 @@ import type { IWorkspaceAccess } from '../interfaces/IWorkspaceAccess';
 import { defaultRoleConfiguration, roleSettingsPages, validateRoleConfiguration } from '../interfaces/IRoleManagement';
 import type { IDeskPilotRole, IRoleConfiguration, IRoleManagement, IWorkspaceSettings } from '../interfaces/IRoleManagement';
 import type { AdminPage, IAdministrationService, IClassificationEntry } from '../interfaces/IAdministration';
+import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from '../interfaces/IFaq';
 
 export interface IBackendUser { id?: number; entra_object_id: string | null; name: string; email: string; role: 'requester' | 'agent' | 'admin' | 'superAdmin'; enabled: boolean; }
 export interface IBackendDepartment { id: number; name: string; }
@@ -50,7 +51,7 @@ export class LaravelTicketService implements ITicketDataSource {
       getGroups:async()=>this.settingsScope.selectedId ? (await this.getDepartment(this.settingsScope.selectedId)).entra_group_ids : [],
       saveGroups:async ids=>{if(!this.settingsScope.selectedId)throw new Error('Select a department.');await this.saveDepartment(this.settingsScope.selectedId,{entra_group_ids:ids});}
     };
-    this.roleManagement={supportedActions:['dashboard','tickets','create','edit','status','assign','priority','archive','comment','classifications'],supportedSettingsPages:['settings','roles','categories','subcategories','issueTypes'],load:()=>this.loadRoleConfiguration(),save:value=>this.saveRoleConfiguration(value)};
+    this.roleManagement={supportedActions:['dashboard','tickets','faqs','manageFaqs','create','edit','status','assign','priority','archive','comment','classifications'],supportedSettingsPages:['settings','roles','categories','subcategories','issueTypes','faqs'],load:()=>this.loadRoleConfiguration(),save:value=>this.saveRoleConfiguration(value)};
     const kinds = {categories:'categories',subcategories:'subcategories',issueTypes:'issue-types'} as const;
     const selected = (row:IBackendClassification):boolean => !row.department_ids?.length || Boolean(this.settingsScope.selectedId && row.department_ids.includes(this.settingsScope.selectedId));
     const entry = (row:IBackendClassification,parents:IBackendClassification[]):IClassificationEntry=>({id:row.id,title:row.name,active:Boolean(row.active),sortOrder:row.sort_order,parentId:row.category_id,parentName:parents.find(parent=>parent.id===row.category_id)?.name,canEdit:row.can_edit});
@@ -75,8 +76,9 @@ export class LaravelTicketService implements ITicketDataSource {
     const settings=await this.getDepartment(this.settingsScope.selectedId);
     const department=this.settingsScope.departments.find(value=>value.id===this.settingsScope.selectedId);
     return {
-      roles:defaultRoleConfiguration().roles.map(role=>role.id==='requester'?role:{...role,...settings.roles[role.id]}),
-      assignments:settings.members.filter(user=>user.role!=='superAdmin').map(user=>({userId:user.id,name:user.name,email:user.email,roleId:user.role || 'requester',department:department?.name,disabled:user.enabled===false,addedAt:user.created_at || undefined}))
+      roles:defaultRoleConfiguration().roles.map(role=>role.id==='requester'?role:{...role,...settings.roles[role.id],...(role.id==='admin'?{name:'Administrator'}:{})}),
+      assignments:settings.members.filter(user=>user.role!=='superAdmin').map(user=>({userId:user.id,name:user.name,email:user.email,roleId:user.role || 'requester',department:department?.name,disabled:user.enabled===false,addedAt:user.created_at || undefined})),
+      roleMembers:settings.members.map(user=>({userId:user.id,name:user.name,email:user.email,roleId:user.role || 'requester',department:department?.name,disabled:user.enabled===false}))
     };
   }
 
@@ -165,6 +167,57 @@ export class LaravelTicketService implements ITicketDataSource {
     return users.map(user=>({id:user.entra_object_id,displayName:user.name,email:user.email,userPrincipalName:user.email,sharePointId:user.id}));
   }
   public listUsers(): Promise<IBackendUser[]> { return this.request('/users'); }
+  public getFaqs(manage=false):Promise<IFaq[]> {
+    return this.request('/knowledge-articles'+(manage?'?manage=1&department_id='+encodeURIComponent(String(this.settingsScope.selectedId || '')):''));
+  }
+  public getFaqAccess():Promise<IFaqAccess> {
+    return this.request('/knowledge-articles/access?department_id='+encodeURIComponent(String(this.settingsScope.selectedId || '')));
+  }
+  public async saveFaq(input:IFaqInput,id?:number):Promise<void> {
+    const body={question:input.question,answer:input.answer,keywords:input.keywords,published:input.published,sortOrder:input.sortOrder,categoryId:input.categoryId || null,subcategoryId:input.subcategoryId || null,...(input.sourceTicketId?{sourceTicketId:input.sourceTicketId}:{}),...(input.agentEditingEnabled!==undefined?{agentEditingEnabled:input.agentEditingEnabled}:{}),...(id===undefined?{department_id:this.settingsScope.selectedId}:{})};
+    await this.request('/knowledge-articles'+(id===undefined?'':'/'+id),id===undefined?'POST':'PATCH',body);
+  }
+  public async deleteFaq(id:number):Promise<void> {await this.request('/knowledge-articles/'+id,'DELETE');}
+  public async updateFaqs(ids:number[],action:FaqBulkAction):Promise<IFaqBulkResult> {
+    const articles=await this.getFaqs(true);
+    const result:IFaqBulkResult={succeeded:[],failed:[]};
+    const unique=Array.from(new Set(ids));
+    for(let index=0;index<unique.length;index++){
+      const id=unique[index];
+      try{
+        const article=articles.find(row=>row.id===id);
+        if(!article)throw new Error('Article is not available in the selected department.');
+        if(action.kind==='delete')await this.deleteFaq(id);
+        else await this.saveFaq({...article,...(action.kind==='sort'?{sortOrder:index+1}:{published:action.published})},id);
+        result.succeeded.push(id);
+      }catch(reason){result.failed.push({id,message:reason instanceof Error?reason.message:String(reason)});}
+    }
+    return result;
+  }
+  public async deleteComment(ticketId:number,commentId:string):Promise<void> {
+    if(!/^[1-9]\d*$/.test(commentId))throw new Error('Invalid comment identifier.');
+    await this.request(`/tickets/${ticketId}/comments/${commentId}`,'DELETE');
+  }
+  public async searchDirectoryGroups(query:string):Promise<import('../interfaces/ITicketDataSource').IOrganizationGroup[]> {
+    if(!this.access.superAdmin)throw new Error('Only Super Admins can search tenant groups for department mappings.');
+    const term=query.trim();
+    if(term.length<2)return [];
+    const graph=await this.context.msGraphClientFactory.getClient('3');
+    const escaped=term.replace(/'/g,"''");
+    try {
+      const result=await graph.api('/groups').select('id,displayName,mail').filter(`startswith(displayName,'${escaped}') or startswith(mail,'${escaped}')`).top(50).get() as {value:Array<{id:string;displayName:string;mail?:string}>};
+      return result.value.map(group=>({id:group.id.toLowerCase(),displayName:group.displayName || group.id,mail:group.mail}));
+    } catch(reason) {
+      if((reason as {statusCode?:number}).statusCode===403)throw new Error('Tenant group search needs Microsoft Graph Group.ReadBasic.All approval in SharePoint admin center → API access.');
+      throw reason;
+    }
+  }
+  public async getDirectoryGroup(id:string):Promise<import('../interfaces/ITicketDataSource').IOrganizationGroup> {
+    if(!this.access.superAdmin && !this.access.admin)throw new Error('Admin access is required to view department groups.');
+    if(!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id))throw new Error('Invalid group identifier.');
+    const graph=await this.context.msGraphClientFactory.getClient('3');
+    return graph.api('/groups/'+id).select('id,displayName,mail').get();
+  }
   public async saveWorkspaceSettings(settings:IWorkspaceSettings):Promise<void> {await this.request('/workspace-settings','PUT',{title:settings.title,description:settings.description});this.workspaceSettings={...this.workspaceSettings,title:settings.title,description:settings.description};}
   public listDepartments(): Promise<IBackendDepartment[]> { return this.request('/departments'); }
   public createDepartment(name: string): Promise<IBackendDepartment> { return this.request('/departments', 'POST', {name}); }
