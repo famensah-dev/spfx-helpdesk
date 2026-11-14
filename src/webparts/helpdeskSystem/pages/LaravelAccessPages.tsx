@@ -2,9 +2,11 @@ import * as React from 'react';
 import { DefaultButton, Dialog, DialogFooter, MessageBar, MessageBarType, PrimaryButton, Spinner, TextField } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { IDeskPilotRole, IRoleConfiguration } from '../interfaces/IRoleManagement';
+import { roleSettingsPages, settingsPageLabels } from '../interfaces/IRoleManagement';
 import { SharePointRolesPage } from './SharePointRolesPage';
 import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import styles from '../components/HelpdeskSystem.module.scss';
+import roleStyles from './LaravelRoles.module.scss';
 
 const descriptions:Record<string,string>={
   requester:'Submit support requests and follow tickets requested or created by them.',
@@ -25,13 +27,20 @@ export function LaravelRolesPage(props:{service:ITicketDataSource}):React.ReactE
   },[props.service]);
   if(error)return <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>;
   if(!configuration)return <Spinner label="Loading roles" />;
-  if(selected)return <>
-    <DefaultButton text="Back to roles" iconProps={{iconName:'Back'}} onClick={()=>setSelected(undefined)} />
-    <h3>{selected.name}</h3><p>{descriptions[selected.id]}</p>
-    {selected.id==='superAdmin'?<div className={styles.ticketListCard}><MessageBar>Super Admin has access across every department in this organization. Its permissions are fixed.</MessageBar><table className={styles.ticketTable} aria-label="Super Admin permissions"><thead><tr><th>Permission</th><th>Access</th></tr></thead><tbody>{(props.service.roleManagement?.supportedActions || []).map(action=><tr key={action}><td>{permissionLabels[action] || action}</td><td>Allowed</td></tr>)}</tbody></table></div>:<SharePointRolesPage key={selected.id} service={props.service} hideHeading view="roles" roleId={selected.id} />}
-  </>;
+  if(selected && selected.id!=='superAdmin')return <SharePointRolesPage key={selected.id} service={props.service} hideHeading view="roles" roleId={selected.id} cardLayout onBack={()=>setSelected(undefined)} onSaved={setConfiguration} />;
+  if(selected)return <div className={roleStyles.workspace}><header className={roleStyles.header}><div><h2>Super Admin permissions</h2><p>Organization-wide access</p></div><DefaultButton text="Back to roles" onClick={()=>setSelected(undefined)} /></header><MessageBar>Super Admin has access across every department in this organization. Its permissions are fixed.</MessageBar><div className={roleStyles.group}><h3 className={roleStyles.cardHeader}>Application access</h3><div className={roleStyles.groupRows}>{(props.service.roleManagement?.supportedActions || []).map(action=><label key={action} className={roleStyles.permission}><input type="checkbox" checked disabled /><span>{permissionLabels[action] || action}</span></label>)}</div></div></div>;
   const roles=[...configuration.roles,{id:'superAdmin',name:'Super Admin',scope:'all',actions:[]}];
-  return <div className={styles.ticketListCard}><p>Select a role to view its permissions. Agent and Helpdesk Admin permissions apply to the selected department.</p><div className={styles.tableContainer}><table className={styles.ticketTable} aria-label="Application roles"><thead><tr><th>Role</th><th>Description</th><th>Permissions</th></tr></thead><tbody>{roles.map(role=><tr key={role.id}><td>{role.name}</td><td>{descriptions[role.id]}</td><td><DefaultButton text="View permissions" ariaLabel={`View permissions for ${role.name}`} onClick={()=>setSelected(role as IDeskPilotRole)} /></td></tr>)}</tbody></table></div></div>;
+  return <div className={roleStyles.workspace}>
+    <header className={roleStyles.header}><div><h2>Roles &amp; Permissions</h2><p>Manage user roles and their permissions for the selected department.</p></div><DefaultButton text="Manage Permissions" iconProps={{iconName:'Permissions'}} onClick={()=>setSelected(configuration.roles.find(role=>role.id==='admin') || configuration.roles[0])} /></header>
+    <div className={roleStyles.grid} aria-label="Application roles">{roles.map(role=>{
+      const fixed=role.id==='superAdmin';
+      const actions=fixed ? [...(props.service.roleManagement?.supportedActions || [])] : role.actions.filter(action=>!props.service.roleManagement?.supportedActions || props.service.roleManagement.supportedActions.includes(action));
+      const pages=(fixed ? props.service.roleManagement?.supportedSettingsPages || [] : roleSettingsPages(role as IDeskPilotRole)).filter(page=>!props.service.roleManagement?.supportedSettingsPages || props.service.roleManagement.supportedSettingsPages.includes(page));
+      const permissions=[...actions.map(action=>permissionLabels[action] || action),...pages.map(page=>settingsPageLabels[page])];
+      const users=configuration.assignments.filter(user=>user.roleId===role.id && !user.disabled);
+      return <article key={role.id} className={roleStyles.card} aria-label={`${role.name} role`}><div className={roleStyles.cardHeader}><div><h3>{role.name}</h3><p className={roleStyles.muted}>{fixed?'Organization-wide role':`${users.length} active ${users.length===1?'user':'users'} in this department`}</p></div></div><div className={roleStyles.cardBody}><div className={roleStyles.cardSummary}><span>{permissions.length} permissions</span><DefaultButton text="Manage" ariaLabel={`Manage permissions for ${role.name}`} iconProps={{iconName:'Settings'}} onClick={()=>setSelected(role as IDeskPilotRole)} /></div><div className={roleStyles.chips}>{permissions.slice(0,6).map(permission=><span className={roleStyles.chip} key={permission}>{permission}</span>)}{permissions.length>6 && <span className={roleStyles.chip}>+{permissions.length-6} more</span>}</div><p className={roleStyles.muted} style={{marginTop:16}}>{descriptions[role.id]}</p></div><footer className={roleStyles.footer}>{fixed || role.id==='requester'?'Built-in role · fixed permissions':'Built-in role · department permissions'}</footer></article>;
+    })}</div>
+  </div>;
 }
 
 export function LaravelDepartmentsPage(props:{service:ITicketDataSource;onChange:()=>void}):React.ReactElement {

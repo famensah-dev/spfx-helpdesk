@@ -18,7 +18,9 @@ const button=p=>h('button',{type:p.type || 'button',disabled:p.disabled,onClick:
 const fluent={DefaultButton:button,PrimaryButton:button,Dialog:p=>p.hidden?null:h('div',{role:'dialog'},h('h3',null,p.dialogContentProps?.title),p.children),DialogFooter:p=>h('div',null,p.children),MessageBar:p=>h('div',{role:'alert'},p.children),MessageBarType:{error:1,success:2},Spinner:p=>h('div',{role:'status'},p.label),TextField:p=>h('label',null,p.label,h(p.multiline?'textarea':'input',{'aria-label':p.label,value:p.value,disabled:p.disabled,readOnly:p.readOnly,onChange:event=>p.onChange?.(event,event.target.value)}))};
 const pages=load('src/webparts/helpdeskSystem/pages/LaravelAccessPages.tsx',{
   '@fluentui/react':fluent,
-  './SharePointRolesPage':{SharePointRolesPage:p=>h('div',{'data-role-id':p.roleId,'data-view':p.view},'Existing permissions editor')},
+  './SharePointRolesPage':{SharePointRolesPage:p=>h('div',{'data-role-id':p.roleId,'data-view':p.view},h('button',{onClick:p.onBack},'Back to roles'))},
+  '../interfaces/IRoleManagement':load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts'),
+  './LaravelRoles.module.scss':{default:new Proxy({},{get:(_,key)=>String(key)})},
   '../components/cancelButtonStyles':{cancelButtonStyles:{}},
   '../components/HelpdeskSystem.module.scss':{default:new Proxy({},{get:(_,key)=>String(key)})}
 });
@@ -33,16 +35,16 @@ const config={roles:[{id:'requester',name:'Requester',scope:'own',actions:[]},{i
   assert.equal(routes.resolveAppRoute('/settings/roles-permissions').adminSection,'permissions');
   const service={storageProvider:'laravel',access:{superAdmin:true},roleManagement:{load:async()=>config,supportedActions:['tickets','create']}};
   await act(async()=>ReactDOM.render(h(pages.LaravelRolesPage,{service}),root));
-  assert.equal(root.querySelectorAll('tbody tr').length,4);
-  assert(root.textContent.includes('Description'));
-  await act(async()=>root.querySelector('[aria-label="View permissions for Agent"]').click());
+  assert.equal(root.querySelectorAll('article').length,4);
+  assert(root.textContent.includes('Submit support requests'));
+  await act(async()=>root.querySelector('[aria-label="Manage permissions for Agent"]').click());
   assert.equal(root.querySelector('[data-role-id]').dataset.roleId,'agent');
   assert.equal(root.querySelector('[data-view]').dataset.view,'roles');
   await act(async()=>findButton('Back to roles').click());
-  await act(async()=>root.querySelector('[aria-label="View permissions for Requester"]').click());
+  await act(async()=>root.querySelector('[aria-label="Manage permissions for Requester"]').click());
   assert.equal(root.querySelector('[data-role-id]').dataset.roleId,'requester');
   await act(async()=>findButton('Back to roles').click());
-  await act(async()=>root.querySelector('[aria-label="View permissions for Super Admin"]').click());
+  await act(async()=>root.querySelector('[aria-label="Manage permissions for Super Admin"]').click());
   assert(root.textContent.includes('permissions are fixed'));
   assert(!root.querySelector('[data-role-id]'));
   await act(async()=>ReactDOM.unmountComponentAtNode(root));
