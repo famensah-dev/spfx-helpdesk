@@ -42,3 +42,4 @@ azure-app/server/compiled/
 azure-app/server/data/
 azure-app/server/.env.local
 .env.local
+.npm-cache/

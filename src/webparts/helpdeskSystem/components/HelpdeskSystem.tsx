@@ -3,6 +3,8 @@ import { resolveAppRoute, workspacePaths } from '../utils/appRoutes';
 import * as React from 'react';
 import HelpdeskApp from './HelpdeskApp';
 import { createSharePointService } from '../services/SharePointTicketService';
+import { LaravelTicketService } from '../services/LaravelTicketService';
+import { BackendWorkspaceSettings } from './BackendWorkspaceSettings';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import { Icon, Spinner, TextField, PrimaryButton, DefaultButton } from '@fluentui/react';
 import { SPHttpClient } from '@microsoft/sp-http';
@@ -35,6 +37,12 @@ function RoutedHelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
     let active = true;
     setService(undefined); setError('');
     void (async () => {
+      if (props.backendApiUrl || props.backendResource) {
+        if (!props.backendApiUrl || !props.backendResource) throw new Error('Both the Laravel API URL and Entra resource must be configured.');
+        const value = await LaravelTicketService.create(props.spContext, props.backendApiUrl, props.backendResource);
+        if (active) { setService(value); setEditingConnection(false); }
+        return;
+      }
       let selected: IWorkspaceConnection | undefined;
       if (props.workspaceSiteUrl || props.workspacePageUrl) selected = validateWorkspaceConnection({siteUrl: props.workspaceSiteUrl || '', pageUrl: props.workspacePageUrl || ''}, props.spContext.pageContext.web.absoluteUrl);
       else if (teams) {
@@ -53,9 +61,9 @@ function RoutedHelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
       }
       const value = await createSharePointService(props.spContext, props.listName, props.listId, selected);
       if (active) { setService(value); setSiteInput(selected?.siteUrl || ''); setPageInput(selected?.pageUrl || ''); }
-    })().catch(reason => { if (active) { setError(reason instanceof Error ? reason.message : 'Unable to connect to SharePoint.'); if (teams || props.workspaceSiteUrl) setEditingConnection(true); } });
+    })().catch(reason => { if (active) { setError(reason instanceof Error ? reason.message : 'Unable to connect to the helpdesk.'); if (!props.backendApiUrl && !props.backendResource && (teams || props.workspaceSiteUrl)) setEditingConnection(true); } });
     return () => { active = false; };
-  }, [props.spContext, props.listName, props.listId, props.workspaceSiteUrl, props.workspacePageUrl, teams, storageKey]);
+  }, [props.spContext, props.listName, props.listId, props.workspaceSiteUrl, props.workspacePageUrl, props.backendApiUrl, props.backendResource, teams, storageKey]);
   const connect = async (): Promise<void> => {
     if (connecting) return;
     setConnecting(true); setError('');
@@ -86,6 +94,11 @@ function RoutedHelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
   }
   service.openWorkspaceSetup = openSettings;
   const user = props.spContext.pageContext.user;
+  if (service instanceof LaravelTicketService) {
+    const backendService = service;
+    const actions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access.superAdmin)} canManageSettings={Boolean(service.access.admin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} /></>;
+    return <HelpdeskApp service={service} currentUserEmail={service.access.email} accountActions={actions} portalTitle={service.title || props.portalTitle} settingsContent={settingsOpen && service.access.admin ? <BackendWorkspaceSettings service={backendService} onBack={() => navigate('/')} /> : undefined} />;
+  }
   const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} /></>;
   return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={service.workspaceSettings?.title || props.portalTitle} settingsContent={settingsOpen && service.access?.superAdmin ? <SettingsPage onChangeConnection={teams || service.workspaceConnection ? ()=>setEditingConnection(true) : undefined} context={props.spContext} service={service} portalTitle={props.portalTitle} section={route.workspaceSection || 'General'} onSectionChange={section=>navigate('/workspace-settings/'+workspacePaths[section],{state:location.state})} onBack={()=>navigate(typeof location.state?.from === 'string' && location.state.from.startsWith('/') && !location.state.from.startsWith('//') ? location.state.from : '/')} /> : undefined} />;
 }

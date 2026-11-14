@@ -1,0 +1,5 @@
+{
+  "webApiPermissionRequests": [
+    { "resource": "DeskPilot Laravel API", "scope": "access_as_user" }
+  ]
+}

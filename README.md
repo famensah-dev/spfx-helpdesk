@@ -1,4 +1,6 @@
-﻿# DeskPilot support portal
+# DeskPilot support portal
+
+This branch includes an experimental [Laravel backend architecture and setup guide](docs/laravel-backend.md). It keeps SPFx hosted in SharePoint and moves core authorization, membership and ticket workflows into a protected API. Remaining workflows and migration steps are documented in the guide.
 
 The primary deployment is now a SharePoint Framework (SPFx) full-page application. See [SharePoint deployment instructions](SHAREPOINT-DEPLOYMENT.md) for package installation, API approvals, page conversion, navigation settings and security requirements.
 

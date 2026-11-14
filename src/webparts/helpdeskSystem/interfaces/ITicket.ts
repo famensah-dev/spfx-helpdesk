@@ -9,6 +9,11 @@ export interface IUserLookup {
 }
 
 export interface ITicket {
+  RoleRules?: import('./IRoleManagement').IDeskPilotRole;
+  DepartmentId?: number | null;
+  CategoryId?: number | null;
+  SubcategoryId?: number | null;
+  IssueTypeId?: number | null;
   SlaPauseIntervals?: Array<{ start: string; end?: string }>;
   ChangeVersion?: string;
   AssignedUnitId?: number;

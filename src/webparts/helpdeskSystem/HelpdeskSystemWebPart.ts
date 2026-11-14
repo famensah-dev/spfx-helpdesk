@@ -13,6 +13,8 @@ import HelpdeskSystem from './components/HelpdeskSystem';
 import { IHelpdeskSystemProps } from './components/IHelpdeskSystemProps';
 
 export interface IHelpdeskSystemWebPartProps {
+  backendApiUrl?: string;
+  backendResource?: string;
   workspaceSiteUrl?: string;
   workspacePageUrl?: string;
   portalTitle?: string;
@@ -31,6 +33,8 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
       HelpdeskSystem,
       {
         description: this.properties.description,
+        backendApiUrl: this.properties.backendApiUrl,
+        backendResource: this.properties.backendResource,
         portalTitle: this.properties.portalTitle,
         listName: this.properties.listName || 'Tickets',
         listId: this.properties.listId,
@@ -120,6 +124,8 @@ export default class HelpdeskSystemWebPart extends BaseClientSideWebPart<IHelpde
             {
               groupName: strings.BasicGroupName,
               groupFields: [
+                PropertyPaneTextField('backendApiUrl', { label: 'Laravel API URL', description: 'For example https://deskpilot-api.azurewebsites.net/api/v1. Both backend settings are required to enable the Laravel preview.' }),
+                PropertyPaneTextField('backendResource', { label: 'Laravel Entra API resource', description: 'For example api://<API application client ID>.' }),
                 PropertyPaneTextField('workspaceSiteUrl', { label: 'Workspace SharePoint site URL (optional)', description: 'Connect to an existing DeskPilot workspace instead of the hosting site.' }),
                 PropertyPaneTextField('workspacePageUrl', { label: 'Workspace DeskPilot page URL', description: 'Required with a workspace site URL. Used for ticket and invitation links.' }),
                 PropertyPaneTextField('portalTitle', { label: 'Workspace title (beside DeskPilot)', placeholder: 'IT Helpdesk', description: 'Set the title for this department’s DeskPilot page.' }),

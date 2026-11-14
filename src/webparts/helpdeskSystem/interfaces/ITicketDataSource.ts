@@ -4,9 +4,9 @@ import type { IUserLookup } from './ITicket';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from './IFaq';
 export interface IOrganizationUser { id: string; displayName: string; email: string; userPrincipalName: string; department?: string; sharePointId?: number; }
 export interface INewTicketInput { ticketSource?: string; requesterName?: string; requesterEmail?: string; title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; department?: string; dueDate?: string; attachments?: File[]; }
-export interface IClassificationOption { id: string; name: string; parentId?: string; }
+export interface IClassificationOption { id: string; name: string; parentId?: string; departmentIds?: string[]; }
 export interface ITicketClassification { categories: IClassificationOption[]; subcategories: IClassificationOption[]; issueTypes: IClassificationOption[]; listIds: { category: string; subcategory: string; issueType: string }; }
-export interface ITicketCreationOptions { departments?:Array<{key:string;name:string}>; ticketSources?: string[]; classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
+export interface ITicketCreationOptions { departmentValue?: 'id'; departments?:Array<{key:string;name:string}>; ticketSources?: string[]; classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
 export interface ITicketEdit { resolutionEmail?: boolean; requestedById?: number | null; requesterName?: string; requesterEmail?: string; dueDate?: string; department?: string; ticketSource?: string; resolutionSummary?: string; title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; }
 export interface ITicketAttachment { name: string; url: string; previewUrl?:string; contentUrl?:string; size?: number; created?: string; author?: string; }
 export interface ICommentPostOptions { html?: string; files?: File[]; requestId?: string; onProgress?: (message: string) => void; }
@@ -17,6 +17,7 @@ export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: nu
 
 /** A host-independent data source shared by SharePoint and Azure. */
 export interface ITicketDataSource {
+  capabilities?: { attachments: boolean; requesterEditing: boolean; ticketSources: boolean; extendedTicketFields: boolean };
   workspaceConnection?: import('../utils/workspaceConnection').IWorkspaceConnection;
   ticketViews?:import('./ITicketViews').ITicketViews;
   notifications?: import('./INotifications').INotificationService;

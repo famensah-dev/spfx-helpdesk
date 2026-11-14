@@ -14,7 +14,8 @@ export function TicketClassificationFields(props: { service?: ITicketDataSource;
       if (!active) return;
       setOptions(result);
       const taxonomy = result.classification;
-      setValues({ category: taxonomy?.categories.find(item => item.name === props.ticket.Category)?.id || '', subcategory: taxonomy?.subcategories.find(item => item.name === props.ticket.Subcategory)?.id || '', issueType: taxonomy?.issueTypes.find(item => item.name === props.ticket.IssueType)?.id || '' });
+      const category = props.ticket.CategoryId ? String(props.ticket.CategoryId) : taxonomy?.categories.find(item => item.name === props.ticket.Category)?.id || '';
+      setValues({ category, subcategory: props.ticket.SubcategoryId ? String(props.ticket.SubcategoryId) : taxonomy?.subcategories.find(item => item.name === props.ticket.Subcategory && item.parentId === category)?.id || '', issueType: props.ticket.IssueTypeId ? String(props.ticket.IssueTypeId) : taxonomy?.issueTypes.find(item => item.name === props.ticket.IssueType)?.id || '' });
     }).catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Unable to load classification.'); });
     return () => { active = false; };
   }, [props.service, props.ticket.Id]);
@@ -26,7 +27,8 @@ export function TicketClassificationFields(props: { service?: ITicketDataSource;
   return <div className={styles.newTicketClassification}>{(['category', 'subcategory', 'issueType'] as const).map(key => {
     const field = options.fields.find(item => item.key === key);
     if (!field) return null;
-    const entries = key === 'category' ? taxonomy.categories : key === 'subcategory' ? taxonomy.subcategories.filter(item => item.parentId === values.category) : taxonomy.issueTypes;
+    const available = (item: import('../interfaces/ITicketDataSource').IClassificationOption): boolean => !item.departmentIds?.length || Boolean(props.ticket.DepartmentId && item.departmentIds.includes(String(props.ticket.DepartmentId)));
+    const entries = key === 'category' ? taxonomy.categories.filter(available) : key === 'subcategory' ? taxonomy.subcategories.filter(item => item.parentId === values.category && Boolean(taxonomy.categories.find(parent => parent.id === item.parentId && available(parent)))) : taxonomy.issueTypes.filter(available);
     const legacy = key === 'category' ? props.ticket.Category : key === 'subcategory' ? props.ticket.Subcategory : props.ticket.IssueType;
     return <SearchableSelect key={key} label={field.label} required={field.required} value={values[key]} placeholder={legacy ? `${legacy} (current)` : 'Select an option'} disabled={props.disabled || (key === 'subcategory' && !values.category)} options={[{ key: '', text: 'Not Specified' }, ...entries.map(item => ({ key: item.id, text: item.name }))]} onChange={value => {
       const next = { ...values, [key]: value, ...(key === 'category' ? { subcategory: '' } : {}) };

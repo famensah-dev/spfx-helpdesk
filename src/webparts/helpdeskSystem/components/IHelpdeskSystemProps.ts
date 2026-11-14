@@ -1,5 +1,7 @@
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 export interface IHelpdeskSystemProps {
+  backendApiUrl?: string;
+  backendResource?: string;
   workspaceSiteUrl?: string;
   workspacePageUrl?: string;
   listName: string;
