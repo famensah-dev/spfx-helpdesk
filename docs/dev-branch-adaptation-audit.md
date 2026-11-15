@@ -30,7 +30,6 @@ These are functional migration gaps, not permission to redesign or delete the de
 | Feature | Existing source to preserve | Backend work still needed |
 | --- | --- | --- |
 | Attachments and rich conversations | `AttachmentPicker`, `TicketAttachments`, `CommentComposer`, `TicketActivity` and the Graph ticket/comment services | Authenticated file upload/download, size/type limits, department access checks, rich-content sanitization, comment attachments, solution selection and requester replies. Current comments remain plain text. |
-| Knowledge Base | `FaqPage`, self-service views and `IFaq*` contracts | Organization/department-scoped article storage, publish/manage permissions, classification relationships, CRUD/bulk operations and conversion from tickets. |
 | SLA & Priorities | `SlaPrioritiesPage` and `ISlaService` | Configurable priorities, targets, clocks, pause intervals, resolution/response calculations and escalation rules. Current backend priorities are still fixed. |
 | Support Teams and automatic assignment | `SupportUnitsPage`, `TeamAssignmentMethods`, `AutoAssignmentSetting` and `ISupportUnitsService` | Teams, category matching, members, availability, team leads, assignment methods and concurrency-safe routing. A department is not a replacement for a support team. |
 | Email and notifications | `EmailSettingsPage`, `NotificationCenter`, `INotificationService` | Templates, recipient rules, outbox/queue workers, delivery history, invitation/reply delivery and per-user notification/view records. A queued Laravel job needs a worker; scale-to-zero HTTP hosting alone is insufficient. |
@@ -49,3 +48,13 @@ Results for this pass: 56 backend tests (289 assertions), 12 Laravel adapter tes
 The existing local SQLite database was backed up and upgraded with the data-preserving maintenance tool for the additional nullable fields. The original test migration remains the schema source; no incremental migration was added for this test rebuild. Azure was not updated. The next deployment requires the new Laravel image and SPFx package together, followed by the already agreed controlled Azure test-schema rebuild. Do not use the failing Azure SQL `migrate:fresh` wipe.
 
 The navigation follow-up adds no migrations or backend permission changes. Its route, role-list/view, department creation, group-mapping edit, failed-read protection and legacy settings/adapter checks passed (14 tests). The updated SPFx package version is 1.1.5.0.
+
+## Knowledge Base and comment follow-up
+
+Knowledge Base and Need Help now reuse their existing screens through Laravel article endpoints. Articles are scoped to organization and department, with published/draft visibility, management permissions, classification relationships, bulk operations, ticket-to-draft conversion and server-side HTML sanitizing. Comment deletion is restricted to the author within the first ten minutes, enforced by Laravel as well as the interface.
+
+The existing test migration now includes `knowledge_articles`. The local SQLite upgrade created a backup and preserved existing records; all 24 tables passed foreign-key checks. No new migration file, Azure schema change, application build or deployment was performed for this follow-up. Validation: 64 backend tests (340 assertions), 14 adapter tests, the self-service guide test, targeted settings/role tests, PHP formatting and local database connectivity passed.
+
+## Application-owned departments and delegated user management
+
+Requester is now displayed as User; its stored identifier remains compatible. The Add Users dialog renders directory results and selected people in tables, with independent role selectors initialized from the active tab. Manage users is an aggregated backend permission for adding staff, role/status changes and membership removal. API capability metadata hides unauthorized actions, protects self/Super Admin access and prevents global role/status edits to staff with unmanaged department memberships. Entra groups no longer supply department membership; staff are grouped within DeskPilot. Existing saved permission settings need an explicit Super Admin grant for the new Manage users action. No database migration or application build is required for these changes.

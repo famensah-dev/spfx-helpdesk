@@ -24,7 +24,7 @@ const fluent = {
   Dropdown: p => h('select', { 'aria-label': p.ariaLabel, value: p.selectedKey, onChange: e => p.onChange(e, { key: e.target.value }) }, p.options.map(o => h('option', { key: o.key, value: o.key }, o.text)))
 };
 const contracts = load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts');
-const { SharePointRolesPage } = load('src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', {
+const { SharePointRolesPage, CollapsibleInfoAlert } = load('src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx', {
   '@fluentui/react': fluent,
   './SharePointUsersPage': { SharePointUsersPage: () => null },
   '../interfaces/IRoleManagement': contracts,
@@ -40,7 +40,7 @@ const find = text => [...root.querySelectorAll('button')].find(b => b.textConten
   let saved; let back = 0;
   const service = { storageProvider: 'laravel', roleManagement: { supportedActions: ['dashboard', 'tickets', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications'], supportedSettingsPages: ['settings', 'roles', 'categories', 'subcategories', 'issueTypes'], load: async () => config, save: async value => { saved = value; } } };
   await act(async () => ReactDOM.render(h(SharePointRolesPage, { service, view: 'roles', roleId: 'agent', cardLayout: true, onBack: () => back++ }), root));
-  assert.equal(root.querySelectorAll('details').length, 9);
+  assert.equal(root.querySelectorAll('details').length, 6);
   assert(root.querySelector('aside').textContent.includes('Jane Doe'));
   assert(!root.querySelector('aside').textContent.includes('Hidden User'));
   assert(root.querySelector('.detail > .main > header.header'), 'The heading card belongs to the left column');
@@ -80,7 +80,7 @@ const find = text => [...root.querySelectorAll('button')].find(b => b.textConten
   assert(find('Back'), 'Table details retain guarded back navigation');
   await act(async () => ReactDOM.unmountComponentAtNode(root));
   await act(async () => ReactDOM.render(h(SharePointRolesPage, { service, view: 'roles', roleId: 'agent', cardLayout: true, fullWidth: true }), root));
-  assert.equal(root.querySelectorAll('details').length, 9);
+  assert.equal(root.querySelectorAll('details').length, 6);
   assert(!root.querySelector('aside'), 'Reference layout uses full-width permission groups without a users column');
   assert(!root.querySelector('table'), 'Reference layout uses grouped checkbox rows');
   assert(find('Select All') && find('Clear All'), 'Bulk controls sit in the search toolbar');
@@ -101,6 +101,20 @@ const find = text => [...root.querySelectorAll('button')].find(b => b.textConten
   await act(async()=>find('Discard and Leave').click());
   assert.equal(back,2);
   await act(async () => ReactDOM.unmountComponentAtNode(root));
+  Object.defineProperty(dom.window.HTMLElement.prototype,'scrollWidth',{configurable:true,get:()=>500});
+  Object.defineProperty(dom.window.HTMLElement.prototype,'clientWidth',{configurable:true,get:()=>200});
+  await act(async()=>ReactDOM.render(h(CollapsibleInfoAlert,null,'A long informational alert that should expand.'),root));
+  assert.equal(find('Read more').getAttribute('aria-expanded'),'false');
+  await act(async()=>find('Read more').click());
+  assert.equal(find('Read less').getAttribute('aria-expanded'),'true');
+  assert.equal(root.querySelector('[data-expanded]').dataset.expanded,'true');
+  await act(async()=>find('Read less').click());
+  assert.equal(root.querySelector('[data-expanded]').dataset.expanded,'false');
+  await act(async()=>ReactDOM.unmountComponentAtNode(root));
+  Object.defineProperty(dom.window.HTMLElement.prototype,'scrollWidth',{configurable:true,get:()=>100});
+  await act(async()=>ReactDOM.render(h(CollapsibleInfoAlert,null,'Short alert.'),root));
+  assert(!find('Read more'),'Short alerts need no expansion control');
+  await act(async()=>ReactDOM.unmountComponentAtNode(root));
   dom.window.close();
   console.log('Permission cards passed: grouped controls, scoped users, save, fixed roles and unsaved-change protection.');
   process.exit(0);

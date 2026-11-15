@@ -16,7 +16,9 @@ class KnowledgeBaseTest extends TestCase
     use RefreshDatabase;
 
     private Organization $org;
+
     private int $it;
+
     private int $facilities;
 
     protected function setUp(): void

@@ -7,7 +7,6 @@ import { SharePointRolesPage } from './SharePointRolesPage';
 import { cancelButtonStyles } from '../components/cancelButtonStyles';
 import styles from '../components/HelpdeskSystem.module.scss';
 import roleStyles from './LaravelRoles.module.scss';
-import { DepartmentGroupPicker } from '../components/DepartmentGroupPicker';
 
 const permissionLabels:Record<string,string>={dashboard:'View dashboards',tickets:'View tickets',create:'Create tickets',edit:'Edit ticket details',status:'Change ticket status',assign:'Assign tickets',priority:'Change ticket priority',archive:'Archive tickets',comment:'Comment on tickets',classifications:'Manage categories, subcategories and issue types'};
 
@@ -43,35 +42,24 @@ export function LaravelDepartmentsPage(props:{service:ITicketDataSource;onChange
   const owner=Boolean(props.service.access?.superAdmin);
   const [creating,setCreating]=React.useState(false);
   const [name,setName]=React.useState('');
-  const [viewing,setViewing]=React.useState<number>();
-  const [groups,setGroups]=React.useState('');
   const [busy,setBusy]=React.useState(false);
   const lock=React.useRef(false);
-  const [groupsLoaded,setGroupsLoaded]=React.useState(false);
   const [error,setError]=React.useState('');
-  const [message,setMessage]=React.useState('');
   if(!scope)return <MessageBar>Department management is not available for this connection.</MessageBar>;
-  const run=async(work:()=>Promise<void>):Promise<void>=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');setMessage('');try{await work();props.onChange();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{lock.current=false;setBusy(false);}};
+  const create=async():Promise<void>=>{if(lock.current)return;lock.current=true;setBusy(true);setError('');try{await scope.create(name.trim());setName('');setCreating(false);props.onChange();}catch(reason){setError(reason instanceof Error?reason.message:String(reason));}finally{lock.current=false;setBusy(false);}};
   return <>
-    {error && !creating && !viewing && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-    {message && <MessageBar messageBarType={MessageBarType.success}>{message}</MessageBar>}
+    {error && !creating && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
     <div className={styles.ticketListCard}>
-      <div className={styles.ticketToolbar}><p>Departments organize ticket access, classifications and helpdesk permissions.</p><div className={styles.ticketActions}>{owner && <DefaultButton text="New department" iconProps={{iconName:'Add'}} disabled={busy} onClick={()=>{setError('');setCreating(true);}} />}</div></div>
-      <div className={styles.tableContainer}><table className={styles.ticketTable} aria-label="Departments"><thead><tr><th>Department</th><th>Access</th></tr></thead><tbody>{scope.departments.map(department=><tr key={department.id}><td>{department.name}</td><td><DefaultButton text={owner?'Manage group mappings':'View group mappings'} disabled={busy} onClick={()=>{setViewing(department.id);setGroups('');setGroupsLoaded(false);run(async()=>{scope.select(department.id);setGroups((await scope.getGroups()).join('\n'));setGroupsLoaded(true);}).catch(()=>undefined);}} /></td></tr>)}</tbody></table></div>
+      <div className={styles.ticketToolbar}><p>Create departments in DeskPilot and add staff from the Users page. Entra groups do not control department membership.</p><div className={styles.ticketActions}>{owner && <DefaultButton text="New department" iconProps={{iconName:'Add'}} disabled={busy} onClick={()=>{setError('');setCreating(true);}} />}</div></div>
+      <div className={styles.tableContainer}><table className={styles.ticketTable} aria-label="Departments"><thead><tr><th>Department</th></tr></thead><tbody>{scope.departments.map(department=><tr key={department.id}><td>{department.name}</td></tr>)}</tbody></table></div>
       {!scope.departments.length && <p>No departments yet.{owner?' Use New department to add the first one.':''}</p>}
     </div>
     <Dialog hidden={!creating} onDismiss={busy?undefined:()=>setCreating(false)} dialogContentProps={{title:'New department'}} modalProps={{isBlocking:true}}>
-      <form onSubmit={event=>{event.preventDefault();run(async()=>{await scope.create(name.trim());setName('');setCreating(false);setMessage('Department created.');}).catch(()=>undefined);}}>
+      <form onSubmit={event=>{event.preventDefault();create().catch(()=>undefined);}}>
         {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
         <TextField label="Department name" required maxLength={255} value={name} disabled={busy} onChange={(_,value)=>setName(value || '')} />
         <DialogFooter><DefaultButton text="Cancel" styles={cancelButtonStyles} disabled={busy} onClick={()=>setCreating(false)} /><PrimaryButton type="submit" text="Create department" disabled={busy || !name.trim()} /></DialogFooter>
       </form>
-    </Dialog>
-    <Dialog hidden={!viewing} onDismiss={busy?undefined:()=>setViewing(undefined)} dialogContentProps={{title:scope.departments.find(department=>department.id===viewing)?.name || 'Department access'}} modalProps={{isBlocking:true}}>
-      {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
-      {busy && <Spinner label="Loading or saving department access" />}
-      {viewing && groupsLoaded && <DepartmentGroupPicker key={viewing} service={props.service} ids={groups.split(/[\s,;]+/).filter(Boolean)} readOnly={!owner} disabled={busy} onChange={ids=>{setGroups(ids.join('\n'));setError('');}} />}
-      <DialogFooter><DefaultButton text="Close" styles={cancelButtonStyles} disabled={busy} onClick={()=>setViewing(undefined)} />{owner && <PrimaryButton text="Save group mappings" disabled={busy || !groupsLoaded || Boolean(error)} onClick={()=>{run(async()=>{await scope.saveGroups(groups.split(/[\s,;]+/).filter(Boolean));setViewing(undefined);setMessage('Group mappings saved.');}).catch(()=>undefined);}} />}</DialogFooter>
     </Dialog>
   </>;
 }

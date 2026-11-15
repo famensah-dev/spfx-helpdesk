@@ -10,7 +10,6 @@
       { "resource": "Microsoft Graph", "scope": "Mail.Send.Shared" },
       { "resource": "Microsoft Graph", "scope": "Sites.Manage.All" },
       { "resource": "Microsoft Graph", "scope": "User.Read.All" },
-      { "resource": "Microsoft Graph", "scope": "Group.ReadBasic.All" },
       { "resource": "Office 365 SharePoint Online", "scope": "AllSites.Manage" }
     ],
     "includeClientSideAssets": true,

@@ -9,7 +9,7 @@ const actionLabels: Record<RoleAction,string> = {
   dashboard:'View Dashboard', tickets:'View Tickets', faqs:'Read Published Knowledge Base',
   create:'Create Tickets', edit:'Edit Tickets and Attachments', status:'Change Ticket Status',
   assign:'Assign Tickets', priority:'Change Priority', archive:'Archive Tickets', comment:'Add Comments',
-  manageFaqs:'Manage Knowledge Base', classifications:'Manage Categories and Issue Types', sla:'Manage Priorities and SLA'
+  manageFaqs:'Manage Knowledge Base', classifications:'Manage Categories and Issue Types', sla:'Manage Priorities and SLA', manageUsers:'Manage Users'
 };
 
 export function UserDetailsPanel(props:{user?:IRoleAssignment; configuration:IRoleConfiguration; service:ITicketDataSource; onDismiss:()=>void}):React.ReactElement {

@@ -40,7 +40,7 @@ export function FaqPage(props: { service: ITicketDataSource; manage?: boolean; h
         const access = await props.service.getFaqAccess?.();
         if (version !== generation.current) return;
         canManage = Boolean(access?.canManage); setAllowed(canManage); setChoices(access?.categories); setLookupChoices(access || { canManage: false });
-        if (props.manage && !access?.canManage) throw new Error('Your account needs add, edit, and delete permission on the Knowledge Base list to manage entries. Ask the site owner for access.');
+        if (props.manage && !access?.canManage) throw new Error(props.service.storageProvider==='laravel'?'Your role cannot manage Knowledge Base articles in the selected department.':'Your account needs add, edit, and delete permission on the Knowledge Base list to manage entries. Ask the site owner for access.');
       } catch (reason) { if (props.manage) throw reason; setAllowed(false); }
       const entries = await props.service.getFaqs(canManage);
       if (version === generation.current) { setFaqs(entries); setSelected(new Set()); }

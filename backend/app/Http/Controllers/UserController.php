@@ -25,7 +25,8 @@ class UserController extends Controller
 
     public function resolve(Request $request)
     {
-        abort_unless($request->user()->role === 'superAdmin', 403);
+        $department = $request->integer('department_id');
+        abort_unless($request->user()->role === 'superAdmin' || app(DepartmentAccess::class)->canManageUsers($request->user(), $department), 403);
         $org = $request->user()->organization;
         $input = $request->validate(['entra_object_id' => ['required', 'uuid'], 'name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email', 'max:255']]);
         $existing = User::where('organization_id', $org->id)->where('entra_object_id', strtolower($input['entra_object_id']))->first();
@@ -52,9 +53,7 @@ class UserController extends Controller
         $query = User::where('organization_id', $request->user()->organization_id)->where('enabled', true)->whereIn('role', ['agent', 'admin', 'superAdmin']);
         if ($request->user()->role !== 'superAdmin') {
             $ids = app(DepartmentAccess::class)->departments($request->user())->pluck('departments.id');
-            $query->where(fn ($q) => $q->where('role', 'superAdmin')->orWhereIn('id', DB::table('department_memberships')->where('organization_id', $request->user()->organization_id)->whereIn('department_id', $ids)->select('user_id'))->orWhereIn('id', DB::table('user_entra_group_cache')->join('department_entra_groups', function ($join) {
-                $join->on('user_entra_group_cache.entra_group_id', '=', 'department_entra_groups.entra_group_id')->on('user_entra_group_cache.organization_id', '=', 'department_entra_groups.organization_id');
-            })->where('user_entra_group_cache.organization_id', $request->user()->organization_id)->where('expires_at', '>', now())->whereIn('department_entra_groups.department_id', $ids)->select('user_entra_group_cache.user_id')));
+            $query->where(fn ($q) => $q->where('role', 'superAdmin')->orWhereIn('id', DB::table('department_memberships')->where('organization_id', $request->user()->organization_id)->whereIn('department_id', $ids)->select('user_id')));
         }
 
         return $query->orderBy('name')->get(['id', 'entra_object_id', 'name', 'email']);

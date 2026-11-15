@@ -91,7 +91,7 @@ class DepartmentClassificationTest extends TestCase
         $this->getJson('/api/v1/tickets')->assertJsonCount(1, 'tickets');
     }
 
-    public function test_group_mapping_grants_only_department_membership_and_is_scoped_to_organization(): void
+    public function test_entra_groups_do_not_grant_application_department_membership(): void
     {
         $group = (string) Str::uuid();
         DB::table('department_entra_groups')->insert(['organization_id' => $this->org->id, 'department_id' => $this->it, 'entra_group_id' => $group]);
@@ -101,10 +101,11 @@ class DepartmentClassificationTest extends TestCase
         $this->ticket($user, $this->facilities);
         $this->asUser($user)->getJson('/api/v1/tickets')->assertJsonCount(0, 'tickets');
         $this->mock(EntraTokenValidator::class)->shouldReceive('validate')->andReturn((object) ['tenant_id' => $user->tenant_id, 'entra_object_id' => $user->entra_object_id, 'entra_group_ids' => [$group]]);
-        $this->getJson('/api/v1/tickets')->assertJsonCount(1, 'tickets');
-        $this->getJson('/api/v1/session')->assertJsonPath('access.role', 'requester');
-        DB::table('department_entra_groups')->delete();
         $this->getJson('/api/v1/tickets')->assertJsonCount(0, 'tickets');
+        $this->getJson('/api/v1/session')->assertJsonPath('access.role', 'requester');
+        DB::table('department_memberships')->insert(['organization_id' => $this->org->id, 'department_id' => $this->it, 'user_id' => $user->id]);
+        DB::table('department_entra_groups')->delete();
+        $this->getJson('/api/v1/tickets')->assertJsonCount(1, 'tickets');
     }
 
     public function test_requester_and_agent_creator_and_requester_visibility_are_distinct(): void
@@ -118,17 +119,45 @@ class DepartmentClassificationTest extends TestCase
         $this->asUser($agent)->getJson('/api/v1/tickets')->assertJsonCount(2, 'tickets');
     }
 
-    public function test_assignee_group_evidence_must_be_unexpired_and_match_department(): void
+    public function test_assignee_requires_application_membership_even_with_verified_groups(): void
     {
         $group = (string) Str::uuid();
         $agent = $this->user('agent');
         DB::table('department_entra_groups')->insert(['organization_id' => $this->org->id, 'department_id' => $this->it, 'entra_group_id' => $group]);
         DB::table('user_entra_group_cache')->insert(['organization_id' => $this->org->id, 'user_id' => $agent->id, 'entra_group_id' => $group, 'expires_at' => now()->addMinutes(5)]);
         $base = ['title' => 'Assigned', 'priority' => 'Low', 'departmentId' => $this->it, 'assignedToId' => $agent->id];
-        $this->asUser($this->owner)->postJson('/api/v1/tickets', $base)->assertCreated();
+        $this->asUser($this->owner)->postJson('/api/v1/tickets', $base)->assertUnprocessable();
+        DB::table('department_memberships')->insert(['organization_id' => $this->org->id, 'department_id' => $this->it, 'user_id' => $agent->id]);
+        $this->postJson('/api/v1/tickets', $base)->assertCreated();
         $this->postJson('/api/v1/tickets', [...$base, 'departmentId' => $this->facilities])->assertUnprocessable();
         DB::table('user_entra_group_cache')->where('user_id', $agent->id)->update(['expires_at' => now()->subSecond()]);
+        $this->postJson('/api/v1/tickets', $base)->assertCreated();
+        DB::table('department_memberships')->where('user_id', $agent->id)->delete();
         $this->postJson('/api/v1/tickets', $base)->assertUnprocessable();
+    }
+
+    public function test_admin_manages_department_users_but_cannot_change_unmanaged_staff_or_super_admins(): void
+    {
+        $admin = $this->user('admin', [$this->it]);
+        $staff = $this->user('agent', [$this->it]);
+        $payload = fn ($role, $disabled = false) => ['assignments' => [
+            ['userId' => $admin->id, 'roleId' => 'admin'],
+            ['userId' => $staff->id, 'roleId' => $role, 'disabled' => $disabled],
+        ]];
+        $this->asUser($admin)->getJson('/api/v1/departments/'.$this->it)->assertJsonPath('can_manage_users', true);
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', $payload('requester', true))->assertNoContent();
+        $this->assertDatabaseHas('users', ['id' => $staff->id, 'role' => 'requester', 'enabled' => false]);
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', $payload('admin'))->assertNoContent();
+        DB::table('department_memberships')->insert(['organization_id' => $this->org->id, 'department_id' => $this->facilities, 'user_id' => $staff->id]);
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', $payload('agent'))->assertForbidden();
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', ['assignments' => [['userId' => $this->owner->id, 'roleId' => 'admin']]])->assertUnprocessable();
+        $this->putJson('/api/v1/departments/'.$this->facilities.'/assignments', $payload('agent'))->assertNotFound();
+        $rules = ['agent' => ['name' => 'Agent', 'scope' => 'assigned', 'actions' => []], 'admin' => ['name' => 'Administrator', 'scope' => 'all', 'actions' => ['tickets'], 'pageAccess' => ['settings', 'roles']]];
+        $this->asUser($this->owner)->patchJson('/api/v1/departments/'.$this->it, ['roles' => $rules])->assertNoContent();
+        $this->asUser($admin)->getJson('/api/v1/departments/'.$this->it)->assertJsonPath('can_manage_users', false);
+        $this->putJson('/api/v1/departments/'.$this->it.'/assignments', $payload('agent'))->assertForbidden();
+        $rules['admin']['actions'][] = 'manageUsers';
+        $this->patchJson('/api/v1/departments/'.$this->it, ['roles' => $rules])->assertForbidden();
     }
 
     public function test_department_role_settings_change_server_visibility_and_permissions(): void

@@ -31,7 +31,9 @@ Only enabled agents/admins with access to the ticket department may be assigned.
 
 Implemented: ticket creation/listing/editing, paginated reads, per-ticket bulk updates, plain text comments, history, first-response tracking, user editing, token validation, department memberships, group mappings, per-department Agent/Admin visibility/action/page settings, classification tables, Ticket Source/Type/Due Date, workspace metadata and read-only schema inspection. Existing React pages consume Laravel adapters. Assigned submissions start In Progress and unassigned submissions New, matching dev. Role names remain the four built-in roles; creating custom role types is not implemented.
 
-**Still to port:** attachments, rich conversations, FAQs/knowledge base, custom role types and remaining feature permissions, support units/automatic routing, notifications/email, requester/on-behalf edits, department transfers, SLA clocks/escalations, view tracking, permanent deletion and runtime custom-field management. Existing controls are reused; unimplemented operations are disabled or explicitly unavailable rather than silently discarded. Existing lists and their data are not imported. This is not yet a production replacement with feature parity.
+Knowledge Base and Need Help now use department-scoped Laravel articles, including published visibility, drafts from tickets, classification links, article management and sanitized rich text. Users can delete their own ticket comments only within the first ten minutes; Laravel enforces the author and time checks.
+
+**Still to port:** attachments, rich conversations, custom role types and remaining feature permissions, support units/automatic routing, notifications/email, requester/on-behalf edits, department transfers, SLA clocks/escalations, view tracking, permanent deletion and runtime custom-field management. Existing controls are reused; unimplemented operations are disabled or explicitly unavailable rather than silently discarded. Existing lists and their data are not imported. This is not yet a production replacement with feature parity.
 
 ## Local setup
 

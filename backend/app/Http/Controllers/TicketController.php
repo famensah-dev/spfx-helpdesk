@@ -8,6 +8,7 @@ use App\Models\Ticket;
 use App\Services\DepartmentAccess;
 use App\Services\TicketWorkflow;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
@@ -46,7 +47,7 @@ class TicketController extends Controller
             ->where('ticket_comments.organization_id', $ticket->organization_id)->where('ticket_id', $ticket->id)->orderBy('ticket_comments.id')
             ->get(['ticket_comments.id', 'ticket_comments.user_id', 'text', 'users.name as author', 'ticket_comments.created_at as created'])
             ->map(function ($row) use ($request, $ticket) {
-                $created = \Illuminate\Support\Carbon::parse($row->created);
+                $created = Carbon::parse($row->created);
 
                 return ['id' => (string) $row->id, 'text' => $row->text, 'author' => $row->author, 'created' => $created->toISOString(), 'canDelete' => (int) $row->user_id === $request->user()->id && $created->lte(now()) && $created->gt(now()->subMinutes(10)) && app(DepartmentAccess::class)->can($request->user(), $ticket->department_id, 'comment')];
             });
@@ -59,7 +60,7 @@ class TicketController extends Controller
             $row = DB::table('ticket_comments')->where('organization_id', $ticket->organization_id)->where('ticket_id', $ticket->id)->where('id', $comment)->lockForUpdate()->first();
             abort_unless($row, 404);
             abort_unless((int) $row->user_id === $request->user()->id, 403, 'Only the author can delete this comment.');
-            $created = \Illuminate\Support\Carbon::parse($row->created_at);
+            $created = Carbon::parse($row->created_at);
             abort_unless($created->lte(now()) && $created->gt(now()->subMinutes(10)), 403, 'The 10-minute deletion window has expired.');
             DB::table('ticket_comments')->where('organization_id', $ticket->organization_id)->where('ticket_id', $ticket->id)->where('id', $comment)->delete();
             $workflow->audit($request->user(), $ticket, 'comment.deleted', ['comment_id' => $comment]);

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\DepartmentAccess;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -36,7 +37,8 @@ class DepartmentController extends Controller
 
         return [
             'roles' => $rules,
-            'members' => DB::table('department_memberships')->join('users', 'users.id', '=', 'department_memberships.user_id')->where('department_memberships.organization_id', $user->organization_id)->where('department_id', $id)->get(['users.id', 'users.name', 'users.email', 'users.role', 'users.enabled', 'users.created_at'])->map(fn ($row) => ['id' => (int) $row->id, 'name' => $row->name, 'email' => $row->email, 'role' => $row->role, 'enabled' => (bool) $row->enabled, 'created_at' => $row->created_at]),
+            'can_manage_users' => $access->canManageUsers($request->user(), $id),
+            'members' => User::where('organization_id', $user->organization_id)->whereIn('id', DB::table('department_memberships')->where('organization_id', $user->organization_id)->where('department_id', $id)->select('user_id'))->get()->map(fn ($row) => ['id' => (int) $row->id, 'name' => $row->name, 'email' => $row->email, 'role' => $row->role, 'enabled' => (bool) $row->enabled, 'created_at' => $row->created_at, 'can_manage' => $access->canManageUser($request->user(), $row, $id)]),
             'entra_group_ids' => DB::table('department_entra_groups')->where('organization_id', $user->organization_id)->where('department_id', $id)->pluck('entra_group_id'),
         ];
     }
@@ -64,6 +66,13 @@ class DepartmentController extends Controller
         ]);
         // Membership grants and directory mappings are owner-controlled, independent of role editing.
         abort_if($request->user()->role !== 'superAdmin' && (isset($input['member_ids']) || isset($input['entra_group_ids'])), 403);
+        if ($request->user()->role !== 'superAdmin' && isset($input['roles'])) {
+            foreach (['agent', 'admin'] as $role) {
+                $target = clone $request->user();
+                $target->role = $role;
+                abort_if(in_array('manageUsers', $input['roles'][$role]['actions'], true) !== in_array('manageUsers', $access->rules($target, $id)['actions'], true), 403, 'Only Super Admins may grant or revoke user-management authority.');
+            }
+        }
         DB::transaction(function () use ($request, $input, $org, $id) {
             if (isset($input['roles'])) {
                 DB::table('departments')->where('organization_id', $org)->where('id', $id)->update(['role_settings' => json_encode($input['roles'], JSON_THROW_ON_ERROR), 'updated_at' => now()]);

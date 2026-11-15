@@ -11,7 +11,7 @@ import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from 
 
 export interface IBackendUser { id?: number; entra_object_id: string | null; name: string; email: string; role: 'requester' | 'agent' | 'admin' | 'superAdmin'; enabled: boolean; }
 export interface IBackendDepartment { id: number; name: string; }
-export interface IBackendDepartmentSettings { roles: Record<string, IDeskPilotRole>; members: Array<{id: number; name: string; email: string; role?: string; enabled?: boolean; created_at?: string}>; entra_group_ids: string[]; }
+export interface IBackendDepartmentSettings { roles: Record<string, IDeskPilotRole>; members: Array<{id: number; name: string; email: string; role?: string; enabled?: boolean; created_at?: string; can_manage?: boolean}>; entra_group_ids: string[]; can_manage_users?: boolean; }
 export interface IBackendClassification { id: number; name: string; active: boolean | number; sort_order: number; category_id?: number; department_ids?: number[]; can_edit?: boolean; }
 export type BackendClassificationKind = 'categories' | 'subcategories' | 'issue-types';
 
@@ -51,7 +51,7 @@ export class LaravelTicketService implements ITicketDataSource {
       getGroups:async()=>this.settingsScope.selectedId ? (await this.getDepartment(this.settingsScope.selectedId)).entra_group_ids : [],
       saveGroups:async ids=>{if(!this.settingsScope.selectedId)throw new Error('Select a department.');await this.saveDepartment(this.settingsScope.selectedId,{entra_group_ids:ids});}
     };
-    this.roleManagement={supportedActions:['dashboard','tickets','faqs','manageFaqs','create','edit','status','assign','priority','archive','comment','classifications'],supportedSettingsPages:['settings','roles','categories','subcategories','issueTypes','faqs'],load:()=>this.loadRoleConfiguration(),save:value=>this.saveRoleConfiguration(value)};
+    this.roleManagement={supportedActions:['dashboard','tickets','faqs','manageFaqs','create','edit','status','assign','priority','archive','comment','classifications','manageUsers'],supportedSettingsPages:['settings','roles','categories','subcategories','issueTypes','faqs'],load:()=>this.loadRoleConfiguration(),save:value=>this.saveRoleConfiguration(value)};
     const kinds = {categories:'categories',subcategories:'subcategories',issueTypes:'issue-types'} as const;
     const selected = (row:IBackendClassification):boolean => !row.department_ids?.length || Boolean(this.settingsScope.selectedId && row.department_ids.includes(this.settingsScope.selectedId));
     const entry = (row:IBackendClassification,parents:IBackendClassification[]):IClassificationEntry=>({id:row.id,title:row.name,active:Boolean(row.active),sortOrder:row.sort_order,parentId:row.category_id,parentName:parents.find(parent=>parent.id===row.category_id)?.name,canEdit:row.can_edit});
@@ -76,8 +76,9 @@ export class LaravelTicketService implements ITicketDataSource {
     const settings=await this.getDepartment(this.settingsScope.selectedId);
     const department=this.settingsScope.departments.find(value=>value.id===this.settingsScope.selectedId);
     return {
+      canManageUsers:settings.can_manage_users ?? this.access.superAdmin,
       roles:defaultRoleConfiguration().roles.map(role=>role.id==='requester'?role:{...role,...settings.roles[role.id],...(role.id==='admin'?{name:'Administrator'}:{})}),
-      assignments:settings.members.filter(user=>user.role!=='superAdmin').map(user=>({userId:user.id,name:user.name,email:user.email,roleId:user.role || 'requester',department:department?.name,disabled:user.enabled===false,addedAt:user.created_at || undefined})),
+      assignments:settings.members.filter(user=>user.role!=='superAdmin').map(user=>({userId:user.id,name:user.name,email:user.email,roleId:user.role || 'requester',department:department?.name,disabled:user.enabled===false,addedAt:user.created_at || undefined,canManage:user.can_manage})),
       roleMembers:settings.members.map(user=>({userId:user.id,name:user.name,email:user.email,roleId:user.role || 'requester',department:department?.name,disabled:user.enabled===false}))
     };
   }
@@ -151,13 +152,13 @@ export class LaravelTicketService implements ITicketDataSource {
   }
   public async resolveUser(user: IOrganizationUser): Promise<IUserLookup> {
     if(user.sharePointId)return {Id:user.sharePointId,AadId:user.id,Title:user.displayName,Email:user.email};
-    const saved=await this.request<{id:number;name:string;email:string;entra_object_id:string}>('/directory-users/resolve','POST',{entra_object_id:user.id,name:user.displayName,email:user.email || user.userPrincipalName});
+    const saved=await this.request<{id:number;name:string;email:string;entra_object_id:string}>('/directory-users/resolve','POST',{entra_object_id:user.id,name:user.displayName,email:user.email || user.userPrincipalName,department_id:this.settingsScope.selectedId});
     return {Id:saved.id,AadId:saved.entra_object_id,Title:saved.name,Email:saved.email};
   }
   public async searchDirectoryUsers(query:string):Promise<IOrganizationUser[]> {
     const term=query.trim();
     if(term.length<2)return [];
-    if(this.access.superAdmin && this.context.msGraphClientFactory){
+    if(this.access.admin && this.context.msGraphClientFactory){
       const graph=await this.context.msGraphClientFactory.getClient('3');
       const escaped=term.replace(/'/g,"''");
       const result=await graph.api('/users').select('id,displayName,mail,userPrincipalName,department').filter(`startswith(displayName,'${escaped}') or startswith(mail,'${escaped}') or startswith(userPrincipalName,'${escaped}')`).top(50).get() as {value:Array<{id:string;displayName:string;mail?:string;userPrincipalName:string;department?:string}>};

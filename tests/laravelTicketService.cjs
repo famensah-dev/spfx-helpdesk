@@ -176,3 +176,25 @@ test('tenant group picker uses read-only Graph queries and escapes search input'
   assert.equal(calls.length,before);
   assert.equal(requests.length,1,'Directory browsing must not write assignments or department mappings');
 });
+
+test('knowledge base and Need Help read backend articles and preserve draft publishing fields',async()=>{
+  const article={id:12,question:'Printer help',answer:'<p>Restart it</p>',category:'Hardware',categoryId:'2',keywords:'printer',published:true,sortOrder:1,modified:'2026-11-14T00:00:00Z'};
+  const {service,requests}=await fixture(url=>url.includes('/knowledge-articles/access')?{canManage:true}:url.includes('/knowledge-articles')?[article]:{},scopedSession);
+  assert.equal((await service.getFaqs(false))[0].id,12);
+  assert(requests.at(-1).url.endsWith('/knowledge-articles'));
+  await service.getFaqAccess();
+  assert(requests.at(-1).url.endsWith('/knowledge-articles/access?department_id=4'));
+  await service.saveFaq({...article,published:false,sourceTicketId:9});
+  assert.equal(requests.at(-1).method,'POST');
+  const body=JSON.parse(requests.at(-1).body);
+  assert.equal(body.department_id,4);
+  assert.equal(body.published,false);
+  assert.equal(body.sourceTicketId,9);
+  assert.equal(body.categoryId,'2');
+  await service.updateFaqs([12],{kind:'publish',published:false});
+  assert.equal(requests.at(-1).method,'PATCH');
+  assert.equal(JSON.parse(requests.at(-1).body).published,false);
+  await service.deleteComment(9,'7');
+  assert.equal(requests.at(-1).method,'DELETE');
+  assert(requests.at(-1).url.endsWith('/tickets/9/comments/7'));
+});

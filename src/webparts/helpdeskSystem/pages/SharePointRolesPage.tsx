@@ -12,15 +12,15 @@ import roleStyles from './LaravelRoles.module.scss';
 function currentRoleChanged(draft: IDeskPilotRole, current?: IDeskPilotRole): boolean {
   return !current || roleSettingsPages(draft).length !== roleSettingsPages(current).length || roleSettingsPages(draft).some(page=>!roleSettingsPages(current).includes(page)) || draft.scope !== current.scope || draft.actions.length !== current.actions.length || draft.actions.some(action => !current.actions.includes(action));
 }
-const labels: Record<RoleAction, string> = { dashboard: 'Dashboard Page', tickets: 'Tickets Page', faqs: 'Knowledge Base', create: 'Create Tickets', edit: 'Edit Ticket Details and Attachments', status: 'Change Status / Record Response', assign: 'Assign Tickets', priority: 'Change Priority', archive: 'Archive Tickets', comment: 'Add Comments', manageFaqs: 'Manage Knowledge Base', classifications: 'Manage Categories and Issue Types', sla: 'Manage SLA Priorities' };
+const labels: Record<RoleAction, string> = { dashboard: 'Dashboard Page', tickets: 'Tickets Page', faqs: 'Knowledge Base', create: 'Create Tickets', edit: 'Edit Ticket Details and Attachments', status: 'Change Status / Record Response', assign: 'Assign Tickets', priority: 'Change Priority', archive: 'Archive Tickets', comment: 'Add Comments', manageFaqs: 'Manage Knowledge Base', classifications: 'Manage Categories and Issue Types', sla: 'Manage SLA Priorities', manageUsers: 'Manage users' };
 interface IPermissionGroup { name:string; actions:RoleAction[]; pages?:SettingsPageKey[]; }
 const permissionGroups: IPermissionGroup[] = [
   { name: 'Page access', actions: ['dashboard', 'tickets', 'faqs'] },
   { name: 'Ticket permissions', actions: ['create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment'] },
   { name: 'Administration permissions', actions: ['manageFaqs', 'classifications', 'sla'] }
 ];
-const resourcePermissions:Record<RoleAction,string>={dashboard:'dashboard.view',tickets:'tickets.view',create:'tickets.create',edit:'tickets.edit',status:'tickets.change_status',assign:'tickets.assign',priority:'tickets.change_priority',archive:'tickets.archive',comment:'comments.create',classifications:'classifications.manage',faqs:'knowledge_base.view',manageFaqs:'knowledge_base.manage',sla:'sla.manage'};
-const resourceLabels:Record<RoleAction,string>={dashboard:'View dashboard',tickets:'View tickets',create:'Create tickets',edit:'Edit tickets',status:'Change ticket status',assign:'Assign tickets',priority:'Change ticket priority',archive:'Archive tickets',comment:'Create comments',classifications:'Manage classifications',faqs:'View knowledge base',manageFaqs:'Manage knowledge base',sla:'Manage service levels'};
+const resourcePermissions:Record<RoleAction,string>={dashboard:'dashboard.view',tickets:'tickets.view',create:'tickets.create',edit:'tickets.edit',status:'tickets.change_status',assign:'tickets.assign',priority:'tickets.change_priority',archive:'tickets.archive',comment:'comments.create',classifications:'classifications.manage',faqs:'knowledge_base.view',manageFaqs:'knowledge_base.manage',sla:'sla.manage',manageUsers:'users.manage'};
+const resourceLabels:Record<RoleAction,string>={dashboard:'View dashboard',tickets:'View tickets',create:'Create tickets',edit:'Edit tickets',status:'Change ticket status',assign:'Assign tickets',priority:'Change ticket priority',archive:'Archive tickets',comment:'Create comments',classifications:'Manage classifications',faqs:'View knowledge base',manageFaqs:'Manage knowledge base',sla:'Manage service levels',manageUsers:'Manage users'};
 const resourcePages:Record<SettingsPageKey,string>={settings:'settings.view',roles:'roles.manage_permissions',categories:'categories.settings_access',subcategories:'subcategories.settings_access',issueTypes:'issue_types.settings_access',units:'support_teams.settings_access',sla:'sla.settings_access',email:'email.settings_access',assignment:'assignment.settings_access',faqs:'knowledge_base.settings_access',members:'users.settings_access',schema:'schema.settings_access'};
 const resourcePageLabels:Record<SettingsPageKey,string>={settings:'View settings',roles:'Manage role permissions',categories:'Access category settings',subcategories:'Access subcategory settings',issueTypes:'Access issue type settings',units:'Access support team settings',sla:'Access service level settings',email:'Access email settings',assignment:'Access assignment settings',faqs:'Access knowledge base settings',members:'Access user settings',schema:'Access schema settings'};
 // These identifiers describe existing rules; separate model CRUD grants require backend support.
@@ -28,17 +28,30 @@ const resourceGroups:IPermissionGroup[]=[
   {name:'Dashboard',actions:['dashboard']},
   {name:'Tickets',actions:['tickets','create','edit','status','assign','priority','archive']},
   {name:'Comments',actions:['comment']},
-  {name:'Classifications',actions:['classifications']},
-  {name:'Categories',actions:[],pages:['categories']},
-  {name:'Subcategories',actions:[],pages:['subcategories']},
-  {name:'Issue types',actions:[],pages:['issueTypes']},
+  {name:'Classifications',actions:['classifications'],pages:['categories','subcategories','issueTypes']},
+  {name:'Users',actions:['manageUsers']},
   {name:'Roles',actions:[],pages:['roles']},
   {name:'Settings',actions:[],pages:['settings']},
   {name:'Knowledge base',actions:['faqs','manageFaqs']},
   {name:'SLA',actions:['sla']}
 ];
 const scopeOptions = [{ key: 'assigned', text: 'Only Tickets Assigned to Them', description: 'View only tickets assigned to this user.' }, { key: 'assignedOrCreated', text: 'Assigned to Them or Created by Them', description: 'View tickets assigned to this user or entered by this user. Requester alone does not qualify.' }, { key: 'newUnassigned', text: 'All New Unassigned Tickets', description: 'View only New tickets that have no assignee.' }, { key: 'all', text: 'All Accessible Tickets', description: 'View all tickets their SharePoint access allows.' }];
-const descriptions: Record<RoleAction, string> = { dashboard: 'Access the dashboard and summary statistics.', tickets: 'Access the ticket list and ticket details.', faqs: 'Read published knowledge base articles.', create: 'Submit a new support request.', edit: 'Update ticket details and upload attachments.', status: 'Update ticket status and record the first response.', assign: 'Assign or reassign tickets to support agents.', priority: 'Change the priority of a ticket.', archive: 'Move tickets into the archive.', comment: 'Add a comment to a ticket.', manageFaqs: 'Create, edit and manage helpdesk knowledge articles.', classifications: 'Manage categories, subcategories and issue types.', sla: 'Manage response and resolution targets.' };
+const descriptions: Record<RoleAction, string> = { dashboard: 'Access the dashboard and summary statistics.', tickets: 'Access the ticket list and ticket details.', faqs: 'Read published knowledge base articles.', create: 'Submit a new support request.', edit: 'Update ticket details and upload attachments.', status: 'Update ticket status and record the first response.', assign: 'Assign or reassign tickets to support agents.', priority: 'Change the priority of a ticket.', archive: 'Move tickets into the archive.', comment: 'Add a comment to a ticket.', manageFaqs: 'Create, edit and manage helpdesk knowledge articles.', classifications: 'Manage categories, subcategories and issue types.', sla: 'Manage response and resolution targets.', manageUsers: 'Add staff, change roles and activate or deactivate users in managed departments.' };
+
+export function CollapsibleInfoAlert(props:{children:string}):React.ReactElement {
+  const [expanded,setExpanded]=React.useState(false);
+  const [overflow,setOverflow]=React.useState(false);
+  const text=React.useRef<HTMLSpanElement>(null);
+  React.useLayoutEffect(()=>{
+    const measure=():void=>{if(text.current && !expanded)setOverflow(text.current.scrollWidth>text.current.clientWidth);};
+    measure();
+    const observer=typeof ResizeObserver!=='undefined'?new ResizeObserver(measure):undefined;
+    if(text.current)observer?.observe(text.current);
+    window.addEventListener('resize',measure);
+    return ()=>{observer?.disconnect();window.removeEventListener('resize',measure);};
+  },[props.children,expanded]);
+  return <MessageBar className={styles.usersInfoAlert}><div className={styles.collapsibleInfoAlert} data-expanded={expanded}><span ref={text}>{props.children}</span>{(overflow || expanded) && <button type="button" aria-expanded={expanded} onClick={()=>setExpanded(current=>!current)}>{expanded?'Read less':'Read more'}</button>}</div></MessageBar>;
+}
 
 export function SharePointRolesPage(props: { service: ITicketDataSource; hideHeading?: boolean; view?:'users'|'roles'; roleId?:string; cardLayout?:boolean; tableLayout?:boolean; fullWidth?:boolean; fixedRole?:IDeskPilotRole; hideRoleHeading?:boolean; onBackAction?:(action?:()=>void)=>void; onBack?:()=>void; onSaved?:(value:IRoleConfiguration)=>void }): React.ReactElement {
   const [tab, setTab] = React.useState<'users' | 'roles'>(props.view || 'users');
@@ -126,7 +139,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
   const displayedSettingsPages=displayedRole ? roleSettingsPages(displayedRole) : [];
   const resourceLayout=props.cardLayout && !props.tableLayout;
   const settingsRows=settingsPageKeys.filter(key=>key!=='members' && matchesPermission((resourceLayout?resourcePages[key]+' '+resourcePageLabels[key]+' ':'')+settingsPageLabels[key], 'Page access Settings', displayedSettingsPages.includes(key)));
-  const visibleGroups = (resourceLayout?resourceGroups:permissionGroups).map((group, index) => ({ ...group, number: index + 2, pages:(resourceLayout?group.pages || []:group.name==='Page access'?settingsRows:[]).filter(page=>settingsRows.includes(page)), actions: group.actions.filter(action => matchesPermission((resourceLayout?resourcePermissions[action]+' '+resourceLabels[action]+' ':'')+labels[action], descriptions[action] + ' ' + group.name, Boolean(displayedRole?.actions.includes(action)))) })).filter(group => group.actions.length || group.pages.length);
+  const visibleGroups = (resourceLayout?resourceGroups:permissionGroups).map((group, index) => ({ ...group, number: index + 2, pages:(resourceLayout?group.pages || []:group.name==='Page access'?settingsRows:[]).filter(page=>settingsRows.includes(page)), actions: group.actions.filter(action => (action!=='manageUsers' || props.service.storageProvider!=='laravel' || props.service.access?.superAdmin) && matchesPermission((resourceLayout?resourcePermissions[action]+' '+resourceLabels[action]+' ':'')+labels[action], descriptions[action] + ' ' + group.name, Boolean(displayedRole?.actions.includes(action)))) })).filter(group => group.actions.length || group.pages.length);
   const selectableActions=visibleGroups.flatMap(group=>group.actions).filter(action=>!props.service.roleManagement?.supportedActions || props.service.roleManagement.supportedActions.includes(action));
   const selectablePages=visibleGroups.flatMap(group=>group.pages).filter(page=>page!=='schema' && (!props.service.roleManagement?.supportedSettingsPages || props.service.roleManagement.supportedSettingsPages.includes(page)));
   const selectPermissions=(checked:boolean,actions:RoleAction[],pages:SettingsPageKey[]):void=>{
@@ -174,11 +187,11 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
       <button type="button" aria-current={tab === 'roles' ? 'page' : undefined} className={tab === 'roles' ? styles.activeNav : undefined} disabled={busy} onClick={() => setTab('roles')}><Icon iconName="Shield" />Roles &amp; Permissions</button>
     </nav>}
     {tab === 'users' && <div className={styles.pageAlerts}>
-      <MessageBar className={styles.usersInfoAlert}>{props.service.storageProvider==='laravel' ? 'Add existing Microsoft 365 users and assign DeskPilot access for the selected department. Application roles and account status are managed by Super Admins; department admins can configure role permissions.' : 'Add existing Microsoft 365 users and assign helpdesk roles. Active and inactive refer to assigned DeskPilot access. Site owners retain Super Admin access.'}</MessageBar>
+      <CollapsibleInfoAlert>{props.service.storageProvider==='laravel' ? 'Add existing Microsoft 365 users and assign DeskPilot access for the selected department. Administrators with Manage users permission can manage staff in their departments. Roles and account status apply across the organization.' : 'Add existing Microsoft 365 users and assign helpdesk roles. Active and inactive refer to assigned DeskPilot access. Site owners retain Super Admin access.'}</CollapsibleInfoAlert>
       {userNotice && <MessageBar messageBarType={MessageBarType.success} onDismiss={() => setUserNotice('')}>{userNotice}</MessageBar>}
     </div>}
     {tab === 'roles' && !props.cardLayout && <div className={styles.pageAlerts}>
-      <MessageBar className={styles.usersInfoAlert}>{props.service.storageProvider==='laravel' ? 'Role permissions apply within the selected department. Laravel enforces access on every request. Super Admin access is managed separately from these role settings.' : 'Super Admin permissions are fixed and managed through SharePoint site ownership. Role permissions here control what users can do in DeskPilot. SharePoint and list permissions still apply.'}</MessageBar>
+      <CollapsibleInfoAlert>{props.service.storageProvider==='laravel' ? 'Role permissions apply within the selected department. Laravel enforces access on every request. Super Admin access is managed separately from these role settings.' : 'Super Admin permissions are fixed and managed through SharePoint site ownership. Role permissions here control what users can do in DeskPilot. SharePoint and list permissions still apply.'}</CollapsibleInfoAlert>
     </div>}
     <div className={props.cardLayout?roleStyles.detailsRoot:styles.ticketListCard}>
     {error && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}
@@ -204,7 +217,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
         </div>
       </div>
       {props.cardLayout && !props.tableLayout && displayedRole && <div className={roleStyles.permissionGroups}>
-        {displayedRole.id==='requester' && <MessageBar>Requester permissions are fixed. Staff can follow tickets requested or created by them.</MessageBar>}
+        {displayedRole.id==='requester' && <MessageBar>User permissions are fixed. Staff can follow tickets requested or created by them.</MessageBar>}
         {displayedRole.id==='superAdmin' && <MessageBar>Super Admin has access across this organization. Its permissions are fixed.</MessageBar>}
         <div className={roleStyles.group}><h3 className={roleStyles.scopeTitle}>Ticket visibility</h3><div className={roleStyles.groupRows} role="group" aria-label="Ticket visibility">{visibleScopes.map(option=><div key={option.key} className={roleStyles.permission}><button type="button" role="switch" aria-label={option.text} aria-checked={displayedRole.scope===option.key} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={()=>{if(draft)setDraft({...draft,scope:option.key as IDeskPilotRole['scope']});}}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span><span>{option.text}</span></button></div>)}</div></div>
         {visibleGroups.map(group=>{
@@ -254,7 +267,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
       </div>}
       </div></div>{props.cardLayout && !props.tableLayout && !props.fullWidth && <aside className={roleStyles.users}><h3>Users with {displayedRole?.name} role <span className={roleStyles.chip}>{roleUsers.length}</span></h3><div className={roleStyles.userList}>{roleUsers.map(user=><div key={user.userId} className={roleStyles.user}><span className={roleStyles.avatar} aria-hidden="true"><PersonaCoin text={user.name || user.email} coinSize={28} /></span><div><strong className={roleStyles.userName}>{user.name}</strong><small>{user.email}</small></div></div>)}{!roleUsers.length && <p>No active users assigned in this department.</p>}</div></aside>}</div>
       </>}
-      {tab === 'users' && <SharePointUsersPage service={props.service} configuration={config} busy={busy} readOnly={props.service.storageProvider === 'laravel' && !props.service.access?.superAdmin} onReload={load} onNotice={setUserNotice} onSave={async assignments => {
+      {tab === 'users' && <SharePointUsersPage service={props.service} configuration={config} busy={busy} readOnly={props.service.storageProvider === 'laravel' && !config.canManageUsers} onReload={load} onNotice={setUserNotice} onSave={async assignments => {
         if (!saved.current || lock.current) throw new Error('Settings are busy. Please try again.');
         lock.current = true; setBusy(true);
         try {

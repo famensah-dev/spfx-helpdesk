@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 class DepartmentAccess
 {
-    public const ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications', 'manageFaqs'];
+    public const ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications', 'manageFaqs', 'manageUsers'];
 
-    public const CONFIGURABLE_ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla'];
+    public const CONFIGURABLE_ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla', 'manageUsers'];
 
     public const SETTINGS_PAGES = ['settings', 'roles', 'units', 'categories', 'subcategories', 'issueTypes', 'sla', 'email', 'assignment', 'faqs', 'members', 'schema'];
 
@@ -22,9 +22,6 @@ class DepartmentAccess
         if ($user->role !== 'superAdmin') {
             $query->where(function ($query) use ($user) {
                 $query->whereIn('departments.id', DB::table('department_memberships')->where('organization_id', $user->organization_id)->where('user_id', $user->id)->select('department_id'));
-                if ($user->verifiedEntraGroupIds()) {
-                    $query->orWhereIn('departments.id', DB::table('department_entra_groups')->where('organization_id', $user->organization_id)->whereIn('entra_group_id', $user->verifiedEntraGroupIds())->select('department_id'));
-                }
             });
         }
 
@@ -44,7 +41,7 @@ class DepartmentAccess
             return ['id' => 'superAdmin', 'name' => 'Super Admin', 'scope' => 'all', 'actions' => self::ACTIONS];
         }
         $defaults = [
-            'requester' => ['name' => 'Requester', 'scope' => 'own', 'actions' => ['tickets', 'faqs', 'create', 'comment']],
+            'requester' => ['name' => 'User', 'scope' => 'own', 'actions' => ['tickets', 'faqs', 'create', 'comment']],
             'agent' => ['name' => 'Agent', 'scope' => 'assignedOrCreated', 'actions' => ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'comment']],
             'admin' => ['name' => 'Administrator', 'scope' => 'all', 'actions' => self::ACTIONS],
         ];
@@ -84,6 +81,29 @@ class DepartmentAccess
         $pages = $this->settingsPages($user, $departmentId);
 
         return $this->allows($user, $departmentId) && in_array('settings', $pages, true) && in_array($page, $pages, true);
+    }
+
+    public function canManageUsers(User $user, int $departmentId): bool
+    {
+        return $user->isAdmin() && $this->can($user, $departmentId, 'manageUsers') && $this->canAccessSettings($user, $departmentId, 'roles');
+    }
+
+    public function canManageUser(User $actor, User $target, int $departmentId): bool
+    {
+        if ($actor->organization_id !== $target->organization_id || $target->role === 'superAdmin' || $actor->id === $target->id || ! $this->canManageUsers($actor, $departmentId)) {
+            return false;
+        }
+        if ($actor->role === 'superAdmin') {
+            return true;
+        }
+        // Role and enabled status are global: every affected department must be managed.
+        foreach (DB::table('department_memberships')->where('organization_id', $target->organization_id)->where('user_id', $target->id)->pluck('department_id') as $id) {
+            if (! $this->canManageUsers($actor, (int) $id)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /** No mapping rows means the lookup is shared by all departments in this organization. */
