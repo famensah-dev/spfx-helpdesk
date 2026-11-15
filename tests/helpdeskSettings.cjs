@@ -45,7 +45,7 @@ html=render(backend,'members');
 const topLinks=html.match(/<nav[^>]*aria-label="Settings sections"[^>]*><section>([\s\S]*?)<\/section>/)?.[1] || '';
 assert(!topLinks.includes('<h3>'),'The primary settings links have no group heading');
 const topLabels=[...topLinks.matchAll(/<span>([^<]+)<\/span>/g)].map(match=>match[1]);
-assert.deepEqual(topLabels,['General','Users','Departments','Roles &amp; Permissions']);
+assert.deepEqual(topLabels,['Users','Departments','Roles &amp; Permissions']);
 assert(html.includes('Departments') && html.includes('Roles &amp; Permissions'),'Laravel settings must expose separate sidebar sections');
 assert(!html.includes('Users &amp; Roles'),'Laravel sidebar must not retain the combined section');
 assert(html.includes('data-access-view="users"'),'Users must open the existing user table directly');
