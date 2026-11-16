@@ -56,3 +56,14 @@ assert(!titleRow.includes('Manage Permissions'),'Permissions are managed on each
 assert(!html.includes('Choose the department whose settings'),'The separate explanatory department row must be removed');
 html=render(backend,'departments');
 assert(!html.includes('Settings department'),'The Departments list must not be replaced by a department-selector toolbar');
+
+const extended={...backend,sla:{},supportUnits:{},notifications:{canManage:true},roleRules:{id:'admin',actions:['sla','manageTeams','manageEmail'],pageAccess:['settings','roles','sla','units','email']}};
+html=render(extended,'members');
+assert(html.includes('SLA &amp; Priorities'));
+assert(html.includes('Email &amp; Notifications'));
+assert(html.includes('Support Teams'));
+const restricted={...extended,access:{admin:true,superAdmin:false},roleRules:{id:'admin',actions:[],pageAccess:['settings','roles','sla','units','email']}};
+html=render(restricted,'members');
+assert(!html.includes('Email &amp; Notifications'));
+assert(!html.includes('Support Teams'));
+assert(!html.includes('SLA &amp; Priorities'));

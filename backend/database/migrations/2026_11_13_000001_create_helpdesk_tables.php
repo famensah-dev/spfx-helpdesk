@@ -89,6 +89,50 @@ return new class extends Migration
                 $table->foreign(['organization_id', $column])->references(['organization_id', 'id'])->on($column === 'category_id' ? 'categories' : 'issue_types');
             });
         }
+        Schema::create('department_configuration', function (Blueprint $table) {
+            $table->foreignId('organization_id')->constrained();
+            $table->foreignId('department_id');
+            $table->string('kind', 30);
+            $table->json('settings');
+            $table->timestamps();
+            $table->primary(['department_id', 'kind']);
+            $table->foreign(['organization_id', 'department_id'])->references(['organization_id', 'id'])->on('departments');
+        });
+        Schema::create('support_teams', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('organization_id')->constrained();
+            $table->foreignId('department_id');
+            $table->string('name');
+            $table->string('email')->nullable();
+            $table->boolean('active')->default(true);
+            $table->string('method')->default('Round robin');
+            $table->unsignedBigInteger('lead_member_id')->nullable();
+            $table->timestamps();
+            $table->unique(['organization_id', 'department_id', 'id']);
+            $table->unique(['department_id', 'name']);
+            $table->foreign(['organization_id', 'department_id'])->references(['organization_id', 'id'])->on('departments');
+        });
+        Schema::create('support_team_members', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('organization_id')->constrained();
+            $table->foreignId('department_id');
+            $table->foreignId('team_id');
+            $table->foreignId('user_id');
+            $table->boolean('available')->default(true);
+            $table->integer('sort_order')->default(0);
+            $table->unique(['team_id', 'user_id']);
+            $table->foreign(['organization_id', 'department_id', 'team_id'])->references(['organization_id', 'department_id', 'id'])->on('support_teams');
+            $table->foreign(['organization_id', 'user_id'])->references(['organization_id', 'id'])->on('users');
+        });
+        Schema::create('support_team_categories', function (Blueprint $table) {
+            $table->foreignId('organization_id')->constrained();
+            $table->foreignId('department_id');
+            $table->foreignId('team_id');
+            $table->foreignId('category_id');
+            $table->primary(['team_id', 'category_id']);
+            $table->foreign(['organization_id', 'department_id', 'team_id'])->references(['organization_id', 'department_id', 'id'])->on('support_teams');
+            $table->foreign(['organization_id', 'category_id'])->references(['organization_id', 'id'])->on('categories');
+        });
         Schema::create('subcategories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('organization_id')->constrained();
@@ -205,6 +249,10 @@ return new class extends Migration
         Schema::dropIfExists('knowledge_articles');
         Schema::dropIfExists('tickets');
         Schema::dropIfExists('subcategories');
+        Schema::dropIfExists('support_team_categories');
+        Schema::dropIfExists('support_team_members');
+        Schema::dropIfExists('support_teams');
+        Schema::dropIfExists('department_configuration');
         Schema::dropIfExists('category_departments');
         Schema::dropIfExists('issue_type_departments');
         Schema::dropIfExists('categories');

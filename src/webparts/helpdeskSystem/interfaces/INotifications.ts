@@ -8,6 +8,7 @@ export interface IEmailSettings {enabled:boolean;autoInvite?:boolean;sender:'cur
 export interface INotificationRecord {id:string;ticketId:number;event:NotificationEvent|'reply';subject:string;created:string;status:string;error:string;recipients:string[];inApp:boolean;}
 export interface IChangeSnapshot {status:string;assignedToId:number;}
 export interface INotificationService {
+  deliveryAvailable?:boolean;
   canManage:boolean;
   getSettings():Promise<IEmailSettings>;
   saveSettings(value:IEmailSettings):Promise<void>;

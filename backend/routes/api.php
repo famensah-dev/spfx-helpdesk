@@ -1,10 +1,12 @@
 <?php
 
 use App\Http\Controllers\ClassificationController;
+use App\Http\Controllers\DepartmentConfigurationController;
 use App\Http\Controllers\DepartmentController;
 use App\Http\Controllers\KnowledgeArticleController;
 use App\Http\Controllers\RoleAssignmentsController;
 use App\Http\Controllers\SessionController;
+use App\Http\Controllers\SupportTeamController;
 use App\Http\Controllers\TicketController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\WorkspaceSettingsController;
@@ -22,6 +24,16 @@ Route::prefix('v1')->middleware(['throttle:120,1', 'entra'])->group(function () 
     Route::delete('knowledge-articles/{id}', [KnowledgeArticleController::class, 'destroy'])->whereNumber('id');
     Route::get('departments', [DepartmentController::class, 'index']);
     Route::post('departments', [DepartmentController::class, 'create']);
+    Route::get('departments/{id}/configuration/{kind}', [DepartmentConfigurationController::class, 'show'])->whereNumber('id')->whereIn('kind', ['sla', 'email']);
+    Route::put('departments/{id}/configuration/email', [DepartmentConfigurationController::class, 'saveEmail'])->whereNumber('id');
+    Route::post('departments/{id}/sla/priorities', [DepartmentConfigurationController::class, 'savePriority'])->whereNumber('id');
+    Route::put('departments/{id}/sla/clock', [DepartmentConfigurationController::class, 'saveClock'])->whereNumber('id');
+    Route::get('departments/{department}/teams', [SupportTeamController::class, 'index'])->whereNumber('department');
+    Route::get('departments/{department}/teams/candidates', [SupportTeamController::class, 'candidates'])->whereNumber('department');
+    Route::post('departments/{department}/teams', [SupportTeamController::class, 'save'])->whereNumber('department');
+    Route::patch('departments/{department}/teams/{id}', [SupportTeamController::class, 'save'])->whereNumber('department')->whereNumber('id');
+    Route::post('departments/{department}/team-members', [SupportTeamController::class, 'saveMember'])->whereNumber('department');
+    Route::patch('departments/{department}/team-members/{id}', [SupportTeamController::class, 'saveMember'])->whereNumber('department')->whereNumber('id');
     Route::get('departments/{id}', [DepartmentController::class, 'show'])->whereNumber('id');
     Route::patch('departments/{id}', [DepartmentController::class, 'save'])->whereNumber('id');
     Route::put('departments/{id}/assignments', [RoleAssignmentsController::class, 'save'])->whereNumber('id');

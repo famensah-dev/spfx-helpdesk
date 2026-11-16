@@ -77,7 +77,7 @@ export function SupportUnitsPage({service, hideHeading=false}:{service:ITicketDa
     }
   };
   return <div className={[styles.supportUnitsPage,styles.teamsWorkspace].join(' ')}>
-    <div className="teams-page-alerts">{message && <MessageBar messageBarType={MessageBarType.success} onDismiss={()=>setMessage('')}>{message}</MessageBar>}</div>
+    <div className="teams-page-alerts">{service.storageProvider==='laravel' && <MessageBar>Teams, members, leads and category links are saved for this department. Automatic ticket routing is not enabled yet.</MessageBar>}{message && <MessageBar messageBarType={MessageBarType.success} onDismiss={()=>setMessage('')}>{message}</MessageBar>}</div>
     {selected!==0 && <div className={styles.teamsToolbar}><DefaultButton text="All Support Teams" iconProps={{iconName:'Back'}} styles={cancelButtonStyles} disabled={busy} onClick={()=>choose(0)} /></div>}
     <MissingWorkspaceNotice service={service} error={error} />
     {error && !member && !creating && <MessageBar messageBarType={MessageBarType.error}>{error}</MessageBar>}

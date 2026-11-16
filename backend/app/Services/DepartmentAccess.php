@@ -8,9 +8,9 @@ use Illuminate\Support\Facades\DB;
 
 class DepartmentAccess
 {
-    public const ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications', 'manageFaqs', 'manageUsers'];
+    public const ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'classifications', 'manageFaqs', 'manageUsers', 'manageEmail', 'manageTeams', 'sla'];
 
-    public const CONFIGURABLE_ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla', 'manageUsers'];
+    public const CONFIGURABLE_ACTIONS = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla', 'manageUsers', 'manageEmail', 'manageTeams'];
 
     public const SETTINGS_PAGES = ['settings', 'roles', 'units', 'categories', 'subcategories', 'issueTypes', 'sla', 'email', 'assignment', 'faqs', 'members', 'schema'];
 
@@ -66,7 +66,7 @@ class DepartmentAccess
 
     public function settingsPages(User $user, ?int $departmentId): array
     {
-        $implemented = ['settings', 'roles', 'categories', 'subcategories', 'issueTypes', 'faqs'];
+        $implemented = ['settings', 'roles', 'categories', 'subcategories', 'issueTypes', 'faqs', 'sla', 'email', 'units'];
         if ($user->role === 'superAdmin') {
             return $implemented;
         }

@@ -1,4 +1,4 @@
-export const roleActions = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla', 'manageUsers'] as const;
+export const roleActions = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla', 'manageUsers', 'manageEmail', 'manageTeams'] as const;
 export type RoleAction = typeof roleActions[number];
 export type TicketScope = 'own' | 'assigned' | 'assignedOrCreated' | 'newUnassigned' | 'all';
 export const settingsPageKeys = ['settings','roles','units','categories','subcategories','issueTypes','sla','email','assignment','faqs','members','schema'] as const;

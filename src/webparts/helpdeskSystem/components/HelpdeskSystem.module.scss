@@ -1307,6 +1307,7 @@
   :global(.email-notification-controls .ms-Toggle-label) { order: 0; margin: 0; font-size: 14px; font-weight: 500; }
   :global(.email-notification-controls .ms-Toggle-innerContainer) { order: 1; }
   :global(.email-settings-tabs) { background: var(--dp-bg-fff, #fff); padding: 4px 16px; border-bottom: 1px solid var(--hd-line); margin-top: 12px; margin-bottom: 6px; }
+  :global(.email-settings-tab-actions) { display: flex; align-items: center; gap: 16px; margin-left: auto; flex-shrink: 0; :global(.ms-Toggle) { margin-bottom: 0; } }
   :global(.email-event-link) { padding: 0; border: 0; background: transparent; color: var(--dp-fg-244a78, #244a78); font: inherit; text-align: left; cursor: pointer; }
   :global(.email-event-link):hover { text-decoration: underline; }
   :global(.email-event-link) { font-weight: 500; color: var(--dp-fg-172536, #172536); }

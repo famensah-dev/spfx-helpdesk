@@ -8,6 +8,9 @@ import { defaultRoleConfiguration, roleSettingsPages, validateRoleConfiguration 
 import type { IDeskPilotRole, IRoleConfiguration, IRoleManagement, IWorkspaceSettings } from '../interfaces/IRoleManagement';
 import type { AdminPage, IAdministrationService, IClassificationEntry } from '../interfaces/IAdministration';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from '../interfaces/IFaq';
+import type { ISlaService } from '../interfaces/ISla';
+import type { ISupportUnitsService, ISupportUnitData, IUnitCreationResult } from '../interfaces/ISupportUnits';
+import type { INotificationService, IEmailSettings } from '../interfaces/INotifications';
 
 export interface IBackendUser { id?: number; entra_object_id: string | null; name: string; email: string; role: 'requester' | 'agent' | 'admin' | 'superAdmin'; enabled: boolean; }
 export interface IBackendDepartment { id: number; name: string; }
@@ -19,6 +22,9 @@ export type BackendClassificationKind = 'categories' | 'subcategories' | 'issue-
 export class LaravelTicketService implements ITicketDataSource {
   public readonly storageProvider = 'laravel' as const;
   public roleManagement!: IRoleManagement;
+  public sla!: ISlaService;
+  public supportUnits!: ISupportUnitsService;
+  public notifications!: INotificationService;
   public administration!: IAdministrationService;
   public workspaceSettings!: IWorkspaceSettings;
   public settingsScope!: NonNullable<ITicketDataSource['settingsScope']>;
@@ -51,7 +57,45 @@ export class LaravelTicketService implements ITicketDataSource {
       getGroups:async()=>this.settingsScope.selectedId ? (await this.getDepartment(this.settingsScope.selectedId)).entra_group_ids : [],
       saveGroups:async ids=>{if(!this.settingsScope.selectedId)throw new Error('Select a department.');await this.saveDepartment(this.settingsScope.selectedId,{entra_group_ids:ids});}
     };
-    this.roleManagement={supportedActions:['dashboard','tickets','faqs','manageFaqs','create','edit','status','assign','priority','archive','comment','classifications','manageUsers'],supportedSettingsPages:['settings','roles','categories','subcategories','issueTypes','faqs'],load:()=>this.loadRoleConfiguration(),save:value=>this.saveRoleConfiguration(value)};
+    this.roleManagement={supportedActions:['dashboard','tickets','faqs','manageFaqs','create','edit','status','assign','priority','archive','comment','classifications','manageUsers','sla','manageEmail','manageTeams'],supportedSettingsPages:['settings','roles','categories','subcategories','issueTypes','faqs','sla','email','units'],load:()=>this.loadRoleConfiguration(),save:value=>this.saveRoleConfiguration(value)};
+    const departmentPath=():string=>{if(!this.settingsScope.selectedId)throw new Error('Select a department.');return '/departments/'+this.settingsScope.selectedId;};
+    this.sla={
+      getSettings:()=>this.request(departmentPath()+'/configuration/sla'),
+      setup:async()=>{await this.request(departmentPath()+'/configuration/sla');},
+      savePriority:async value=>{await this.request(departmentPath()+'/sla/priorities','POST',value);},
+      saveClockRules:async value=>{await this.request(departmentPath()+'/sla/clock','PUT',value);}
+    };
+    this.supportUnits={
+      load:()=>this.request<ISupportUnitData>(departmentPath()+'/teams'),
+      createUnits:async names=>{
+        const result:IUnitCreationResult={created:[],skipped:[],failed:[]};
+        const existing=new Set((await this.supportUnits.load()).units.map(unit=>unit.title.toLowerCase()));
+        for(const name of Array.from(new Set(names.map(value=>value.trim()).filter(Boolean)))){
+          if(existing.has(name.toLowerCase())){result.skipped.push(name);continue;}
+          try{await this.supportUnits.saveUnit({title:name,email:'',active:true,method:'Round robin',categoryIds:[]});existing.add(name.toLowerCase());result.created.push(name);}catch(reason){result.failed.push({name,message:reason instanceof Error?reason.message:String(reason)});}
+        }
+        return result;
+      },
+      saveUnit:async(value,id)=>{await this.request(departmentPath()+'/teams'+(id?'/'+id:''),id?'PATCH':'POST',value);},
+      saveMember:async(value,id)=>{await this.request(departmentPath()+'/team-members'+(id?'/'+id:''),id?'PATCH':'POST',value);},
+      setTeamLead:async(id,member)=>{const unit=(await this.supportUnits.load()).units.find(value=>value.id===id);if(!unit)throw new Error('This team is no longer available.');await this.supportUnits.saveUnit({...unit,teamLeadMemberId:member},id);},
+      setAutoAssignment:async()=>{throw new Error('Automatic routing is not enabled for this backend.');},
+      routeTicket:async()=>{throw new Error('Automatic routing is not enabled for this backend.');}
+    };
+    this.notifications={
+      deliveryAvailable:false,
+      canManage:Boolean(this.access.superAdmin || (this.access.admin && this.roleRules.actions.includes('manageEmail'))),
+      getSettings:async()=>{
+        const value=await this.request<Partial<IEmailSettings>>(departmentPath()+'/configuration/email');
+        if(value.rules)return value as IEmailSettings;
+        const rules={} as IEmailSettings['rules'];
+        for(const event of ['created','assigned','resolved','closed','invited','slaBreached'] as const)rules[event]={email:true,inApp:event!=='invited',to:event==='invited'||event==='slaBreached'?[]:[event==='assigned'?'assignee':'requester'],cc:[],extraTo:[],extraCc:[],subject:event==='invited'?'Invitation to {{WorkspaceName}}':'[DeskPilot #{{TicketId}}] {{TicketTitle}}',body:event==='invited'?'<p>Hello {{UserName}},</p><p>You have been invited to {{WorkspaceName}} as {{UserRole}}.</p><p>{{AppLink}}</p>':'<p>{{TicketTitle}}</p><p>{{Description}}</p><p>{{TicketLink}}</p>'};
+        return {enabled:false,autoInvite:false,sender:'current',sharedMailbox:'',replyTo:'',appUrl:typeof window!=='undefined'?window.location.href:'',rules};
+      },
+      saveSettings:async value=>{await this.request(departmentPath()+'/configuration/email','PUT',value);},
+      history:async()=>[],inbox:async()=>[],invite:async()=>false,
+      test:async()=>{throw new Error('Email delivery is not configured. Settings and templates are saved in Laravel.');}
+    };
     const kinds = {categories:'categories',subcategories:'subcategories',issueTypes:'issue-types'} as const;
     const selected = (row:IBackendClassification):boolean => !row.department_ids?.length || Boolean(this.settingsScope.selectedId && row.department_ids.includes(this.settingsScope.selectedId));
     const entry = (row:IBackendClassification,parents:IBackendClassification[]):IClassificationEntry=>({id:row.id,title:row.name,active:Boolean(row.active),sortOrder:row.sort_order,parentId:row.category_id,parentName:parents.find(parent=>parent.id===row.category_id)?.name,canEdit:row.can_edit});
@@ -149,6 +193,10 @@ export class LaravelTicketService implements ITicketDataSource {
   public async searchUsers(query: string): Promise<IOrganizationUser[]> {
     const users = await this.request<Array<{id: number; entra_object_id: string; name: string; email: string}>>('/assignees');
     return users.filter(user => `${user.name} ${user.email}`.toLowerCase().includes(query.toLowerCase())).map(user => ({id: user.entra_object_id, displayName: user.name, email: user.email, userPrincipalName: user.email, sharePointId: user.id}));
+  }
+  public getTeamCandidates():Promise<IOrganizationUser[]> {
+    if(!this.settingsScope.selectedId)throw new Error('Select a department.');
+    return this.request('/departments/'+this.settingsScope.selectedId+'/teams/candidates');
   }
   public async resolveUser(user: IOrganizationUser): Promise<IUserLookup> {
     if(user.sharePointId)return {Id:user.sharePointId,AadId:user.id,Title:user.displayName,Email:user.email};

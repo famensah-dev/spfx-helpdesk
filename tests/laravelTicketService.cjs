@@ -198,3 +198,29 @@ test('knowledge base and Need Help read backend articles and preserve draft publ
   assert.equal(requests.at(-1).method,'DELETE');
   assert(requests.at(-1).url.endsWith('/tickets/9/comments/7'));
 });
+
+test('SLA email and support team settings use selected-department Laravel endpoints without sending email',async()=>{
+  const {service,requests}=await fixture(url=>url.endsWith('/teams')?{units:[],members:[],categories:[],autoAssignEnabled:false}:url.endsWith('/teams/candidates')?[]:{configured:true,priorities:[],rules:{}},scopedSession);
+  await service.sla.getSettings(true);
+  assert(requests.at(-1).url.endsWith('/departments/4/configuration/sla'));
+  await service.sla.savePriority({name:'High',active:true,responseMinutes:60,resolutionMinutes:480});
+  assert.equal(requests.at(-1).method,'POST');
+  assert(requests.at(-1).url.endsWith('/departments/4/sla/priorities'));
+  await service.notifications.getSettings();
+  assert(requests.at(-1).url.endsWith('/departments/4/configuration/email'));
+  assert.equal(service.notifications.deliveryAvailable,false);
+  const before=requests.length;
+  assert.equal(await service.notifications.invite({},'Agent',true),false);
+  assert.equal(requests.length,before,'Settings-only mode must not submit invitations');
+  await service.supportUnits.saveUnit({title:'IT',active:true,method:'Round robin',categoryIds:[]});
+  assert(requests.at(-1).url.endsWith('/departments/4/teams'));
+  await service.supportUnits.saveMember({unitId:1,userId:5,name:'Agent',available:true,order:1});
+  assert(requests.at(-1).url.endsWith('/departments/4/team-members'));
+  await service.getTeamCandidates();
+  assert(requests.at(-1).url.endsWith('/departments/4/teams/candidates'));
+  assert(service.roleManagement.supportedActions.includes('manageEmail'));
+  assert(service.roleManagement.supportedActions.includes('manageTeams'));
+  assert(service.roleManagement.supportedSettingsPages.includes('sla'));
+  assert(service.roleManagement.supportedSettingsPages.includes('email'));
+  assert(service.roleManagement.supportedSettingsPages.includes('units'));
+});
