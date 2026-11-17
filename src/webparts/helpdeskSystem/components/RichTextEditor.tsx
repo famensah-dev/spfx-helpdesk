@@ -34,7 +34,7 @@ export function RichTextContent(props: { value: string }): React.ReactElement {
 }
 export function editorTableHtml(rows:number,columns:number,includesHeader=false):string {
   if(!Number.isInteger(rows)||!Number.isInteger(columns)||rows<1||rows>20||columns<1||columns>12)throw new Error('Use 1 to 20 rows and 1 to 12 columns.');
-  return '<table><thead><tr>'+Array.from({length:columns},(_,index)=>'<th scope="col">Header '+(index+1)+'</th>').join('')+'</tr></thead><tbody>'+Array.from({length:includesHeader ? rows-1 : rows},()=>'<tr>'+Array.from({length:columns},()=>'<td><br></td>').join('')+'</tr>').join('')+'</tbody></table><p><br></p>';
+  return '<table><thead><tr>'+Array.from({length:columns},()=>'<th scope="col"><br></th>').join('')+'</tr></thead><tbody>'+Array.from({length:includesHeader ? rows-1 : rows},()=>'<tr>'+Array.from({length:columns},()=>'<td><br></td>').join('')+'</tr>').join('')+'</tbody></table><p><br></p>';
 }
 export function TablePickerButton(props:{disabled?:boolean;onInsert:(html:string)=>void}):React.ReactElement {
   const [anchor,setAnchor]=React.useState<HTMLElement>();
@@ -77,7 +77,7 @@ export function insertEditorTableColumn(table:HTMLTableElement,index:number):HTM
   for(const row of Array.from(table.rows)){
     const header=row.parentElement?.tagName==='THEAD' || Array.from(row.cells).every(cell=>cell.tagName==='TH');
     const cell=document.createElement(header ? 'th' : 'td');
-    if(header){cell.setAttribute('scope','col');cell.textContent='Header';}else cell.appendChild(document.createElement('br'));
+    if(header)cell.setAttribute('scope','col');cell.appendChild(document.createElement('br'));
     row.insertBefore(cell,row.cells[index] || null);
   }
   return table.rows[0].cells[index];
@@ -95,14 +95,14 @@ export function TableBorderControls(props:{editor:React.RefObject<HTMLDivElement
       if(!cell || !table || !row || !editor.contains(table) || !simpleTable(table)){setTarget(undefined);return;}
       const bounds=cell.getBoundingClientRect(),rowBounds=row.getBoundingClientRect(),tableBounds=table.getBoundingClientRect(),surface=editor.parentElement!.getBoundingClientRect();
       const edges:Array<{kind:'row'|'column';distance:number;index:number;left:number;top:number}>=[
-        {kind:'row',distance:Math.abs(event.clientY-rowBounds.top),index:row.rowIndex,left:tableBounds.left-surface.left,top:rowBounds.top-surface.top-10},
-        {kind:'row',distance:Math.abs(event.clientY-rowBounds.bottom),index:row.rowIndex+1,left:tableBounds.left-surface.left,top:rowBounds.bottom-surface.top-10},
+        {kind:'row',distance:Math.abs(event.clientY-rowBounds.top),index:row.rowIndex,left:tableBounds.left-surface.left-20,top:rowBounds.top-surface.top-10},
+        {kind:'row',distance:Math.abs(event.clientY-rowBounds.bottom),index:row.rowIndex+1,left:tableBounds.left-surface.left-20,top:rowBounds.bottom-surface.top-10},
         {kind:'column',distance:Math.abs(event.clientX-bounds.left),index:cell.cellIndex,left:bounds.left-surface.left-10,top:tableBounds.top-surface.top},
         {kind:'column',distance:Math.abs(event.clientX-bounds.right),index:cell.cellIndex+1,left:bounds.right-surface.left-10,top:tableBounds.top-surface.top}
       ];
       const edge=edges.sort((a,b)=>a.distance-b.distance)[0];
       if(edge.distance>6 || (edge.kind==='column' && table.rows[0].cells.length>=12)){setTarget(undefined);return;}
-      setTarget({table,kind:edge.kind,index:edge.index,left:Math.max(0,edge.left),top:Math.max(0,edge.top)});
+      setTarget({table,kind:edge.kind,index:edge.index,left:edge.left,top:edge.top});
     };
     const hide=():void=>setTarget(undefined);
     const outside=(event:MouseEvent):void=>{if(!editor.parentElement?.contains(event.target as Node))hide();};
@@ -115,11 +115,11 @@ export function TableBorderControls(props:{editor:React.RefObject<HTMLDivElement
     const cell=target.kind==='row' ? insertEditorTableRow(target.table,target.index) : insertEditorTableColumn(target.table,target.index);
     if(cell){props.editor.current.focus();const range=document.createRange();range.selectNodeContents(cell);range.collapse(true);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);props.onChange();props.onSelection();}
     setTarget(undefined);
-  }}>+</button>}</>;
+  }}><span aria-hidden="true" />{target.kind==='row' && <i data-table-insert-preview="true" aria-hidden="true" style={{width:target.table.getBoundingClientRect().width}} />}</button>}</>;
 }
 function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onChange:()=>void;onSelection:()=>void}):React.ReactElement|null {
   const [table,setTable]=React.useState<HTMLTableElement>();
-  const [menu,setMenu]=React.useState<{left:number;top:number}>();
+  const [menu,setMenu]=React.useState<{left:number;top:number;cell?:HTMLTableCellElement}>();
   const [,refresh]=React.useReducer(value=>value+1,0);
   const latest=React.useRef(props);latest.current=props;
   const cleanup=React.useRef<(()=>void)>();
@@ -130,7 +130,7 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
       setTable(selected && editor.contains(selected) ? selected : undefined);setMenu(undefined);
       if(event.type==='contextmenu' && selected && editor.contains(selected)){
         event.preventDefault();const bounds=editor.parentElement!.getBoundingClientRect();
-        setMenu({left:Math.max(0,Math.min(event.clientX-bounds.left,bounds.width-150)),top:event.clientY-bounds.top});
+        setMenu({left:Math.max(0,Math.min(event.clientX-bounds.left,bounds.width-150)),top:event.clientY-bounds.top,cell:(event.target as Element).closest<HTMLTableCellElement>('td,th') || undefined});
       }
     };
     const outside=(event:MouseEvent):void=>{if(!editor.parentElement?.contains(event.target as Node)){setTable(undefined);setMenu(undefined);}};
@@ -143,37 +143,25 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
   if(!table || !editor?.contains(table))return null;
   const bounds=table.getBoundingClientRect(),surface=editor.parentElement!.getBoundingClientRect();
   const finish=():void=>{latest.current.onChange();latest.current.onSelection();refresh();};
-  const gesture=(event:React.PointerEvent<HTMLButtonElement>,resize:boolean):void=>{
+  const resizeTable=(event:React.PointerEvent<HTMLButtonElement>):void=>{
     event.preventDefault();setMenu(undefined);cleanup.current?.();
     const startX=event.clientX,initialWidth=bounds.width,oldWidth=table.style.width;
-    let moved=false;
     const move=(next:PointerEvent):void=>{
-      moved=moved || Math.abs(next.clientX-startX)>3 || Math.abs(next.clientY-event.clientY)>3;
-      if(resize){const available=editor.clientWidth-parseFloat(getComputedStyle(editor).paddingLeft || '0')-parseFloat(getComputedStyle(editor).paddingRight || '0');
-        if(available>0)table.style.width=Math.max(10,Math.min(100,(initialWidth+next.clientX-startX)/available*100)).toFixed(2)+'%';refresh();}
+      const available=editor.clientWidth-parseFloat(getComputedStyle(editor).paddingLeft || '0')-parseFloat(getComputedStyle(editor).paddingRight || '0');
+      if(available>0)table.style.width=Math.max(10,Math.min(100,(initialWidth+next.clientX-startX)/available*100)).toFixed(2)+'%';refresh();
     };
-    const end=(next:PointerEvent):void=>{
-      cleanup.current?.();
-      if(!resize && moved){
-        const doc=document as Document & {caretRangeFromPoint?:(x:number,y:number)=>Range|null;caretPositionFromPoint?:(x:number,y:number)=>{offsetNode:Node;offset:number}|null};
-        let range=doc.caretRangeFromPoint?.(next.clientX,next.clientY);
-        if(!range){const caret=doc.caretPositionFromPoint?.(next.clientX,next.clientY);if(caret){range=document.createRange();range.setStart(caret.offsetNode,caret.offset);range.collapse(true);}}
-        if(range && editor.contains(range.startContainer) && !table.contains(range.startContainer)){
-          const block=(range.startContainer.nodeType===1 ? range.startContainer as Element : range.startContainer.parentElement)?.closest('p,div,table,ul,ol,blockquote,h2,h3,h4');
-          if(block && block!==editor && editor.contains(block)){range.setStartBefore(block);range.collapse(true);range.insertNode(table);}
-          else {range.collapse(true);range.insertNode(table);}
-        }
-      }
-      finish();
-    };
-    const cancel=():void=>{if(resize)table.style.width=oldWidth;cleanup.current?.();refresh();};
+    const end=():void=>{cleanup.current?.();finish();};
+    const cancel=():void=>{table.style.width=oldWidth;cleanup.current?.();refresh();};
     cleanup.current=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',cancel);cleanup.current=undefined;};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);window.addEventListener('pointercancel',cancel);
   };
   return <>
-    <button type="button" data-table-handle="move" aria-label="Move table" title="Drag to move table" style={{left:Math.max(0,bounds.left-surface.left-8),top:Math.max(0,bounds.top-surface.top-8)}} onPointerDown={event=>gesture(event,false)} onKeyDown={event=>{if(event.key==='Escape'){setTable(undefined);setMenu(undefined);}}}>✥</button>
-    <button type="button" data-table-handle="resize" aria-label="Resize table" title="Drag to resize table width" style={{left:bounds.right-surface.left-6,top:bounds.bottom-surface.top-6}} onPointerDown={event=>gesture(event,true)} />
-    {menu && <div data-table-context-menu="true" role="menu" style={menu} onKeyDown={event=>{if(event.key==='Escape')setMenu(undefined);}}><button autoFocus type="button" role="menuitem" onClick={()=>{table.remove();setTable(undefined);setMenu(undefined);editor.focus();finish();}}>Delete table</button></div>}
+    <button type="button" data-table-handle="resize" aria-label="Resize table" title="Drag to resize table width" style={{left:bounds.right-surface.left-6,top:bounds.bottom-surface.top-6}} onPointerDown={resizeTable} />
+    {menu && <div data-table-context-menu="true" role="menu" style={{left:menu.left,top:menu.top}} onKeyDown={event=>{if(event.key==='Escape')setMenu(undefined);}}>
+      <button autoFocus type="button" role="menuitem" disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const row=menu.cell?.parentElement;row?.remove();if(!table.rows.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteRows" aria-hidden="true" />Delete Selected Row</button>
+      <button type="button" role="menuitem" disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const index=menu.cell?.cellIndex;if(index!==undefined)Array.from(table.rows).forEach(row=>row.cells[index]?.remove());if(!table.rows[0]?.cells.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteColumns" aria-hidden="true" />Delete Selected Column</button>
+      <button type="button" role="menuitem" onClick={()=>{table.remove();setTable(undefined);setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteTable" aria-hidden="true" />Delete Table</button>
+    </div>}
   </>;
 }
 export function handleTableTab(event:React.KeyboardEvent<HTMLElement>,editor:HTMLElement,onChange:()=>void):void {
@@ -207,7 +195,7 @@ export function RichTextEditor(props: { value: string; label?: string; required?
     const clone=host.current.cloneNode(true) as HTMLElement;
     clone.querySelectorAll<HTMLElement>('[data-email-token]').forEach(badge=>badge.replaceWith(document.createTextNode('{{'+badge.dataset.emailToken+'}}')));
     const plain=clone.textContent || '';
-    props.onChange(props.plainText ? plain.replace(/[\r\n]/g,' ') : plain.trim() ? safeDescriptionHtml(clone.innerHTML) : '');
+    props.onChange(props.plainText ? plain.replace(/[\r\n]/g,' ') : plain.trim() || clone.querySelector('table') ? safeDescriptionHtml(clone.innerHTML) : '');
   };
   const decorate=():void=>{
     if(!props.placeholders || !host.current)return;
