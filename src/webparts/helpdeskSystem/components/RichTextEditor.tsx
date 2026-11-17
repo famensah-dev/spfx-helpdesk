@@ -65,10 +65,11 @@ export function insertEditorTableRow(table:HTMLTableElement,index:number):HTMLTa
   if(!simpleTable(table) || !table.rows.length)return undefined;
   const count=table.rows[0].cells.length;
   const headerRows=table.tHead?.rows.length || (table.rows[0].querySelector('th') ? 1 : 0);
-  const next=table.rows[Math.max(headerRows,index)];
-  const body=next?.parentElement?.tagName==='TBODY' ? next.parentElement : table.tBodies[0] || table.createTBody();
+  const next=table.rows[Math.max(0,index)];
+  const inHeader=index<headerRows && next?.parentElement?.tagName==='THEAD';
+  const body=next?.parentElement && ['TBODY','THEAD'].includes(next.parentElement.tagName) ? next.parentElement : table.tBodies[0] || table.createTBody();
   const row=document.createElement('tr');
-  for(let i=0;i<count;i++){const cell=document.createElement('td');cell.appendChild(document.createElement('br'));row.appendChild(cell);}
+  for(let i=0;i<count;i++){const cell=document.createElement(inHeader ? 'th' : 'td');if(inHeader)cell.setAttribute('scope','col');cell.appendChild(document.createElement('br'));row.appendChild(cell);}
   body.insertBefore(row,next?.parentElement===body ? next : null);
   return row.cells[0];
 }
@@ -88,6 +89,7 @@ export function TableBorderControls(props:{editor:React.RefObject<HTMLDivElement
     const editor=props.editor.current;if(!editor || props.disabled){setTarget(undefined);return;}
     const click=(event:MouseEvent):void=>{
       const element=event.target instanceof Element ? event.target : undefined;
+      if(element?.closest('[data-table-border-action], [data-table-context-menu], [data-table-handle]'))return;
       let cell=element?.closest<HTMLTableCellElement>('td,th');
       const table=cell?.closest('table') || element?.closest('table') || Array.from(editor.querySelectorAll('table')).find(item=>{const bounds=item.getBoundingClientRect();return event.clientX>=bounds.left-6 && event.clientX<=bounds.right+6 && event.clientY>=bounds.top-6 && event.clientY<=bounds.bottom+6;});
       if(table && !cell)cell=Array.from(table.querySelectorAll<HTMLTableCellElement>('td,th')).find(item=>{const bounds=item.getBoundingClientRect();return event.clientX>=bounds.left-6 && event.clientX<=bounds.right+6 && event.clientY>=bounds.top-6 && event.clientY<=bounds.bottom+6;}) || null;
@@ -106,8 +108,10 @@ export function TableBorderControls(props:{editor:React.RefObject<HTMLDivElement
     };
     const hide=():void=>setTarget(undefined);
     const outside=(event:MouseEvent):void=>{if(!editor.parentElement?.contains(event.target as Node))hide();};
+    const surface=editor.parentElement!;
+    surface.addEventListener('mousemove',click);surface.addEventListener('mouseleave',hide);editor.addEventListener('contextmenu',hide);
     editor.addEventListener('click',click);editor.addEventListener('input',hide);document.addEventListener('mousedown',outside);window.addEventListener('resize',hide);window.addEventListener('scroll',hide,true);
-    return()=>{editor.removeEventListener('click',click);editor.removeEventListener('input',hide);document.removeEventListener('mousedown',outside);window.removeEventListener('resize',hide);window.removeEventListener('scroll',hide,true);};
+    return()=>{surface.removeEventListener('mousemove',click);surface.removeEventListener('mouseleave',hide);editor.removeEventListener('contextmenu',hide);editor.removeEventListener('click',click);editor.removeEventListener('input',hide);document.removeEventListener('mousedown',outside);window.removeEventListener('resize',hide);window.removeEventListener('scroll',hide,true);};
   },[props.editor,props.disabled]);
   if(props.disabled)return null;
   return <><TableObjectControls {...props} />{target && <button type="button" data-table-border-action="true" style={{left:target.left,top:target.top}} aria-label={target.kind==='row' ? 'Insert row here' : 'Insert column here'} title={target.kind==='row' ? 'Insert row here' : 'Insert column here'} onMouseDown={event=>event.preventDefault()} onClick={()=>{
@@ -120,6 +124,7 @@ export function TableBorderControls(props:{editor:React.RefObject<HTMLDivElement
 function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onChange:()=>void;onSelection:()=>void}):React.ReactElement|null {
   const [table,setTable]=React.useState<HTMLTableElement>();
   const [menu,setMenu]=React.useState<{left:number;top:number;cell?:HTMLTableCellElement}>();
+  const [deletePreview,setDeletePreview]=React.useState<'row'|'column'|'table'>();
   const [,refresh]=React.useReducer(value=>value+1,0);
   const latest=React.useRef(props);latest.current=props;
   const cleanup=React.useRef<(()=>void)>();
@@ -130,6 +135,7 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
       setTable(selected && editor.contains(selected) ? selected : undefined);setMenu(undefined);
       if(event.type==='contextmenu' && selected && editor.contains(selected)){
         event.preventDefault();const bounds=editor.parentElement!.getBoundingClientRect();
+        setDeletePreview(undefined);
         setMenu({left:Math.max(0,Math.min(event.clientX-bounds.left,bounds.width-150)),top:event.clientY-bounds.top,cell:(event.target as Element).closest<HTMLTableCellElement>('td,th') || undefined});
       }
     };
@@ -155,12 +161,26 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
     cleanup.current=()=>{window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',end);window.removeEventListener('pointercancel',cancel);cleanup.current=undefined;};
     window.addEventListener('pointermove',move);window.addEventListener('pointerup',end);window.addEventListener('pointercancel',cancel);
   };
+  const insertAt=(kind:'row'|'column',after:boolean):void=>{
+    if(!menu?.cell)return;
+    const row=menu.cell.parentElement as HTMLTableRowElement;
+    const cell=kind==='row' ? insertEditorTableRow(table,row.rowIndex+(after?1:0)) : insertEditorTableColumn(table,menu.cell.cellIndex+(after?1:0));
+    setMenu(undefined);setDeletePreview(undefined);
+    if(cell){editor.focus();const range=document.createRange();range.selectNodeContents(cell);range.collapse(true);const selection=window.getSelection();selection?.removeAllRanges();selection?.addRange(range);finish();}
+  };
+  const highlighted=menu && deletePreview ? deletePreview==='table' ? [table] : menu.cell && simpleTable(table) ? deletePreview==='row' ? [menu.cell.parentElement!] : Array.from(table.rows).map(row=>row.cells[menu.cell!.cellIndex]).filter(Boolean) : [] : [];
   return <>
+    {highlighted.map((element,index)=>{const rect=element.getBoundingClientRect();return <div key={index} data-table-delete-preview="true" aria-hidden="true" style={{left:rect.left-surface.left,top:rect.top-surface.top,width:rect.width,height:rect.height}} />;})}
     <button type="button" data-table-handle="resize" aria-label="Resize table" title="Drag to resize table width" style={{left:bounds.right-surface.left-6,top:bounds.bottom-surface.top-6}} onPointerDown={resizeTable} />
     {menu && <div data-table-context-menu="true" role="menu" style={{left:menu.left,top:menu.top}} onKeyDown={event=>{if(event.key==='Escape')setMenu(undefined);}}>
-      <button autoFocus type="button" role="menuitem" disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const row=menu.cell?.parentElement;row?.remove();if(!table.rows.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteRows" aria-hidden="true" />Delete Selected Row</button>
-      <button type="button" role="menuitem" disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const index=menu.cell?.cellIndex;if(index!==undefined)Array.from(table.rows).forEach(row=>row.cells[index]?.remove());if(!table.rows[0]?.cells.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteColumns" aria-hidden="true" />Delete Selected Column</button>
-      <button type="button" role="menuitem" onClick={()=>{table.remove();setTable(undefined);setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteTable" aria-hidden="true" />Delete Table</button>
+      <button autoFocus type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table)} onClick={()=>insertAt('row',false)}><Icon iconName="InsertRowsAbove" aria-hidden="true" />Insert Row Above</button>
+      <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table)} onClick={()=>insertAt('row',true)}><Icon iconName="InsertRowsBelow" aria-hidden="true" />Insert Row Below</button>
+      <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table) || table.rows[0].cells.length>=12} onClick={()=>insertAt('column',true)}><Icon iconName="InsertColumnsRight" aria-hidden="true" />Insert Column Right</button>
+      <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table) || table.rows[0].cells.length>=12} onClick={()=>insertAt('column',false)}><Icon iconName="InsertColumnsLeft" aria-hidden="true" />Insert Column Left</button>
+      <div role="separator" data-table-menu-divider="true" />
+      <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview('row')} onFocus={()=>setDeletePreview('row')} disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const row=menu.cell?.parentElement;row?.remove();if(!table.rows.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteRows" aria-hidden="true" />Delete Selected Row</button>
+      <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview('column')} onFocus={()=>setDeletePreview('column')} disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const index=menu.cell?.cellIndex;if(index!==undefined)Array.from(table.rows).forEach(row=>row.cells[index]?.remove());if(!table.rows[0]?.cells.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteColumns" aria-hidden="true" />Delete Selected Column</button>
+      <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview('table')} onFocus={()=>setDeletePreview('table')} onClick={()=>{table.remove();setTable(undefined);setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteTable" aria-hidden="true" />Delete Table</button>
     </div>}
   </>;
 }

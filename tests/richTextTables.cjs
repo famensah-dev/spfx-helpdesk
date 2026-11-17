@@ -96,7 +96,7 @@ document.execCommand = (command, _, value) => {
   editor.parentElement.getBoundingClientRect=()=>rect(0,0,300,200);
   table.getBoundingClientRect=()=>rect(10,20,210,100);
   const row=table.rows[1],cell=row.cells[0];row.getBoundingClientRect=()=>rect(10,40,210,60);cell.getBoundingClientRect=()=>rect(10,40,76,60);
-  await act(async()=>cell.dispatchEvent(new window.MouseEvent('click',{bubbles:true,clientX:45,clientY:60})));
+  await act(async()=>cell.dispatchEvent(new window.MouseEvent('mousemove',{bubbles:true,clientX:45,clientY:60})));
   const plus=host.querySelector('[aria-label="Insert row here"]');assert(plus,'Clicking a row border offers a plus control');
   assert.equal(parseFloat(plus.style.left)+20,10,'Row insertion sits outside the table edge');
   const rowCount=table.rows.length;await act(async()=>plus.click());assert.equal(table.rows.length,rowCount+1);assert(!saved.includes('data-table-border-action'),'Editor controls are never saved with content');
@@ -111,6 +111,20 @@ document.execCommand = (command, _, value) => {
   assert(!safeDescriptionHtml('<table style="width:999%;position:fixed"><tr><td>x</td></tr></table>').includes('style='),'Unsafe table sizing styles are removed');
   const openMenu=async()=>act(async()=>cell.dispatchEvent(new window.MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:45,clientY:50})));
   await openMenu();
+  const rowOption=Array.from(host.querySelectorAll('[role="menuitem"]')).find(item=>item.textContent==='Delete Selected Row');
+  await act(async()=>Simulate.mouseEnter(rowOption));
+  assert.equal(host.querySelectorAll('[data-table-delete-preview]').length,1,'Hovering row deletion highlights the selected row');
+  const columnOption=Array.from(host.querySelectorAll('[role="menuitem"]')).find(item=>item.textContent==='Delete Selected Column');
+  await act(async()=>Simulate.mouseEnter(columnOption));
+  assert.equal(host.querySelectorAll('[data-table-delete-preview]').length,table.rows.length,'Hovering column deletion highlights that column in every row');
+  assert(!editor.querySelector('[data-table-delete-preview]'),'Deletion previews stay outside editable content');
+  for(const label of ['Insert Row Above','Insert Row Below','Insert Column Right','Insert Column Left']){
+    await openMenu();const rowsBefore=table.rows.length,columnsBefore=table.rows[0].cells.length;
+    await act(async()=>Array.from(host.querySelectorAll('[role="menuitem"]')).find(item=>item.textContent===label).click());
+    assert.equal(table.rows.length,rowsBefore+(label.includes('Row')?1:0));
+    assert.equal(table.rows[0].cells.length,columnsBefore+(label.includes('Column')?1:0));
+  }
+  await openMenu();
   const oldColumns=table.rows[0].cells.length;
   await act(async()=>Array.from(host.querySelectorAll('[role="menuitem"]')).find(item=>item.textContent==='Delete Selected Column').click());
   assert.equal(table.rows[0].cells.length,oldColumns-1);
@@ -120,8 +134,9 @@ document.execCommand = (command, _, value) => {
   await act(async()=>Array.from(host.querySelectorAll('[role="menuitem"]')).find(item=>item.textContent==='Delete Selected Row').click());
   assert.equal(table.rows.length,oldRows-1);
   await act(async()=>table.rows[0].cells[0].dispatchEvent(new window.MouseEvent('contextmenu',{bubbles:true,cancelable:true,clientX:45,clientY:50})));
-  const menuItems=Array.from(host.querySelectorAll('[role="menuitem"]'));assert.deepEqual(menuItems.map(item=>item.textContent),['Delete Selected Row','Delete Selected Column','Delete Table']);const deleteTable=menuItems[2];
+  const menuItems=Array.from(host.querySelectorAll('[role="menuitem"]'));assert.deepEqual(menuItems.map(item=>item.textContent),['Insert Row Above','Insert Row Below','Insert Column Right','Insert Column Left','Delete Selected Row','Delete Selected Column','Delete Table']);const deleteTable=menuItems[6];
   await act(async()=>deleteTable.click());assert(!editor.contains(table));assert(!saved.includes('<table'),'Deleting a table updates saved content');
+  assert(!host.querySelector('[data-table-delete-preview]'),'Closing the menu removes its preview');
   const standalone=new DOMParser().parseFromString(editorTableHtml(2,10),'text/html').querySelector('table');
   assert(insertEditorTableColumn(standalone,1));assert(insertEditorTableColumn(standalone,2));
   assert.equal(standalone.rows[0].cells.length,12);assert.equal(standalone.rows[1].cells.length,12);assert.equal(insertEditorTableColumn(standalone,0),undefined,'Column insertion stops at 12');
