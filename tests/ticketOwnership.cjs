@@ -2,7 +2,7 @@ const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescri
 function load(path,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name]||require(name),m,m.exports);return m.exports;}
 const root='src/webparts/helpdeskSystem/';
 const {applyAppRoleRules}=load(root+'services/appRoleRules.ts',{'../interfaces/IRoleManagement':load(root+'interfaces/IRoleManagement.ts')});
-const {GraphTicketService}=load(root+'services/graph/GraphTicketService.ts',{'../../utils/ticketStatuses':load(root+'utils/ticketStatuses.ts'),'../../utils/commentContent':load(root+'utils/commentContent.ts'),'./SharePointAttachments':{},'../../utils/ticketAttachments':{},'./GraphClassificationService':{},'./GraphClient':{}});
+const {GraphTicketService}=load(root+'services/graph/GraphTicketService.ts',{'./SharePointRichText':{},'../../utils/ticketStatuses':load(root+'utils/ticketStatuses.ts'),'../../utils/commentContent':load(root+'utils/commentContent.ts'),'./SharePointAttachments':{},'../../utils/ticketAttachments':{},'./GraphClassificationService':{},'./GraphClient':{}});
 (async()=>{
  const ticket={Id:1,Title:'Original',Description:'Details',Status:'New',Priority:'Low',CreatedBy:{Id:8},AssignedTo:{Id:7}};
  let calls=0;const source={getTickets:async()=>({tickets:[ticket]}),updateTicket:async()=>{calls++;},updateTickets:async()=>{calls++;}};

@@ -103,7 +103,7 @@ const item=(id,fields)=>({id:String(id),eTag:'v1',fields});
   const leadCursor=store.units[0].fields.LastMemberId;await service.routeTicket(15);assert.equal(store.tickets[14].fields.AssignedToLookupId,'11');assert.equal(store.units[0].fields.LastMemberId,leadCursor);
   store.units.push(item(998,{RecordType:'Settings',Title:'Duplicate Settings',AutoAssignEnabled:true}));assert.equal((await service.load()).autoAssignEnabled,false);await assert.rejects(service.setAutoAssignment(true),/Duplicate/);store.units.pop();
   lists.splice(lists.findIndex(list=>list.id==='unitMembers'),1);await assert.rejects(service.load(),/incomplete/);
-  const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{
+  const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/GraphTicketService.ts',{'./SharePointRichText':{},
     '../../utils/ticketStatuses':load('src/webparts/helpdeskSystem/utils/ticketStatuses.ts'),'../../utils/commentContent':load('src/webparts/helpdeskSystem/utils/commentContent.ts'),'./GraphClient':{},'./GraphClassificationService':{},'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}},
     './SharePointAttachments':{SharePointAttachments:class {async ensureEnabled(){}}}
   });

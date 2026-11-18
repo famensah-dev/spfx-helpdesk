@@ -1,3 +1,4 @@
+import { SharePointRichText } from './SharePointRichText';
 import { GraphClient } from './GraphClient';
 import type { IAppConfig } from './IAppConfig';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from '../../interfaces/IFaq';
@@ -5,6 +6,7 @@ import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from 
 interface Column { required?: boolean; name: string; displayName: string; text?: object; boolean?: object; number?: object; choice?: { choices: string[] }; readOnly?: boolean; lookup?: { listId: string; allowMultipleValues?: boolean }; }
 interface Context { publisherEmail?:string; agentEditing?:string; path: string; listId: string; fields: Record<'question' | 'answer' | 'category' | 'keywords' | 'published' | 'sortOrder', string> & { subcategory?: string }; categories?: string[]; categoryColumn: Column; subcategoryColumn?: Column; sitePath: string; requiredTitle?: string; }
 export class GraphFaqService {
+  private richText?:SharePointRichText;
   private context?: Context;
   private lookupCache?: { expires: number; request: Promise<Pick<IFaqAccess, 'categoryOptions' | 'subcategoryOptions'>> };
   private accessCache?: { expires: number; value: IFaqAccess };
@@ -115,6 +117,10 @@ export class GraphFaqService {
     if (!Number.isFinite(input.sortOrder) || input.sortOrder < 0) throw new Error('Sort order must be zero or greater.');
     if (schema.categories && input.category && !schema.categories.includes(input.category)) throw new Error('Select a category configured on the FAQs list.');
     if (id !== undefined && (!Number.isSafeInteger(id) || id <= 0)) throw new Error('Invalid FAQ ID.');
+    if(/<table\b/i.test(input.answer)){
+      this.richText ||= new SharePointRichText(this.config.siteUrl,this.getSharePointToken);
+      await this.richText.preserveTables(schema.listId,schema.fields.answer,input.answer);
+    }
     const values: Record<string, unknown> = {};
     (Object.keys(schema.fields) as Array<keyof typeof schema.fields>).forEach(key => { const name = schema.fields[key]; if (name) values[name] = typeof input[key] === 'string' ? (input[key] as string).trim() : input[key] ?? ''; });
     if (schema.requiredTitle && schema.requiredTitle !== schema.fields.question) values[schema.requiredTitle] = input.question.trim();

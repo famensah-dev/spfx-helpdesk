@@ -1,0 +1,24 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript');
+const {JSDOM}=require('jsdom');const dom=new JSDOM('');global.DOMParser=dom.window.DOMParser;global.XMLSerializer=dom.window.XMLSerializer;
+function load(path,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(path,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name] || {},m,m.exports);return m.exports;}
+const root='src/webparts/helpdeskSystem/';const rich=load(root+'services/graph/SharePointRichText.ts');
+const html='<table style="width: 75%"><thead><tr><th><b>Heading</b></th></tr></thead><tbody><tr><td>Saved cell</td></tr></tbody></table>';
+let enhanced=false,plain=false,denied=false,reads=0,upgrades=0;
+global.fetch=async(url,options)=>{if(options.method==='POST'){upgrades++;if(denied)return {ok:false};const xml=JSON.parse(options.body).SchemaXml;assert(xml.includes('RichTextMode="FullHtml"'));assert(xml.includes('RestrictedMode="FALSE"'));enhanced=true;return{ok:true};}reads++;return{ok:true,json:async()=>({TypeAsString:'Note',RichText:!plain,RestrictedMode:!enhanced,SchemaXml:'<Field Type="Note" Name="Description" RichText="TRUE" RichTextMode="'+(enhanced?'FullHtml':'Compatible')+'" />'})};};
+const config={siteUrl:'https://example.sharepoint.com/sites/help',currentUserEmail:'admin@example.com'};
+(async()=>{
+ const storage=new rich.SharePointRichText(config.siteUrl,async()=>'token');await storage.preserveTables('tickets','Description','Plain content');assert.equal(reads,0);
+ await storage.preserveTables('tickets','Description',html);assert(enhanced);assert.equal(upgrades,1);await storage.preserveTables('tickets','Description',html);assert.equal(reads,1,'Verified field checks are cached');
+ plain=true;await new rich.SharePointRichText(config.siteUrl,async()=>'token').preserveTables('comments','Content',html);assert.equal(upgrades,1,'Plain multiline HTML storage is preserved');plain=false;
+ enhanced=false;denied=true;const failed=new rich.SharePointRichText(config.siteUrl,async()=>'token');await assert.rejects(()=>failed.preserveTables('tickets','Description',html),/not been saved/);denied=false;await failed.preserveTables('tickets','Description',html);assert(enhanced,'A failed check can be retried');
+ const {GraphFaqService}=load(root+'services/graph/GraphFaqService.ts',{'./SharePointRichText':rich});let stored={};
+ const graph={get:async()=>({fields:{},eTag:'v1'}),patch:async(path,fields)=>{assert(enhanced,'Storage mode is fixed before the item write');stored={...fields};},post:async(path,item)=>{assert(enhanced);stored={...item.fields};}};
+ const faq=new GraphFaqService(graph,config,async()=>'token',{admin:true,agent:false});faq.context={listId:'faqs',path:'/faqs',fields:{question:'Title',answer:'Answer',category:'Category',keywords:'Keywords',published:'Active',sortOrder:'SortOrder'},categoryColumn:{text:{}}};faq.getAccess=async()=>({canCreate:true,canEditArticles:true});faq.lookupOptions=async()=>({});
+ const input={question:'Table article',answer:html,category:'',keywords:'',published:true,sortOrder:0};enhanced=false;await faq.save(input);assert.equal(stored.Answer,html);await faq.save({...input,answer:html.replace('Saved cell','Updated cell')},1);assert(stored.Answer.includes('Updated cell'));
+ const statuses=load(root+'utils/ticketStatuses.ts');const {GraphTicketService}=load(root+'services/graph/GraphTicketService.ts',{'./SharePointRichText':rich,'../../utils/ticketStatuses':statuses,'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}}});
+ const tickets=new GraphTicketService(graph,config,undefined,async()=>'token');tickets.context={listId:'tickets',sitePath:'/sites/site',lists:[]};tickets.editSchema={path:'/tickets',title:'Title',description:'Description',priority:'Priority',priorities:['Medium']};tickets.updateSchema={path:'/tickets',status:'Status',choices:['New','In Progress','Resolved'],assigned:'AssignedTo'};tickets.addResolutionTimestamp=async()=>{};tickets.addPauseHistory=async()=>{};tickets.notifyChange=async()=>{};
+ enhanced=false;await tickets.updateTicket(1,{title:'Table ticket',description:html,status:'New',priority:'Medium',assignedToId:null});assert.equal(stored.Description,html);
+ tickets.creationSchema={path:'/tickets',title:'Title',description:'Description',priority:'Priority',status:'Status',choices:['Medium']};await tickets.createTicket({title:'New table',description:html,priority:'Medium'});assert.equal(stored.Description,html);
+ const comment=load(root+'utils/commentContent.ts');assert.equal(comment.decodeComment(comment.encodeComment('Saved cell',html)).html,html);
+ dom.window.close();console.log('Table persistence passed: field upgrade, blocked unsafe writes, retries, article create/update, ticket create/update, and comments.');
+})().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

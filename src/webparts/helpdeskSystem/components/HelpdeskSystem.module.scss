@@ -913,6 +913,7 @@
   details[open] summary::before { content: '▾'; }
 }
 .faqAnswerPreview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 1.5; color: var(--dp-fg-172536, #172536); overflow-wrap: anywhere; }
+.faqAnswerPreview[data-has-table='true'] { display:block; max-height:180px; overflow:auto; -webkit-line-clamp:unset; }
 .ticketTable td.faqClassificationCell { font-size: 12px; }
 .faqStatusPill { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; line-height: 1.4; background: var(--dp-bg-edf0f3, #edf0f3); color: var(--dp-fg-596371, #596371); white-space: nowrap;
   &[data-active='true'] { background: var(--dp-bg-e0f5e9, #e0f5e9); color: var(--dp-fg-13794e, #13794e); }

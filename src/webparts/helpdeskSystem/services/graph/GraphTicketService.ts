@@ -1,3 +1,4 @@
+import { SharePointRichText } from './SharePointRichText';
 import { normalizeStatus, ticketStatuses } from '../../utils/ticketStatuses';
 import type { IChangeSnapshot } from '../../interfaces/INotifications';
 import { encodeComment, decodeComment } from '../../utils/commentContent';
@@ -45,6 +46,7 @@ export class GraphTicketService implements ITicketDataSource {
 
   public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.solutionSchema = undefined; this.requesterFields = undefined; this.commentSchema = undefined; this.creationFields = []; }
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
+  private richText?:SharePointRichText;
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
   private commentSchema?: { path: string; listId: string; key: string; content: string };
@@ -200,6 +202,10 @@ export class GraphTicketService implements ITicketDataSource {
     }
     if (input.description !== undefined) {
       if (!schema.description) throw new Error('The list has no Issue description text column.');
+      if(/<table\b/i.test(input.description)){
+        this.richText ||= new SharePointRichText(this.config.siteUrl,this.getSharePointToken);
+        await this.richText.preserveTables(this.context!.listId,schema.description,input.description);
+      }
       fields[schema.description] = input.description;
     }
     if ([input.category, input.subcategory, input.issueType].some(value => value !== undefined)) {
@@ -459,7 +465,11 @@ export class GraphTicketService implements ITicketDataSource {
     if(ticketSource.length>255 || (requester?.sourceChoices && !requester.sourceChoices.includes(ticketSource)))throw new Error('Choose a configured Ticket Source. Run Initialize workspace to enable Phone / Call-in.');
     if(!requester?.source && ticketSource!=='DeskPilot')throw new Error('Run Initialize workspace to add the Ticket Source field.');
     if (requester?.source) fields[requester.source] = ticketSource;
-    if (schema.description) fields[schema.description] = input.description.trim();
+    if (schema.description) {
+      this.richText ||= new SharePointRichText(this.config.siteUrl,this.getSharePointToken);
+      await this.richText.preserveTables(this.context!.listId,schema.description,input.description);
+      fields[schema.description] = input.description.trim();
+    }
     for (const key of ['category', 'subcategory', 'issueType'] as const) {
       if (input[key] && !this.creationFields.some(field => field.key === key)) throw new Error(`The ticket list has no writable ${key} column. The selected value cannot be saved.`);
     }

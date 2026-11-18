@@ -14,6 +14,8 @@ import type { IWorkspaceAccess } from '../interfaces/IWorkspaceAccess';
 import { GraphClient } from './graph/GraphClient';
 import { GraphTicketService } from './graph/GraphTicketService';
 import { GraphFaqService } from './graph/GraphFaqService';
+import { SharePointRichText } from './graph/SharePointRichText';
+import { matchingColumn } from './WorkspaceSetupService';
 import { GraphAdministrationService } from './graph/GraphAdministrationService';
 import { GraphSlaService } from './graph/GraphSlaService';
 import { SharePointRoleManagement } from './SharePointRoleManagement';
@@ -113,6 +115,12 @@ export async function createSharePointService(context: WebPartContext, listName:
     source.deleteArchivedTickets=ids=>tickets.recycleArchivedTickets(ids);
     source.workspaceMaintenance = new WorkspaceMaintenanceService(context, roles,siteUrl);
     source.workspaceSetup = new WorkspaceSetupService(graph, config, async (ids, orderedFields) => {
+      const richText=new SharePointRichText(siteUrl,sharePointToken);
+      const site=await graph.get<{id:string}>(`/sites/${new URL(siteUrl).hostname}:${new URL(siteUrl).pathname}?$select=id`);
+      for(const [listId,name] of [[ids.tickets,'Description'],[ids.faqs,'Answer']]){
+        const columns=await graph.getAll<{name:string;displayName?:string}>(`/sites/${encodeURIComponent(site.id)}/lists/${listId}/columns`);
+        const field=matchingColumn(columns,{name});if(field)await richText.prepareTables(listId,field.name);
+      }
       await ticketViews.setup(ids.ticketViews);
       const current = await roles.load();
       await roles.save({...current, workspace: {...workspaceSettings, listId: ids.tickets, resourceIds: ids}});

@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),ts=require('typescript');
 function load(file,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name]||require(name),m,m.exports);return m.exports;}
 const root='src/webparts/helpdeskSystem/';
-const {GraphTicketService}=load(root+'services/graph/GraphTicketService.ts',{'../../utils/ticketStatuses':load(root+'utils/ticketStatuses.ts'),'../../utils/commentContent':load(root+'utils/commentContent.ts'),'./GraphClassificationService':{},'./SharePointAttachments':{},'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}},'./GraphClient':{}});
+const {GraphTicketService}=load(root+'services/graph/GraphTicketService.ts',{'./SharePointRichText':{},'../../utils/ticketStatuses':load(root+'utils/ticketStatuses.ts'),'../../utils/commentContent':load(root+'utils/commentContent.ts'),'./GraphClassificationService':{},'./SharePointAttachments':{},'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}},'./GraphClient':{}});
 let fields={Status:'New',SlaPauseIntervals:'[]'},version='v1';
 const graph={get:async()=>({fields:JSON.parse(JSON.stringify(fields)),eTag:version}),patch:async(path,update,etag)=>{assert.equal(etag,'v1');Object.assign(fields,update);},post:async(path,body)=>{fields=body.fields;return{id:'2'};}};
 (async()=>{
