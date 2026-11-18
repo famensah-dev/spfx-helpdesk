@@ -2166,7 +2166,7 @@
 [data-table-handle] { position:absolute; z-index:3; width:16px; height:16px; padding:0; display:flex; align-items:center; justify-content:center; border:1px solid var(--dp-line-2855b6, #2855b6); border-radius:2px; background:var(--dp-bg-eff4ff, #eff4ff); color:var(--dp-fg-244a91, #244a91); font-size:12px; line-height:1; touch-action:none; }
 [data-table-handle='resize'] { width:12px; height:12px; cursor:nwse-resize; }
 [data-table-delete-preview] { position:absolute; z-index:3; box-sizing:border-box; pointer-events:none; border:2px solid #c74242; background:rgba(220,65,65,.14); }
-[data-table-context-menu] { position:absolute; z-index:5; min-width:150px; padding:4px; background:var(--dp-bg-ffffff, #fff); border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; box-shadow:0 3px 12px #0002;
+[data-table-context-menu] { position:relative; min-width:150px; padding:4px; background:var(--dp-bg-ffffff, #fff); border:1px solid var(--dp-line-d6e1ee, #d6e1ee); border-radius:4px; box-shadow:0 3px 12px #0002;
   [data-table-menu-divider] { height:1px; margin:4px 0; background:var(--dp-line-d6e1ee, #d6e1ee); }
   button { display:flex; align-items:center; gap:10px; white-space:nowrap; width:100%; border:0; padding:8px 12px; text-align:left; background:transparent; color:var(--dp-fg-244a91, #244a91); cursor:pointer; }
   button:hover, button:focus-visible { background:var(--dp-bg-eff4ff, #eff4ff); }
@@ -2185,6 +2185,6 @@
   span::before, span::after { content:''; position:absolute; background:currentColor; top:50%; left:50%; transform:translate(-50%,-50%); }
   span::before { width:10px; height:1px; }
   span::after { width:1px; height:10px; }
-  [data-table-insert-preview] { display:none; position:absolute; left:19px; top:50%; height:3px; transform:translateY(-50%); background:var(--dp-line-2855b6, #2855b6); box-shadow:0 0 0 2px var(--dp-bg-eff4ff, #eff4ff); pointer-events:none; }
+  [data-table-insert-preview] { display:none; position:absolute; left:9px; top:50%; height:3px; transform:translateY(-50%); background:var(--dp-line-2855b6, #2855b6); box-shadow:0 0 0 2px var(--dp-bg-eff4ff, #eff4ff); pointer-events:none; }
   &:hover [data-table-insert-preview], &:focus-visible [data-table-insert-preview] { display:block; }
 }

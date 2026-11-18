@@ -20,7 +20,7 @@ const button = props => {
   if (props.menuProps) menus[props.ariaLabel] = props.menuProps.items;
   return h('button', { type: props.type || 'button', disabled: props.disabled, 'aria-label': props.ariaLabel, onClick: props.onClick }, props.text || props.ariaLabel);
 };
-const fluent = { Icon:()=>null, Callout:p=>h('div',{'data-callout':true},p.children), IconButton: button, DefaultButton: button, PrimaryButton: button, Label: p => h('label', null, p.children), Dropdown: () => null, SearchBox: () => null };
+const fluent = { DirectionalHint:{bottomLeftEdge:4}, Icon:()=>null, Callout:p=>h('div',{'data-callout':true},p.children), IconButton: button, DefaultButton: button, PrimaryButton: button, Label: p => h('label', null, p.children), Dropdown: () => null, SearchBox: () => null };
 const styles = { default: new Proxy({}, { get: (_, key) => String(key) }) };
 const base = 'src/webparts/helpdeskSystem/';
 const rich = load(base + 'components/RichTextEditor.tsx', {
@@ -98,7 +98,7 @@ document.execCommand = (command, _, value) => {
   const row=table.rows[1],cell=row.cells[0];row.getBoundingClientRect=()=>rect(10,40,210,60);cell.getBoundingClientRect=()=>rect(10,40,76,60);
   await act(async()=>cell.dispatchEvent(new window.MouseEvent('mousemove',{bubbles:true,clientX:45,clientY:60})));
   const plus=host.querySelector('[aria-label="Insert row here"]');assert(plus,'Clicking a row border offers a plus control');
-  assert.equal(parseFloat(plus.style.left)+20,10,'Row insertion sits outside the table edge');
+  assert.equal(parseFloat(plus.style.left)+10,10,'Row insertion circle is centered on the table edge');
   const rowCount=table.rows.length;await act(async()=>plus.click());assert.equal(table.rows.length,rowCount+1);assert(!saved.includes('data-table-border-action'),'Editor controls are never saved with content');
   await act(async()=>cell.dispatchEvent(new window.MouseEvent('click',{bubbles:true,clientX:45,clientY:50})));
   assert(!host.querySelector('[aria-label="Move table"]'));assert(host.querySelector('[aria-label="Resize table"]'));

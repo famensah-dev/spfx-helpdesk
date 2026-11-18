@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { IconButton, Icon, Callout, Label, Dropdown, DefaultButton, SearchBox } from '@fluentui/react';
+import { IconButton, Icon, Callout, DirectionalHint, Label, Dropdown, DefaultButton, SearchBox } from '@fluentui/react';
 import styles from './HelpdeskSystem.module.scss';
 import { decodeHtmlEntities } from '../utils/decodeHtmlEntities';
 
@@ -97,10 +97,10 @@ export function TableBorderControls(props:{editor:React.RefObject<HTMLDivElement
       if(!cell || !table || !row || !editor.contains(table) || !simpleTable(table)){setTarget(undefined);return;}
       const bounds=cell.getBoundingClientRect(),rowBounds=row.getBoundingClientRect(),tableBounds=table.getBoundingClientRect(),surface=editor.parentElement!.getBoundingClientRect();
       const edges:Array<{kind:'row'|'column';distance:number;index:number;left:number;top:number}>=[
-        {kind:'row',distance:Math.abs(event.clientY-rowBounds.top),index:row.rowIndex,left:tableBounds.left-surface.left-20,top:rowBounds.top-surface.top-10},
-        {kind:'row',distance:Math.abs(event.clientY-rowBounds.bottom),index:row.rowIndex+1,left:tableBounds.left-surface.left-20,top:rowBounds.bottom-surface.top-10},
-        {kind:'column',distance:Math.abs(event.clientX-bounds.left),index:cell.cellIndex,left:bounds.left-surface.left-10,top:tableBounds.top-surface.top},
-        {kind:'column',distance:Math.abs(event.clientX-bounds.right),index:cell.cellIndex+1,left:bounds.right-surface.left-10,top:tableBounds.top-surface.top}
+        {kind:'row',distance:Math.abs(event.clientY-rowBounds.top),index:row.rowIndex,left:tableBounds.left-surface.left-10,top:rowBounds.top-surface.top-10},
+        {kind:'row',distance:Math.abs(event.clientY-rowBounds.bottom),index:row.rowIndex+1,left:tableBounds.left-surface.left-10,top:rowBounds.bottom-surface.top-10},
+        {kind:'column',distance:Math.abs(event.clientX-bounds.left),index:cell.cellIndex,left:bounds.left-surface.left-10,top:tableBounds.top-surface.top-10},
+        {kind:'column',distance:Math.abs(event.clientX-bounds.right),index:cell.cellIndex+1,left:bounds.right-surface.left-10,top:tableBounds.top-surface.top-10}
       ];
       const edge=edges.sort((a,b)=>a.distance-b.distance)[0];
       if(edge.distance>6 || (edge.kind==='column' && table.rows[0].cells.length>=12)){setTarget(undefined);return;}
@@ -125,6 +125,7 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
   const [table,setTable]=React.useState<HTMLTableElement>();
   const [menu,setMenu]=React.useState<{left:number;top:number;cell?:HTMLTableCellElement}>();
   const [deletePreview,setDeletePreview]=React.useState<'row'|'column'|'table'>();
+  const menuElement=React.useRef<HTMLDivElement>(null);
   const [,refresh]=React.useReducer(value=>value+1,0);
   const latest=React.useRef(props);latest.current=props;
   const cleanup=React.useRef<(()=>void)>();
@@ -134,12 +135,12 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
       const selected=(event.target as Element).closest?.('table');
       setTable(selected && editor.contains(selected) ? selected : undefined);setMenu(undefined);
       if(event.type==='contextmenu' && selected && editor.contains(selected)){
-        event.preventDefault();const bounds=editor.parentElement!.getBoundingClientRect();
+        event.preventDefault();
         setDeletePreview(undefined);
-        setMenu({left:Math.max(0,Math.min(event.clientX-bounds.left,bounds.width-150)),top:event.clientY-bounds.top,cell:(event.target as Element).closest<HTMLTableCellElement>('td,th') || undefined});
+        setMenu({left:event.clientX,top:event.clientY,cell:(event.target as Element).closest<HTMLTableCellElement>('td,th') || undefined});
       }
     };
-    const outside=(event:MouseEvent):void=>{if(!editor.parentElement?.contains(event.target as Node)){setTable(undefined);setMenu(undefined);}};
+    const outside=(event:MouseEvent):void=>{if(!editor.parentElement?.contains(event.target as Node) && !menuElement.current?.contains(event.target as Node)){setTable(undefined);setMenu(undefined);}};
     const update=():void=>{setMenu(undefined);refresh();};
     editor.addEventListener('click',select);editor.addEventListener('contextmenu',select);editor.addEventListener('input',update);
     document.addEventListener('mousedown',outside);window.addEventListener('resize',update);window.addEventListener('scroll',update,true);
@@ -172,7 +173,7 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
   return <>
     {highlighted.map((element,index)=>{const rect=element.getBoundingClientRect();return <div key={index} data-table-delete-preview="true" aria-hidden="true" style={{left:rect.left-surface.left,top:rect.top-surface.top,width:rect.width,height:rect.height}} />;})}
     <button type="button" data-table-handle="resize" aria-label="Resize table" title="Drag to resize table width" style={{left:bounds.right-surface.left-6,top:bounds.bottom-surface.top-6}} onPointerDown={resizeTable} />
-    {menu && <div data-table-context-menu="true" role="menu" style={{left:menu.left,top:menu.top}} onKeyDown={event=>{if(event.key==='Escape')setMenu(undefined);}}>
+    {menu && <Callout target={{x:menu.left,y:menu.top}} directionalHint={DirectionalHint.bottomLeftEdge} isBeakVisible={false} gapSpace={0} setInitialFocus onDismiss={()=>setMenu(undefined)} styles={{calloutMain:{overflowY:'auto',maxHeight:'calc(100vh - 16px)'}}}><div ref={menuElement} data-table-context-menu="true" role="menu" onKeyDown={event=>{if(event.key==='Escape')setMenu(undefined);}}>
       <button autoFocus type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table)} onClick={()=>insertAt('row',false)}><Icon iconName="InsertRowsAbove" aria-hidden="true" />Insert Row Above</button>
       <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table)} onClick={()=>insertAt('row',true)}><Icon iconName="InsertRowsBelow" aria-hidden="true" />Insert Row Below</button>
       <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview(undefined)} onFocus={()=>setDeletePreview(undefined)} disabled={!menu.cell || !simpleTable(table) || table.rows[0].cells.length>=12} onClick={()=>insertAt('column',true)}><Icon iconName="InsertColumnsRight" aria-hidden="true" />Insert Column Right</button>
@@ -181,7 +182,7 @@ function TableObjectControls(props:{editor:React.RefObject<HTMLDivElement>;onCha
       <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview('row')} onFocus={()=>setDeletePreview('row')} disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const row=menu.cell?.parentElement;row?.remove();if(!table.rows.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteRows" aria-hidden="true" />Delete Selected Row</button>
       <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview('column')} onFocus={()=>setDeletePreview('column')} disabled={!menu.cell || !simpleTable(table)} onClick={()=>{const index=menu.cell?.cellIndex;if(index!==undefined)Array.from(table.rows).forEach(row=>row.cells[index]?.remove());if(!table.rows[0]?.cells.length){table.remove();setTable(undefined);}setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteColumns" aria-hidden="true" />Delete Selected Column</button>
       <button type="button" role="menuitem" onMouseEnter={()=>setDeletePreview('table')} onFocus={()=>setDeletePreview('table')} onClick={()=>{table.remove();setTable(undefined);setMenu(undefined);editor.focus();finish();}}><Icon iconName="DeleteTable" aria-hidden="true" />Delete Table</button>
-    </div>}
+    </div></Callout>}
   </>;
 }
 export function handleTableTab(event:React.KeyboardEvent<HTMLElement>,editor:HTMLElement,onChange:()=>void):void {
