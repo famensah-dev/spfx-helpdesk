@@ -86,6 +86,6 @@ function RoutedHelpdeskSystem(props: IHelpdeskSystemProps): React.ReactElement {
   }
   service.openWorkspaceSetup = openSettings;
   const user = props.spContext.pageContext.user;
-  const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} /></>;
+  const accountActions = <><SharePointSettingsMenu context={props.spContext} superAdmin={Boolean(service.access?.superAdmin)} onOpenSettings={openSettings} /><SharePointAccountMenu context={props.spContext} role={service.access?.role || service.roleRules?.name} /></>;
   return <HelpdeskApp service={service} currentUserEmail={user.email} accountActions={accountActions} portalTitle={service.workspaceSettings?.title || props.portalTitle} settingsContent={settingsOpen && service.access?.superAdmin ? <SettingsPage onChangeConnection={teams || service.workspaceConnection ? ()=>setEditingConnection(true) : undefined} context={props.spContext} service={service} portalTitle={props.portalTitle} section={route.workspaceSection || 'General'} onSectionChange={section=>navigate('/workspace-settings/'+workspacePaths[section],{state:location.state})} onBack={()=>navigate(typeof location.state?.from === 'string' && location.state.from.startsWith('/') && !location.state.from.startsWith('//') ? location.state.from : '/')} /> : undefined} />;
 }

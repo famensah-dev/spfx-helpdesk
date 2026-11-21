@@ -23,6 +23,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState('');
+  const [teams,setTeams]=React.useState<Array<{id:number;title:string}>>([]);
   const [person, setPerson] = React.useState<IUserLookup | null>(null);
   const [resolving, setResolving] = React.useState(false);
   const submitting = React.useRef(false);
@@ -34,6 +35,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
     request.then(value => { if (active) { setOptions(value); setInput(current => ({ ...current, priority: value.priorities.includes('Medium') ? 'Medium' : value.priorities[0] || '' })); } })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Unable to load ticket fields.'); })
       .finally(() => { if (active) setLoading(false); });
+    props.service?.getAssignmentTeams?.().then(value=>{if(active)setTeams(value);}).catch(reason=>{if(active)setError(reason instanceof Error ? reason.message : 'Unable to load support teams.');});
     return () => { active = false; };
   }, [props.service]);
   const change = (key: keyof INewTicketInput, value: string): void => setInput(current => ({ ...current, [key]: value, ...(key === 'category' ? { subcategory: '' } : {}) }));
@@ -76,6 +78,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
           {options.assignment && <FormAssigneePicker service={props.service} value={person} disabled={saving || Boolean(createdTicketId)} onBusy={setResolving} onChange={setPerson} />}
           <ChoiceGroup className={styles.ticketPriorityChoices} label="Priority" required selectedKey={input.priority} disabled={saving} options={options.priorities.map(value => ({ key: value, text: value }))} onChange={(_, option) => change('priority', String(option?.key || ''))} />
         </div>
+        {options.assignment && teams.length>0 && <Dropdown label="Assigned Team" selectedKey={input.assignedUnitId || 0} options={[{key:0,text:'No Team'},...teams.map(team=>({key:team.id,text:team.title}))]} disabled={saving || Boolean(createdTicketId)} onChange={(_,option)=>setInput(current=>({...current,assignedUnitId:Number(option?.key) || null}))} />}
         <details className={styles.newTicketAdvanced} open={options.fields.some(item=>['category','subcategory','issueType','department','dueDate','ticketType'].includes(item.key)&&item.required) || undefined}>
           <summary><Icon iconName="ChevronDown" /><span data-fields-collapsed>Show All Fields</span><span data-fields-expanded>Show Less</span><small>Additional ticket details</small></summary>
           <div className={styles.ticketTypeDueRow}>{options.fields.filter(item=>['ticketType','dueDate'].includes(item.key)).sort((a,b)=>Number(a.key!=='ticketType')-Number(b.key!=='ticketType')).map(field)}</div>
@@ -84,7 +87,7 @@ export function NewTicketForm(props: { service?: ITicketDataSource; onDismiss: (
           <div className={styles.newTicketFields}>{options.fields.filter(item=>item.key==='department').map(field)}</div>
         </details>
       {!!options.departments?.length && <Dropdown label="Department" required selectedKey={options.departments.find(item=>item.name===input.department)?.key || input.department} options={options.departments.map(item=>({key:item.key,text:item.name}))} disabled={saving || Boolean(createdTicketId)} onChange={(_,option)=>change('department',options.departments!.find(item=>item.key===option?.key)?.name || '')} />}
-      <div className={styles.newTicketFooter}><p>{person ? 'This ticket will start In Progress with the selected assignee.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry Uploads' : 'Create Ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
+      <div className={styles.newTicketFooter}><p>{input.assignedUnitId && !person ? 'This ticket will start New, assigned to the selected team.' : person ? 'This ticket will start In Progress with the selected assignee.' : 'This ticket will start with New status and no assignee.'}</p><div><PrimaryButton type="submit" text={saving ? (createdTicketId ? 'Uploading files...' : 'Creating...') : createdTicketId ? 'Retry Uploads' : 'Create Ticket'} disabled={saving || resolving || !input.title.trim() || !input.priority} /><DefaultButton styles={cancelButtonStyles} text="Cancel" disabled={saving || resolving} onClick={props.onDismiss} /></div></div>
       </div>
     </form>}
   </section>;

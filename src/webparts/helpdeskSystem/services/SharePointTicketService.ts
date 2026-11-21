@@ -74,6 +74,9 @@ export async function createSharePointService(context: WebPartContext, listName:
     ticketViews,
     access,
     supportUnits: admin || superAdmin ? supportUnits : undefined,
+    getMyTeamAccess: async()=>{const data=await supportUnits.load();const teams=data.units.filter(team=>team.active && data.members.some(member=>member.unitId===team.id && member.userId===currentUserId));const categoryIds=[...new Set(teams.flatMap(team=>team.categoryIds))];return {teamIds:teams.map(team=>team.id),categoryIds,categoryNames:data.categories.filter(category=>categoryIds.includes(category.id)).map(category=>category.title)};},
+    getMyTeamIds: async()=>{const data=await supportUnits.load();return data.units.filter(team=>team.active && data.members.some(member=>member.unitId===team.id && member.userId===currentUserId)).map(team=>team.id);},
+    getAssignmentTeams: async()=>{const data=await supportUnits.load();return data.units.filter(team=>team.active).map(team=>({id:team.id,title:team.title}));},
     getTeamCandidates: admin || superAdmin ? () => groupAccess.members() : undefined,
     administration: role.actions.includes('classifications') ? new GraphAdministrationService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()) : undefined,
     sla: new GraphSlaService(graph, graph, config, sharePointToken, () => tickets.invalidateSchema()),
@@ -100,6 +103,7 @@ export async function createSharePointService(context: WebPartContext, listName:
     await mail.reply(ticket,text,requestId);
   };
   tickets.notificationEnabled=()=>mail.enabled();
+  tickets.sharedCommentRequests=id=>mail.acceptedCommentReplies(id);
   tickets.onTicketChanged=(ticket,before,created,resolutionEmail)=>mail.changed(ticket,before,created,resolutionEmail);
   if(admin){
     source.roleManagement=roles;

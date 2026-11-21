@@ -3,14 +3,14 @@ import type { TicketStatus, TicketPriority } from './ITicket';
 import type { IUserLookup } from './ITicket';
 import type { IFaq, IFaqInput, IFaqAccess, FaqBulkAction, IFaqBulkResult } from './IFaq';
 export interface IOrganizationUser { id: string; displayName: string; email: string; userPrincipalName: string; department?: string; sharePointId?: number; }
-export interface INewTicketInput { ticketSource?: string; requesterName?: string; requesterEmail?: string; title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; department?: string; dueDate?: string; attachments?: File[]; }
+export interface INewTicketInput { assignedUnitId?: number | null; ticketSource?: string; requesterName?: string; requesterEmail?: string; title: string; description: string; priority: string; assignedToId?: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; department?: string; dueDate?: string; attachments?: File[]; }
 export interface IClassificationOption { id: string; name: string; parentId?: string; }
 export interface ITicketClassification { categories: IClassificationOption[]; subcategories: IClassificationOption[]; issueTypes: IClassificationOption[]; listIds: { category: string; subcategory: string; issueType: string }; }
 export interface ITicketCreationOptions { departments?:Array<{key:string;name:string}>; ticketSources?: string[]; classification?: ITicketClassification; priorities: string[]; description: boolean; assignment: boolean; fields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; choices?: string[]; required?: boolean; }> }
-export interface ITicketEdit { resolutionEmail?: boolean; requestedById?: number | null; requesterName?: string; requesterEmail?: string; dueDate?: string; department?: string; ticketSource?: string; resolutionSummary?: string; title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; }
+export interface ITicketEdit { assignedUnitId?: number | null; resolutionEmail?: boolean; requestedById?: number | null; requesterName?: string; requesterEmail?: string; dueDate?: string; department?: string; ticketSource?: string; resolutionSummary?: string; title: string; description?: string; priority: TicketPriority; status: TicketStatus; assignedToId: number | null; category?: string; subcategory?: string; issueType?: string; ticketType?: string; }
 export interface ITicketAttachment { name: string; url: string; previewUrl?:string; contentUrl?:string; size?: number; created?: string; author?: string; }
 export interface ICommentPostOptions { html?: string; files?: File[]; requestId?: string; onProgress?: (message: string) => void; }
-export interface ITicketComment { canDelete?: boolean; html?: string; id: string; text: string; author: string; created: string; attachments?: ITicketAttachment[]; attachmentError?: string; }
+export interface ITicketComment { sharedWithRequester?:boolean; canDelete?: boolean; html?: string; id: string; text: string; author: string; created: string; attachments?: ITicketAttachment[]; attachmentError?: string; }
 export interface ITicketVersion { id: string; modified: string; author: string; requesterChange?: { before: string; after: string }; }
 export type TicketBulkAction = { kind: 'status'; status: TicketStatus } | { kind: 'priority'; priority: TicketPriority } | { kind: 'assign'; userId: number | null } | { kind: 'archive'; archived?: boolean };
 export interface ITicketBulkResult { succeeded: number[]; failed: Array<{ id: number; message: string }>; }
@@ -40,6 +40,12 @@ export interface ITicketDataSource {
   deleteFaq?(id: number): Promise<void>;
   updateFaqs?(ids: number[], action: FaqBulkAction): Promise<IFaqBulkResult>;
   searchUsers?(query: string, department?: string): Promise<IOrganizationUser[]>;
+  currentTeamIds?: number[];
+  currentTeamCategoryIds?:number[];
+  currentTeamCategoryNames?:string[];
+  getMyTeamAccess?():Promise<{teamIds:number[];categoryIds:number[];categoryNames:string[]}>;
+  getMyTeamIds?():Promise<number[]>;
+  getAssignmentTeams?():Promise<Array<{id:number;title:string}>>;
   getTeamCandidates?(): Promise<IOrganizationUser[]>;
   resolveUser?(user: IOrganizationUser): Promise<IUserLookup>;
   getTickets(): Promise<ITicketQueryResult>;

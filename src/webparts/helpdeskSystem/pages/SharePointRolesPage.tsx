@@ -4,12 +4,12 @@ import { UNSAFE_NavigationContext } from 'react-router-dom';
 import { DefaultButton, Dialog, DialogFooter, Dropdown, Icon, IconButton, MessageBar, MessageBarType, PrimaryButton, SearchBox, Spinner } from '@fluentui/react';
 import { SharePointUsersPage } from './SharePointUsersPage';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
-import { defaultRoleConfiguration, validateRoleConfiguration, settingsPageKeys, settingsPageLabels, roleSettingsPages } from '../interfaces/IRoleManagement';
+import { roleTeamVisibility, defaultRoleConfiguration, validateRoleConfiguration, settingsPageKeys, settingsPageLabels, roleSettingsPages } from '../interfaces/IRoleManagement';
 import type { IDeskPilotRole, IRoleConfiguration, RoleAction } from '../interfaces/IRoleManagement';
 import styles from '../components/HelpdeskSystem.module.scss';
 
 function currentRoleChanged(draft: IDeskPilotRole, current?: IDeskPilotRole): boolean {
-  return !current || roleSettingsPages(draft).length !== roleSettingsPages(current).length || roleSettingsPages(draft).some(page=>!roleSettingsPages(current).includes(page)) || draft.scope !== current.scope || draft.actions.length !== current.actions.length || draft.actions.some(action => !current.actions.includes(action));
+  return !current || JSON.stringify(roleTeamVisibility(draft))!==JSON.stringify(roleTeamVisibility(current)) || roleSettingsPages(draft).length !== roleSettingsPages(current).length || roleSettingsPages(draft).some(page=>!roleSettingsPages(current).includes(page)) || draft.scope !== current.scope || draft.actions.length !== current.actions.length || draft.actions.some(action => !current.actions.includes(action));
 }
 const labels: Record<RoleAction, string> = { dashboard: 'Dashboard Page', tickets: 'Tickets Page', faqs: 'Knowledge Base', create: 'Create Tickets', edit: 'Edit Ticket Details and Attachments', status: 'Change Status / Record Response', assign: 'Assign Tickets', priority: 'Change Priority', archive: 'Archive Tickets', comment: 'Add Comments', manageFaqs: 'Manage Knowledge Base', classifications: 'Manage Categories and Issue Types', sla: 'Manage SLA Priorities' };
 const permissionGroups: Array<{ name: string; actions: RoleAction[] }> = [
@@ -18,6 +18,11 @@ const permissionGroups: Array<{ name: string; actions: RoleAction[] }> = [
   { name: 'Administration permissions', actions: ['manageFaqs', 'classifications', 'sla'] }
 ];
 const scopeOptions = [{ key: 'assigned', text: 'Only Tickets Assigned to Them', description: 'View only tickets assigned to this user.' }, { key: 'assignedOrCreated', text: 'Assigned to Them or Created by Them', description: 'View tickets assigned to this user or entered by this user. Requester alone does not qualify.' }, { key: 'newUnassigned', text: 'All New Unassigned Tickets', description: 'View only New tickets that have no assignee.' }, { key: 'all', text: 'All Accessible Tickets', description: 'View all tickets their SharePoint access allows.' }];
+const teamVisibilityOptions=[
+  {key:'assignedTeams' as const,text:'Show Tickets Assigned to Their Teams',description:'Add tickets assigned to active support teams this agent belongs to.'},
+  {key:'categoryTeams' as const,text:'Show Tickets in Categories Handled by Their Teams',description:'Add tickets in categories handled by any of their active support teams, even without a team assignment.'},
+  {key:'assigneeOnly' as const,text:'Hide Team Tickets Once Assigned to a Person',description:'Stop additional team sharing after an individual is assigned. Other ticket visibility permissions still apply.'}
+];
 const descriptions: Record<RoleAction, string> = { dashboard: 'Access the dashboard and summary statistics.', tickets: 'Access the ticket list and ticket details.', faqs: 'Read published knowledge base articles.', create: 'Submit a new support request.', edit: 'Update ticket details and upload attachments.', status: 'Update ticket status and record the first response.', assign: 'Assign or reassign tickets to support agents.', priority: 'Change the priority of a ticket.', archive: 'Move tickets into the archive.', comment: 'Add a comment to a ticket.', manageFaqs: 'Create, edit and manage helpdesk knowledge articles.', classifications: 'Manage categories, subcategories and issue types.', sla: 'Manage response and resolution targets.' };
 
 export function SharePointRolesPage(props: { service: ITicketDataSource; hideHeading?: boolean }): React.ReactElement {
@@ -91,10 +96,12 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     const query = permissionSearch.trim().toLowerCase();
     return (accessFilter === 'all' || enabled === (accessFilter === 'enabled')) && (name + ' ' + description).toLowerCase().includes(query);
   };
-  const visibleScopes = scopeOptions.filter(option => matchesPermission(option.text, 'Ticket Visibility', displayedRole?.scope === option.key));
+  const visibleScopes = scopeOptions.filter(option => matchesPermission(option.text, 'Ticket Visibility', (displayedRole?.scope==='assignedTeams' ? 'assigned' : displayedRole?.scope) === option.key));
+  const teamRules=displayedRole ? roleTeamVisibility(displayedRole) : {assignedTeams:false,categoryTeams:false,assigneeOnly:false};
+  const visibleTeamRules=displayedRole?.id==='agent' ? teamVisibilityOptions.filter(option=>matchesPermission(option.text,option.description,teamRules[option.key])) : [];
   const displayedSettingsPages=displayedRole ? roleSettingsPages(displayedRole) : [];
   const settingsRows=settingsPageKeys.filter(key=>key!=='members' && matchesPermission(settingsPageLabels[key], 'Page access Settings', displayedSettingsPages.includes(key)));
-  const visibleGroups = permissionGroups.map((group, index) => ({ ...group, number: index + 2, actions: group.actions.filter(action => matchesPermission(labels[action], descriptions[action] + ' ' + group.name, Boolean(displayedRole?.actions.includes(action)))) })).filter(group => group.actions.length || (group.name==='Page access' && settingsRows.length));
+  const visibleGroups = permissionGroups.map((group, index) => ({ ...group, number: index + (displayedRole?.id==='agent' ? 3 : 2), actions: group.actions.filter(action => matchesPermission(labels[action], descriptions[action] + ' ' + group.name, Boolean(displayedRole?.actions.includes(action)))) })).filter(group => group.actions.length || (group.name==='Page access' && settingsRows.length));
   const prepareApply = (): void => {
     if (!draft || !saved.current) return;
     try { validateRoleConfiguration({ ...saved.current, roles: saved.current.roles.map(role => role.id === draft.id ? draft : role) }); setError(''); setConfirmation({ role: draft, restore: false }); }
@@ -118,6 +125,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
     finally { lock.current = false; setBusy(false); }
   };
   const permissionChanges = confirmation && currentRole ? [
+    ...teamVisibilityOptions.filter(option=>roleTeamVisibility(confirmation.role)[option.key]!==roleTeamVisibility(currentRole)[option.key]).map(option=>(roleTeamVisibility(confirmation.role)[option.key] ? 'Enable: ' : 'Disable: ')+option.text),
     ...confirmation.role.actions.filter(action => !currentRole.actions.includes(action)).map(action => `Allow: ${labels[action]}`),
     ...currentRole.actions.filter(action => !confirmation.role.actions.includes(action)).map(action => `Remove: ${labels[action]}`),
     ...roleSettingsPages(confirmation.role).filter(page=>!roleSettingsPages(currentRole).includes(page)).map(page=>'Show: '+settingsPageLabels[page]),
@@ -162,9 +170,12 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
           <tbody>
             {visibleScopes.length > 0 && <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>1. Ticket Visibility</th></tr>}
             {visibleScopes.map(option => <tr key={option.key}>
-              <td><button type="button" role="radio" aria-checked={displayedRole.scope === option.key} aria-label={option.text} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'] }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span></button></td><td>{option.text}</td><td>{option.description}</td>
+              <td><button type="button" role="radio" aria-checked={(displayedRole.scope==='assignedTeams' ? 'assigned' : displayedRole.scope) === option.key} aria-label={option.text} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={() => { if (draft) setDraft({ ...draft, scope: option.key as IDeskPilotRole['scope'],teamVisibility:draft.id==='agent' ? roleTeamVisibility(draft) : undefined }); }}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span></button></td><td>{option.text}</td><td>{option.description}</td>
             </tr>)}
           </tbody>
+          {visibleTeamRules.length>0 && <tbody><tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>2. Team Ticket Visibility</th></tr>{visibleTeamRules.map(option=><tr key={option.key}>
+            <td><button type="button" role="switch" aria-label={option.text} aria-checked={teamRules[option.key]} disabled={busy || !draft} className={styles.roleScopeSwitch} onClick={()=>{if(draft)setDraft({...draft,scope:draft.scope==='assignedTeams' ? 'assigned' : draft.scope,teamVisibility:{...teamRules,[option.key]:!teamRules[option.key]}});}}><span className={styles.roleSwitchTrack} aria-hidden="true"><span className={styles.roleSwitchThumb} /></span></button></td><td>{option.text}</td><td>{option.description}</td>
+          </tr>)}</tbody>}
           {visibleGroups.map(group => <tbody key={group.name}>
             <tr className={styles.permissionCategory}><th scope="rowgroup" colSpan={3}>{group.number}. {group.name}</th></tr>
             {group.actions.map(action => <tr key={action}>
@@ -186,7 +197,7 @@ export function SharePointRolesPage(props: { service: ITicketDataSource; hideHea
               <td>{settingsPageLabels[key]}</td><td>{key==='schema' ? 'Fixed to Super Admin access.' : key==='settings' ? 'Show the Settings page. Individual sections must also be enabled.' : 'Show this Settings section when its required management permissions are available.'}</td>
             </tr>)}
           </tbody>)}
-          {!visibleScopes.length && !visibleGroups.length && <tbody><tr><td colSpan={3}>No permissions match your search and access filter.</td></tr></tbody>}
+          {!visibleScopes.length && !visibleTeamRules.length && !visibleGroups.length && <tbody><tr><td colSpan={3}>No permissions match your search and access filter.</td></tr></tbody>}
         </table>
       </div>}
       </>}

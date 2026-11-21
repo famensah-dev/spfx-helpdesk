@@ -2,6 +2,7 @@ import * as React from 'react';
 import { MessageBar, MessageBarType, Panel, PanelType, PersonaCoin, PersonaSize, Spinner } from '@fluentui/react';
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { IRoleAssignment, IRoleConfiguration, RoleAction } from '../interfaces/IRoleManagement';
+import { roleTeamVisibility } from '../interfaces/IRoleManagement';
 import type { ISupportUnitData } from '../interfaces/ISupportUnits';
 import styles from './HelpdeskSystem.module.scss';
 
@@ -28,12 +29,14 @@ export function UserDetailsPanel(props:{user?:IRoleAssignment; configuration:IRo
   },[user?.userId,props.service]);
   const role=props.configuration.roles.find(item=>item.id===user?.roleId);
   const memberships=teams?.members.filter(member=>member.userId===user?.userId) || [];
-  const scope=role?.scope==='own'?'Their own requests':role?.scope==='assigned'?'Tickets assigned to them':role?.scope==='assignedOrCreated'?'Tickets assigned to them or created by them':role?.scope==='newUnassigned'?'All New tickets without an assignee':role?.scope==='all'?'All tickets allowed by SharePoint access':'Not configured';
+  const teamRules=role ? roleTeamVisibility(role) : undefined;
+  const scope=role?.scope==='own'?'Their own requests':role?.scope==='assigned'?'Tickets assigned to them':role?.scope==='assignedOrCreated'?'Tickets assigned to them or created by them':role?.scope==='assignedTeams'?'Tickets assigned to them or their support teams':role?.scope==='newUnassigned'?'All New tickets without an assignee':role?.scope==='all'?'All tickets allowed by SharePoint access':'Not configured';
   return <Panel isOpen={Boolean(user)} onDismiss={props.onDismiss} headerText="User Details" closeButtonAriaLabel="Close user details" type={PanelType.smallFixedFar}>
     {user && <div className={styles.userDetailsProfile}>
       <div className={styles.userDetailsIdentity}><PersonaCoin text={user.name} size={PersonaSize.size48} /><div><h3>{user.name}</h3><span>{user.email}</span></div></div>
       <dl className={styles.userDetailsFields}>
         <dt>Department</dt><dd>{user.department || 'Not provided'}</dd>
+        {teamRules && (teamRules.assignedTeams || teamRules.categoryTeams) && <><dt>Team Ticket Visibility</dt><dd>{[teamRules.assignedTeams && 'Tickets assigned to their teams',teamRules.categoryTeams && 'Tickets in their teams\' categories',teamRules.assigneeOnly && 'Team sharing ends after individual assignment'].filter(Boolean).join('; ')}</dd></>}
         <dt>DeskPilot Role</dt><dd>{role?.name || user.roleId}</dd>
         <dt>DeskPilot Access</dt><dd>{user.disabled?'Inactive':'Active'}</dd>
         <dt>Date Added</dt><dd>{user.addedAt && Number.isFinite(Date.parse(user.addedAt))?new Date(user.addedAt).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric',timeZone:'UTC'}):'Not recorded'}</dd>

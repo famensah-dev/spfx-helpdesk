@@ -32,6 +32,7 @@ const ticket={Id:5,Title:'Printer offline',Status:'Assigned',Priority:'Medium',C
  const graph={
   getAll:async path=>{
    if(path.includes('SettingKey'))return configuration?[configuration]:[];
+   if(path.includes('NotificationKey') && decodeURIComponent(path).includes('NotificationKey ge'))return records;
    if(path.includes('NotificationKey')){const match=decodeURIComponent(path).match(/NotificationKey eq '([^']+)'/);return records.filter(item=>item.fields.NotificationKey===match?.[1]);}
    return [{id:'settings',displayName:lists.workspaceLists.emailSettings},{id:'log',displayName:lists.workspaceLists.notificationLog}];
   },
@@ -126,5 +127,8 @@ const ticket={Id:5,Title:'Printer offline',Status:'Assigned',Priority:'Medium',C
  await assert.rejects(service.reply({...ticket,RequesterEmail:'',Requester:{}},'Hello','missing-recipient'),/valid email/);
  failSend=true;await assert.rejects(service.reply(ticket,'Hello','failed-reply'),/Check email history/);
  failSend=false;await assert.rejects(service.reply(ticket,'Hello','failed-reply'),/already submitted/);
+ const shared=await service.acceptedCommentReplies(ticket.Id);assert(shared.includes('reply-test'));assert(!shared.includes('failed-reply'),'Failed email submissions never count as shared');
+ records.push({id:'foreign',fields:{NotificationKey:'999:reply:post:other',TicketId:999,Event:'reply',DeliveryStatus:'Accepted'}});
+ assert(!(await service.acceptedCommentReplies(ticket.Id)).includes('post:other'),'Sharing metadata is scoped to the ticket');
  dom.window.close();console.log('Notification checks passed: Graph 202, safe templates, recipients, event transitions, duplicate prevention, failures, shared sender, inbox scope, admin controls, breach alerts and mutation hooks.');
 })().catch(error=>{console.error(error);dom.window.close();process.exitCode=1;});

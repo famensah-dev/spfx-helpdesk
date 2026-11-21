@@ -1,0 +1,38 @@
+const assert=require('node:assert/strict'),fs=require('fs'),ts=require('typescript');
+function load(file,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText)(name=>deps[name] || {},m,m.exports);return m.exports;}
+const root='src/webparts/helpdeskSystem/';const roles=load(root+'interfaces/IRoleManagement.ts');const {applyAppRoleRules}=load(root+'services/appRoleRules.ts',{'../interfaces/IRoleManagement':roles});
+(async()=>{
+ const config=roles.defaultRoleConfiguration();config.roles.find(role=>role.id==='agent').scope='assignedTeams';roles.validateRoleConfiguration(config);
+ const role={id:'agent',name:'Agent',scope:'assignedTeams',actions:['tickets','dashboard','create','edit','status','comment','assign']};
+ const base={Title:'Ticket',Status:'New',Priority:'Medium'};
+ const tickets=[{...base,Id:1,AssignedTo:{Id:7}},{...base,Id:2,AssignedUnitId:10,AssignedTo:{Id:8}},{...base,Id:3,AssignedUnitId:10},{...base,Id:4,AssignedUnitId:11},{...base,Id:5,CreatedBy:{Id:7},AssignedUnitId:11},{...base,Id:6}];
+ let memberships=[10],changes=[],comments=[];const source={access:{agent:true,email:'agent@example.com'},getMyTeamIds:async()=>memberships,getTickets:async()=>({tickets}),getComments:async id=>{comments.push(id);return[];},updateTicket:async(id,input)=>changes.push({id,input}),createTicket:async input=>changes.push(input),getAssignmentTeams:async()=>[{id:10,title:'IT'},{id:11,title:'Network'}]};
+ const service=applyAppRoleRules(source,role,7,'agent@example.com');assert.deepEqual((await service.getTickets()).tickets.map(ticket=>ticket.Id),[1,2,3]);assert.deepEqual(service.currentTeamIds,[10]);await service.getComments(2);await assert.rejects(()=>service.getComments(4),/outside/);assert.deepEqual(comments,[2]);
+ await service.updateTicket(2,{title:'Ticket',priority:'Medium',status:'In Progress',assignedToId:8});assert.equal(changes.length,1,'Team members can handle a team ticket when status permission is enabled');
+ await assert.rejects(()=>service.updateTicket(2,{title:'Ticket',priority:'Medium',status:'New',assignedToId:8,assignedUnitId:11}),/Agents can assign/);
+ memberships=[];assert.deepEqual((await service.getTickets()).tickets.map(ticket=>ticket.Id),[1],'Membership removal removes team visibility');
+ source.getMyTeamIds=async()=>{throw Error('Membership unavailable');};await assert.rejects(()=>service.getTickets(),/Membership unavailable/);
+ const restricted=applyAppRoleRules({...source,getMyTeamIds:undefined},role,7,'');await assert.rejects(()=>restricted.getTickets(),/membership could not be verified/);
+ const ownScope=applyAppRoleRules(source,{...role,scope:'assigned'},7,'');assert.deepEqual((await ownScope.getTickets()).tickets.map(ticket=>ticket.Id),[1],'Existing assigned scope does not expand to teams');
+ tickets[3].CategoryId=30;
+ tickets.push({...base,Id:7,CategoryId:30},{...base,Id:8,Category:'Network'},{...base,Id:9,CategoryId:99,Category:'Network'});
+ const sharing={assignedTeams:true,categoryTeams:true,assigneeOnly:false};
+ const teamSource={...source,getMyTeamAccess:async()=>({teamIds:[10],categoryIds:[30],categoryNames:['Network']})};
+ const shared=applyAppRoleRules(teamSource,{...role,scope:'assigned',teamVisibility:sharing},7,'agent@example.com');
+ assert.deepEqual((await shared.getTickets()).tickets.map(ticket=>ticket.Id),[1,2,3,4,7,8],'Team assignment and category ownership independently add visibility; lookup IDs take priority over labels');
+ sharing.assigneeOnly=true;
+ assert.deepEqual((await shared.getTickets()).tickets.map(ticket=>ticket.Id),[1,3,4,7,8],'Assignee-only handoff hides tickets assigned to teammates while preserving directly assigned tickets');
+ await assert.rejects(()=>shared.getComments(2),/outside/);
+ await shared.updateTicket(7,{title:'Ticket',priority:'Medium',status:'In Progress',assignedToId:null});
+ tickets[6].AssignedTo={Id:8};await assert.rejects(()=>shared.getComments(7),/outside/,'Category queue access ends once an individual takes the ticket');
+ const all=applyAppRoleRules(teamSource,{...role,scope:'all',teamVisibility:sharing},7,'');assert.equal((await all.getTickets()).tickets.length,tickets.length,'Team rules do not override an explicit all-accessible view');
+ const settings=roles.defaultRoleConfiguration();settings.roles[0].teamVisibility=sharing;roles.validateRoleConfiguration(JSON.parse(JSON.stringify(settings)));
+ settings.roles[0].teamVisibility={...sharing,categoryTeams:'yes'};assert.throws(()=>roles.validateRoleConfiguration(settings),/team ticket visibility/);
+ const statuses=load(root+'utils/ticketStatuses.ts');const {GraphTicketService}=load(root+'services/graph/GraphTicketService.ts',{'../../utils/ticketStatuses':statuses,'../../utils/ticketAttachments':{validateTicketAttachments:()=>{}}});
+ let active=true,writes=[],routed=0;const graph={get:async()=>({fields:{Active:active,RecordType:'Unit'}}),post:async(path,item)=>{writes.push(item.fields);return{id:'42'};},patch:async(path,fields)=>writes.push(fields)};
+ const backend=new GraphTicketService(graph,{siteUrl:'https://example.com',resourceIds:{units:'units'}},undefined,undefined,async()=>{routed++;return '';});backend.context={listId:'tickets',sitePath:'/sites/site',lists:[]};backend.assignedTeamColumn={name:'AssignedUnit',lookup:{listId:'units'}};backend.creationSchema={path:'/tickets',title:'Title',priority:'Priority',status:'Status',choices:['Medium']};backend.editSchema={path:'/tickets',title:'Title',priority:'Priority',priorities:['Medium']};backend.updateSchema={path:'/tickets',status:'Status',assigned:'AssignedTo',choices:['New','In Progress']};backend.notifyChange=async()=>{};backend.addResolutionTimestamp=async()=>{};backend.addPauseHistory=async()=>{};
+ await backend.createTicket({title:'Team ticket',description:'',priority:'Medium',assignedToId:null,assignedUnitId:10});assert.equal(writes[0].AssignedUnitLookupId,'10');assert.equal(writes[0].Status,'New');assert.equal(routed,0,'Automatic category routing preserves a manually selected team');
+ await backend.updateTicket(42,{title:'Team ticket',priority:'Medium',status:'New',assignedToId:null,assignedUnitId:11});assert.equal(writes[1].AssignedUnitLookupId,'11');await backend.updateTicket(42,{title:'Team ticket',priority:'Medium',status:'New',assignedToId:null,assignedUnitId:null});assert.equal(writes[2].AssignedUnitLookupId,null);
+ active=false;await assert.rejects(()=>backend.createTicket({title:'Team ticket',description:'',priority:'Medium',assignedUnitId:10}),/active support team/);assert.equal(writes.length,3);
+ console.log('Team ticket checks passed: role validation, visibility, comments, status, membership revocation, fail-closed checks, assignment persistence and inactive-team rejection.');
+})().catch(error=>{console.error(error);process.exitCode=1;});

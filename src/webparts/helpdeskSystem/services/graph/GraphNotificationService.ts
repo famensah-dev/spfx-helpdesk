@@ -88,6 +88,15 @@ export class GraphNotificationService {
     try{await this.graph.patch(context.log+'/items/'+claim.id+'/fields',{DeliveryStatus:error?'Failed or unconfirmed':'Accepted',Error:error});}catch{throw new Error('Reply status could not be saved. Check email history before sending again.');}
     if(error)throw new Error(error+' Check email history before sending again.');
   }
+  public async acceptedCommentReplies(ticketId:number):Promise<string[]>{
+    if(!Number.isSafeInteger(ticketId) || ticketId<=0)throw new Error('Invalid ticket ID.');
+    const context=await this.context(true);if(!context)return [];
+    // Use the indexed notification key instead of scanning the entire email history.
+    const prefix=ticketId+':reply:';
+    const filter=encodeURIComponent(`fields/NotificationKey ge '${prefix}' and fields/NotificationKey lt '${ticketId}:reply;'`);
+    const items=await this.graph.getAll<Item>(context.log+'/items?$expand=fields($select=NotificationKey,TicketId,Event,DeliveryStatus)&$filter='+filter+'&$top=200');
+    return items.filter(item=>Number(item.fields.TicketId)===ticketId && item.fields.Event==='reply' && item.fields.DeliveryStatus==='Accepted' && String(item.fields.NotificationKey).startsWith(prefix)).map(item=>String(item.fields.NotificationKey).slice(prefix.length));
+  }
   public async test(settings:IEmailSettings,event:NotificationEvent):Promise<void>{
     this.requireAdmin();validateEmailSettings(settings);if(!isEmail(this.actor.email))throw new Error('Your email address is unavailable.');
     const ticket:ITicket={Id:123,Title:'Example support request',Status:event==='closed'?'Closed':event==='resolved'?'Resolved':'New',Priority:'Medium',Created:new Date().toISOString(),Modified:new Date().toISOString(),Requester:{Title:'Example requester',Email:this.actor.email},RequesterEmail:this.actor.email,AssignedTo:{Id:1,Title:'Example agent',Email:this.actor.email},AssignedUnit:'Example team',ResolutionSummary:'The issue has been fixed.'};

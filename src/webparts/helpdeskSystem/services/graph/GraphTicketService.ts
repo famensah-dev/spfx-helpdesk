@@ -23,6 +23,7 @@ const text = (value: unknown): string => typeof value === 'string' ? value : '';
 export class GraphTicketService implements ITicketDataSource {
   public folderStore?:import('../DepartmentFolderStore').DepartmentFolderStore;
   public notificationEnabled?:()=>Promise<boolean>;
+  public sharedCommentRequests?:(ticketId:number)=>Promise<string[]>;
   public onTicketChanged?:(ticket:ITicket,before?:IChangeSnapshot,created?:boolean,resolutionEmail?:boolean)=>Promise<void>;
   private notificationWarnings=new Set<string>();
   private async captureChange(id:number,force=false):Promise<IChangeSnapshot|undefined>{
@@ -44,8 +45,9 @@ export class GraphTicketService implements ITicketDataSource {
     }catch(reason){this.notificationWarnings.add('Ticket #'+id+' was saved, but notifications need attention: '+(reason instanceof Error ? reason.message : 'Submission failed.'));}
   }
 
-  public invalidateSchema(): void { this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.solutionSchema = undefined; this.requesterFields = undefined; this.commentSchema = undefined; this.creationFields = []; }
+  public invalidateSchema(): void { this.assignedTeamColumn=undefined; this.context = undefined; this.creationSchema = undefined; this.editSchema = undefined; this.updateSchema = undefined; this.solutionSchema = undefined; this.requesterFields = undefined; this.commentSchema = undefined; this.creationFields = []; }
   private creationFields: Array<{ key: 'category' | 'subcategory' | 'issueType' | 'ticketType' | 'department' | 'dueDate'; label: string; column: IGraphColumn }> = [];
+  private assignedTeamColumn?:IGraphColumn;
   private richText?:SharePointRichText;
   private context?: { sitePath: string; listId: string; lists: IGraphList[] };
   private editSchema?: { path: string; title: string; description?: string; priority: string; priorities: string[] };
@@ -72,6 +74,17 @@ export class GraphTicketService implements ITicketDataSource {
   private creationSchema?: { path: string; title: string; status: string; priority: string; description?: string; choices: string[]; maxLength?: number };
   public constructor(private readonly graph: GraphClient, private readonly config: IAppConfig,
     private readonly directory?: GraphClient, private readonly getSharePointToken?: () => Promise<string>, private readonly routeNewTicket?: (id:number) => Promise<string>) {}
+  private async writeTeam(fields:Record<string,unknown>,id:number|null):Promise<void>{
+    const column=this.assignedTeamColumn;
+    if(!column?.lookup || column.lookup.allowMultipleValues)throw new Error('Initialize workspace to configure the Assigned Team field.');
+    if(this.config.resourceIds?.units && column.lookup.listId.toLowerCase()!==this.config.resourceIds.units.toLowerCase())throw new Error('Assigned Team must reference the Support Teams list.');
+    if(id!==null){
+      if(!Number.isSafeInteger(id) || id<=0)throw new Error('Choose a valid support team.');
+      const team=await this.graph.get<{fields:Record<string,unknown>}>(this.context!.sitePath+'/lists/'+encodeURIComponent(column.lookup.listId)+'/items/'+id+'?$expand=fields');
+      if(team.fields.Active===false || team.fields.RecordType==='Settings')throw new Error('Choose an active support team.');
+    }
+    fields[column.name+'LookupId']=id===null ? null : String(id);
+  }
   public async getPriorities(): Promise<string[]> { if (!this.editSchema) await this.getTickets(); return [...this.editSchema!.priorities]; }
   public async searchUsers(query: string, department?: string): Promise<IOrganizationUser[]> {
     if (!this.directory) throw new Error('Organization user search is not configured.');
@@ -228,6 +241,7 @@ export class GraphTicketService implements ITicketDataSource {
         }
       }
     }
+    if(input.assignedUnitId!==undefined)await this.writeTeam(fields,input.assignedUnitId);
     const notificationBefore=await this.captureChange(id,input.resolutionEmail===true);
     await this.addResolutionTimestamp(id, status, fields);
     const pauseEtag=await this.addPauseHistory(id,status,fields);
@@ -284,11 +298,14 @@ export class GraphTicketService implements ITicketDataSource {
   public async getComments(id: number): Promise<ITicketComment[]> {
     const schema = await this.commentsContext(id);
     const items = await this.graph.getAll<IGraphItem>(`${schema.path}/items?$expand=fields&$filter=${encodeURIComponent(`fields/${schema.key} eq '${schema.ticketKey}'`)}&$top=200`);
+    // Sharing metadata is optional; an unavailable email history must not hide the conversation.
+    const shared=new Set(await this.sharedCommentRequests?.(id).catch(()=>[]) || []);
     const result:ITicketComment[] = [];
     const matching = items.filter(item => item.fields[schema.key] === schema.ticketKey);
     for (let offset = 0; offset < matching.length; offset += 4) {
       result.push(...await Promise.all(matching.slice(offset,offset + 4).map(async item => {
-        const comment:ITicketComment = {id:item.id,...decodeComment(text(item.fields[schema.content])),author:item.createdBy?.user?.displayName || 'Organization user',created:item.createdDateTime};
+        const postId=/\[([a-f0-9-]{36})\]$/i.exec(text(item.fields.Title))?.[1];
+        const comment:ITicketComment = {id:item.id,sharedWithRequester:shared.has('comment:'+item.id) || Boolean(postId && shared.has('post:'+postId)),...decodeComment(text(item.fields[schema.content])),author:item.createdBy?.user?.displayName || 'Organization user',created:item.createdDateTime};
         const age=Date.now()-Date.parse(item.createdDateTime);
         comment.canDelete=Number(item.fields.AuthorLookupId)===this.config.currentUserId && Number.isFinite(age) && age>=0 && age<10*60*1000;
         if (item.fields.Attachments !== false) {
@@ -510,6 +527,7 @@ export class GraphTicketService implements ITicketDataSource {
 
     }
     if (input.attachments?.length) await this.attachments().ensureEnabled(this.context!.listId);
+    if(input.assignedUnitId!==undefined)await this.writeTeam(fields,input.assignedUnitId);
     const created=this.folderStore ? await this.folderStore.createTicket(this.context!.listId,fields,input.department || '',requesterEmail) : await this.graph.post<{id:string}>(`${schema.path}/items`,{fields});
     try {
     if (input.attachments?.length) {
@@ -522,7 +540,7 @@ export class GraphTicketService implements ITicketDataSource {
         throw error;
       }
     }
-    if (this.routeNewTicket && (input.assignedToId === null || input.assignedToId === undefined)) {
+    if (this.routeNewTicket && !input.assignedUnitId && (input.assignedToId === null || input.assignedToId === undefined)) {
       const id = Number(created?.id);
       if (!Number.isSafeInteger(id) || id<=0) throw new Error('Ticket creation returned no valid ID. Refresh before trying again.');
       try { await this.routeNewTicket(id); }
@@ -575,6 +593,7 @@ export class GraphTicketService implements ITicketDataSource {
     const issueType = optionalDisplay(['Issue Type', 'Issue / Request', 'IssueType'], ['text', 'choice', 'lookup']);
     const ticketType = optionalDisplay(['Ticket Type', 'TicketType'], ['choice']);
     const assignedUnit = optionalDisplay(['Assigned Unit','AssignedUnit'], ['lookup']);
+    this.assignedTeamColumn=assignedUnit;
     const department = optionalDisplay(['Department', 'Department / Unit', 'Unit'], ['text', 'choice']);
     const started = optionalDisplay(['Started At', 'Viewed At', 'Viewed / Started At'], ['dateTime']);
     const closed = optionalDisplay(['Closed At', 'Closed At (New)'], ['dateTime']);
@@ -594,7 +613,7 @@ export class GraphTicketService implements ITicketDataSource {
       { key: 'department' as const, label: 'Department / Unit', column: department },
       { key: 'dueDate' as const, label: 'Expected resolution date', column: due }
     ].filter((field): field is typeof field & { column: IGraphColumn } => Boolean(field.column && !field.column.readOnly));
-    const fields = [...(this.updateSchema.pause?[this.updateSchema.pause]:[]), "AuthorLookupId", ...(requesterName ? [requesterName.name] : []), ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
+    const fields = [...(category?.lookup ? [category.name+'LookupId'] : []),...(this.updateSchema.pause?[this.updateSchema.pause]:[]), "AuthorLookupId", ...(requesterName ? [requesterName.name] : []), ...(assignedUnit ? [assignedUnit.name+'LookupId'] : []), ...(requestedBy ? [requestedBy.name, `${requestedBy.name}LookupId`] : []), ...(requesterEmail ? [requesterEmail.name] : []), title.name, status.name, priority.name, assigned.name, `${assigned.name}LookupId`, ...(description ? [description.name] : []), ...[ticketSource, assignedUnit, category, resolved, response, due, escalated, archived, subcategory, issueType, ticketType, department, started, closed, resolutionSummary, solutionComment].filter((value): value is IGraphColumn => Boolean(value)).map(value => value.name)];
     const items = await this.graph.getAll<IGraphItem>(`${listPath}/items?$expand=fields($select=${fields.join(',')})&$top=200`);
     const users = new Map<number, IUserLookup>();
     const warnings: string[] = [];
@@ -620,7 +639,7 @@ export class GraphTicketService implements ITicketDataSource {
       const urgency = text(values[priority.name]) as TicketPriority;
       if (statuses.indexOf(state) < 0 || !priority.choice!.choices.includes(urgency)) throw new Error(`Ticket ${item.id} has an unsupported status or priority.`);
       const userId = Number(values[`${assigned.name}LookupId`]);
-      return { ChangeVersion:item.eTag || item['@odata.etag'], AssignedUnitId:assignedUnit ? Number(values[assignedUnit.name+'LookupId']) || undefined : undefined, Id: Number(item.id), Title: text(values[title.name]) || 'Untitled ticket', Status: state, Priority: urgency,
+      return { CategoryId:category?.lookup ? Number(values[category.name+'LookupId']) || undefined : undefined, ChangeVersion:item.eTag || item['@odata.etag'], AssignedUnitId:assignedUnit ? Number(values[assignedUnit.name+'LookupId']) || undefined : undefined, Id: Number(item.id), Title: text(values[title.name]) || 'Untitled ticket', Status: state, Priority: urgency,
         SlaPauseIntervals: (()=>{try{const parsed=JSON.parse(String(this.updateSchema?.pause?values[this.updateSchema.pause]||'null':'null'));return Array.isArray(parsed)?parsed:undefined;}catch{return undefined;}})(),
         Description: description ? text(values[description.name]) : undefined, WebUrl: item.webUrl,
         Archived: archived ? values[archived.name] === true : false,

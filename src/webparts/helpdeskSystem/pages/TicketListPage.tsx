@@ -1,7 +1,7 @@
 import { useTicketOpened } from '../hooks/useTicketOpened';
 import { calendarAppearance } from '../components/calendarAppearance';
 import { cancelButtonStyles } from '../components/cancelButtonStyles';
-import { canUse, isTicketSubmittedBy } from '../services/appRoleRules';
+import { isTicketSharedWithTeam, canUse, isTicketSubmittedBy } from '../services/appRoleRules';
 import { OrganizationUserPicker } from '../components/OrganizationUserPicker';
 import * as React from 'react';
 import { PersonaCoin, PersonaSize } from '@fluentui/react';
@@ -73,7 +73,7 @@ const columnValues = (ticket: ITicket): Array<string | number> => [ticket.Id, ti
 export const TicketListPage: React.FC<ITicketListPageProps> = ({ service, onBulkAction, onCreate, title, tickets, currentUserEmail, assignmentIdentityAvailable, loading, error, refresh, onOpenTicket, creating:routeCreating, onCreatingChange, view, onViewChange }) => {
   const agent = service?.roleRules?.id === 'agent' || service?.access?.agent === true;
   const handlingAgent = agent || (service?.roleRules?.id === 'agent' && service.roleRules.scope === 'assigned');
-  const canManageTicket = (ticket: ITicket): boolean => !handlingAgent || ticket.AssignedTo?.Email?.toLowerCase() === currentUserEmail?.toLowerCase();
+  const canManageTicket = (ticket: ITicket): boolean => !handlingAgent || isTicketSharedWithTeam(ticket,service) || ticket.AssignedTo?.Email?.toLowerCase() === currentUserEmail?.toLowerCase();
   const ownAgentRequest = (ticket: ITicket): boolean => Boolean((agent || service?.roleRules?.id === 'agent') && isTicketSubmittedBy(ticket, 0, currentUserEmail || '', service?.access?.oid));
   const canChangeStatus = (ticket: ITicket): boolean => canManageTicket(ticket) || ownAgentRequest(ticket);
   const canCloseTicket = (ticket: ITicket): boolean => Boolean((!service?.roleRules && !agent) || service?.access?.admin || service?.access?.superAdmin);

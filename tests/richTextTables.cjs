@@ -102,6 +102,16 @@ document.execCommand = (command, _, value) => {
   const rowCount=table.rows.length;await act(async()=>plus.click());assert.equal(table.rows.length,rowCount+1);assert(!saved.includes('data-table-border-action'),'Editor controls are never saved with content');
   await act(async()=>cell.dispatchEvent(new window.MouseEvent('click',{bubbles:true,clientX:45,clientY:50})));
   assert(!host.querySelector('[aria-label="Move table"]'));assert(host.querySelector('[aria-label="Resize table"]'));
+  table.rows[0].cells[0].getBoundingClientRect=()=>rect(10,20,90,40);
+  table.rows[0].cells[1].getBoundingClientRect=()=>rect(90,20,150,40);
+  table.rows[0].cells[2].getBoundingClientRect=()=>rect(150,20,210,40);
+  await act(async()=>Simulate.pointerDown(host.querySelector('[aria-label="Resize column 1"]'),{clientX:90,clientY:50,preventDefault:()=>{},stopPropagation:()=>{}}));
+  await act(async()=>window.dispatchEvent(new window.MouseEvent('pointermove',{clientX:100,clientY:50})));
+  await act(async()=>window.dispatchEvent(new window.MouseEvent('pointerup',{clientX:100,clientY:50})));
+  assert.equal(parseFloat(table.rows[0].cells[0].style.width),45);assert.equal(parseFloat(table.rows[0].cells[1].style.width),25);
+  assert.equal(parseFloat(table.rows[1].cells[0].style.width),45,'Column widths apply to every row');
+  const resized=new DOMParser().parseFromString(safeDescriptionHtml(saved),'text/html').querySelector('table');
+  assert.equal(parseFloat(resized.rows[0].cells[0].style.width),45,'Column widths survive saving and loading');
   global.getComputedStyle=window.getComputedStyle.bind(window);
   Object.defineProperty(editor,'clientWidth',{configurable:true,value:300});
   await act(async()=>Simulate.pointerDown(host.querySelector('[aria-label="Resize table"]'),{clientX:210,clientY:100,preventDefault:()=>{}}));

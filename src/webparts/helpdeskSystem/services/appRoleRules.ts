@@ -1,6 +1,6 @@
 import type { ITicketDataSource } from '../interfaces/ITicketDataSource';
 import type { ITicket, IUserLookup } from '../interfaces/ITicket';
-import { roleSettingsPages } from '../interfaces/IRoleManagement';
+import { roleSettingsPages, roleTeamVisibility } from '../interfaces/IRoleManagement';
 import type { SettingsPageKey, IDeskPilotRole, RoleAction } from '../interfaces/IRoleManagement';
 
 export function canUse(service: ITicketDataSource | undefined, action: RoleAction): boolean {
@@ -24,8 +24,18 @@ export function isTicketCreator(ticket: ITicket, userId: number, email: string, 
 export function isAgentCreatedTicket(ticket: ITicket, service: ITicketDataSource | undefined, userId = 0): boolean {
   return Boolean((service?.roleRules?.id === 'agent' || service?.access?.agent) && matchesUser(ticket.CreatedBy, userId, service?.access?.email || '', service?.access?.oid));
 }
-export function ticketInScope(ticket: ITicket, role: IDeskPilotRole, userId: number, email: string, aadId?: string): boolean {
+function sharedWithTeam(ticket:ITicket,role:IDeskPilotRole,teamIds:readonly number[],categoryIds:readonly number[],categoryNames:readonly string[]):boolean {
+  const rules=roleTeamVisibility(role);
+  if(rules.assigneeOnly && (ticket.AssignedTo?.Id || ticket.AssignedTo?.Email || ticket.AssignedTo?.AadId))return false;
+  return Boolean(rules.assignedTeams && ticket.AssignedUnitId && teamIds.includes(ticket.AssignedUnitId)) || Boolean(rules.categoryTeams && (ticket.CategoryId ? categoryIds.includes(ticket.CategoryId) : ticket.Category && categoryNames.some(name=>name.toLowerCase()===ticket.Category!.toLowerCase())));
+}
+export function isTicketSharedWithTeam(ticket:ITicket,service:ITicketDataSource|undefined):boolean {
+  return Boolean(service?.roleRules && sharedWithTeam(ticket,service.roleRules,service.currentTeamIds || [],service.currentTeamCategoryIds || [],service.currentTeamCategoryNames || []));
+}
+export function ticketInScope(ticket: ITicket, role: IDeskPilotRole, userId: number, email: string, aadId?: string, teamIds:readonly number[]=[],categoryIds:readonly number[]=[],categoryNames:readonly string[]=[]): boolean {
   if (role.scope === 'all') return true;
+  if(sharedWithTeam(ticket,role,teamIds,categoryIds,categoryNames))return true;
+  if (role.scope === 'assignedTeams') return matchesUser(ticket.AssignedTo,userId,email,aadId);
   if (role.scope === 'newUnassigned') return ticket.Status === 'New' && !ticket.AssignedTo?.Id && !ticket.AssignedTo?.Email && !ticket.AssignedTo?.AadId;
   const people = role.scope === 'own' ? [ticket.Requester] : role.scope === 'assignedOrCreated' ? [ticket.AssignedTo, ticket.CreatedBy] : [ticket.AssignedTo];
   return people.some(person => matchesUser(person, userId, email, aadId));
@@ -37,10 +47,19 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   result.roleRules = role;
   if (!source.access?.admin && !source.access?.superAdmin) result.supportUnits = undefined;
   const requireAction = (action: RoleAction): void => { if (!role.actions.includes(action)) throw new Error(`Your DeskPilot role does not allow ${action}.`); };
-  const visible = (ticket: ITicket): boolean => ticketInScope(ticket, role, userId, email, aadId);
+  const visible = (ticket: ITicket): boolean => ticketInScope(ticket, role, userId, email, aadId,result.currentTeamIds,result.currentTeamCategoryIds,result.currentTeamCategoryNames);
+  const loadTeams=async():Promise<void>=>{
+    const rules=roleTeamVisibility(role);
+    if(role.scope==='all' || !rules.assignedTeams && !rules.categoryTeams)return;
+    if(source.getMyTeamAccess){const access=await source.getMyTeamAccess();result.currentTeamIds=access.teamIds;result.currentTeamCategoryIds=access.categoryIds;result.currentTeamCategoryNames=access.categoryNames;}
+    else if(source.getMyTeamIds && !rules.categoryTeams){result.currentTeamIds=await source.getMyTeamIds();result.currentTeamCategoryIds=[];result.currentTeamCategoryNames=[];}
+    else throw new Error('Team membership could not be verified. Contact your Helpdesk Admin.');
+  };
+  result.getAssignmentTeams=source.getAssignmentTeams && (role.actions.includes('assign') || role.id==='agent' && role.actions.includes('create')) ? source.getAssignmentTeams.bind(source) : undefined;
   const createdByAgent = (ticket: ITicket): boolean => role.id === 'agent' && matchesUser(ticket.CreatedBy, userId, email, aadId);
   const requireTicket = async (id: number): Promise<ITicket> => {
     if(!role.actions.includes('tickets') && !role.actions.includes('dashboard'))throw new Error('Your DeskPilot role does not allow viewing tickets.');
+    await loadTeams();
     const ticket = (await source.getTickets()).tickets.find(item => item.Id === id);
     if (!ticket || !visible(ticket)) throw new Error('This ticket is outside your DeskPilot role’s view.');
     return ticket;
@@ -48,16 +67,18 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
   const requireManagedTicket = async (id: number): Promise<ITicket> => {
     const ticket = await requireTicket(id);
     // Seeing a submitted request does not make its creator the handling agent.
-    if (role.id === 'agent' && ['assigned', 'assignedOrCreated'].includes(role.scope) && !matchesUser(ticket.AssignedTo, userId, email, aadId)) throw new Error('Only tickets assigned to you can be managed. You can still view and comment on your submitted requests.');
+    if (role.id === 'agent' && ['assigned', 'assignedOrCreated', 'assignedTeams'].includes(role.scope) && !matchesUser(ticket.AssignedTo, userId, email, aadId) && !isTicketSharedWithTeam(ticket,result)) throw new Error('Only tickets assigned to you can be managed. You can still view and comment on your submitted requests.');
     return ticket;
   };
   result.getTickets = async () => {
     if (!role.actions.includes('dashboard') && !role.actions.includes('tickets')) return { tickets: [], isMockData: false, sourceLabel: 'SharePoint', hasResolvedAt: false, hasCategory: false, hasDueDate: false, hasEscalated: false, hasPending: false };
+    await loadTeams();
     const data = await source.getTickets(); return { ...data, tickets: data.tickets.filter(visible) };
   };
   if (source.createTicket) result.createTicket = role.actions.includes('create') ? async input => {
     requireAction('create');
     if (input.assignedToId !== null && input.assignedToId !== undefined && role.id!=='agent') requireAction('assign');
+    if(input.assignedUnitId && role.id!=='agent')requireAction('assign');
     await source.createTicket!(input);
   } : undefined;
   if (source.getCreationOptions) result.getCreationOptions = async () => {
@@ -68,6 +89,11 @@ export function applyAppRoleRules(source: ITicketDataSource, role: IDeskPilotRol
     const contentChanged = input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description) || input.category !== undefined || input.subcategory !== undefined || input.issueType !== undefined || input.ticketType !== undefined || input.requestedById !== undefined || input.requesterName !== undefined || input.requesterEmail !== undefined || input.dueDate !== undefined || input.department !== undefined || input.ticketSource !== undefined;
     if ((input.title !== ticket.Title || (input.description !== undefined && input.description !== ticket.Description)) && !matchesUser(ticket.CreatedBy,userId,email,aadId)) throw new Error('Only the ticket creator can change its title or description.');
     if(input.requestedById!==undefined || input.requesterName!==undefined || input.requesterEmail!==undefined)throw new Error('Requester details cannot be changed after ticket creation.');
+    if(input.assignedUnitId!==undefined && input.assignedUnitId!==(ticket.AssignedUnitId || null)){
+      if(role.id==='agent' && !createdByAgent(ticket))throw new Error('Agents can assign only tickets they created.');
+      if(!createdByAgent(ticket))requireAction('assign');
+      if(!createdByAgent(ticket))await requireManagedTicket(id);
+    }
     if(role.id==='agent' && input.assignedToId !== (ticket.AssignedTo?.Id || null) && !createdByAgent(ticket))throw new Error('Agents can assign only tickets they created.');
     if(role.id==='agent' && input.status==='Closed' && ticket.Status!=='Closed')throw new Error('Agents cannot close tickets.');
     const submittedAgent = role.id === 'agent' && isTicketSubmittedBy(ticket,userId,email,aadId);

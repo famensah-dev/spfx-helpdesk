@@ -4,7 +4,7 @@ global.window=dom.window;global.document=dom.window.document;global.navigator=do
 const React=require('react'),ReactDOM=require('react-dom'),{act}=require('react-dom/test-utils'),h=React.createElement;
 function load(file,deps={}){const m={exports:{}};new Function('require','module','exports',ts.transpileModule(fs.readFileSync(file,'utf8'),{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020,jsx:ts.JsxEmit.React}}).outputText)(key=>deps[key]||require(key),m,m.exports);return m.exports;}
 const roles=load('src/webparts/helpdeskSystem/interfaces/IRoleManagement.ts');
-const fluent={DefaultButton:({text,onClick,disabled})=>h('button',{onClick,disabled},text),PrimaryButton:({text,onClick,disabled})=>h('button',{onClick,disabled},text),Spinner:({label})=>h('div',{role:'status'},label),MessageBar:({children})=>h('div',null,children),MessageBarType:{error:1},Icon:()=>null,Dialog:()=>null,DialogFooter:()=>null,Dropdown:({label})=>h('div',null,label)};
+const fluent={IconButton:()=>null,SearchBox:()=>null,DefaultButton:({text,onClick,disabled})=>h('button',{onClick,disabled},text),PrimaryButton:({text,onClick,disabled})=>h('button',{onClick,disabled},text),Spinner:({label})=>h('div',{role:'status'},label),MessageBar:({children})=>h('div',null,children),MessageBarType:{error:1},Icon:()=>null,Dialog:()=>null,DialogFooter:()=>null,Dropdown:({label})=>h('div',null,label)};
 const {SharePointRolesPage}=load('src/webparts/helpdeskSystem/pages/SharePointRolesPage.tsx',{'@fluentui/react':fluent,'../interfaces/IRoleManagement':roles,'../components/HelpdeskSystem.module.scss':{default:{}},'../components/cancelButtonStyles':{cancelButtonStyles:{}},'./SharePointUsersPage':{SharePointUsersPage:()=>h('div',null,'User list')}});
 const host=document.getElementById('app');let rejectFirst,calls=0;
 const pending=new Promise((resolve,reject)=>{rejectFirst=reject;});
@@ -17,6 +17,7 @@ const button=text=>[...host.querySelectorAll('button')].find(item=>item.textCont
  await act(async()=>button('Retry').click());assert(host.textContent.includes('User list'));assert(!button('Retry'));
  await act(async()=>button('Roles & Permissions').click());
  const nav=host.querySelector('nav[aria-label="Role permissions"]');assert(nav);assert.equal(nav.querySelectorAll('button').length,2);assert(!nav.textContent.includes('Requester'));
+ assert(host.querySelector('[aria-label="Show Tickets Assigned to Their Teams"]'),'Team visibility is available on the permission page');
  await act(async()=>[...nav.querySelectorAll('button')].find(item=>item.textContent==='Helpdesk Admin').click());
  assert.equal(nav.querySelector('[aria-current="page"]').textContent,'Helpdesk Admin');
  await act(async()=>ReactDOM.unmountComponentAtNode(host));dom.window.close();console.log('Role loading passed: pending, failed, retry success and role tabs.');process.exit(0);

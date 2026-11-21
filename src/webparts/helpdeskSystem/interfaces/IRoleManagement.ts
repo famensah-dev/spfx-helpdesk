@@ -1,10 +1,14 @@
 export const roleActions = ['dashboard', 'tickets', 'faqs', 'create', 'edit', 'status', 'assign', 'priority', 'archive', 'comment', 'manageFaqs', 'classifications', 'sla'] as const;
 export type RoleAction = typeof roleActions[number];
-export type TicketScope = 'own' | 'assigned' | 'assignedOrCreated' | 'newUnassigned' | 'all';
+export type TicketScope = 'own' | 'assigned' | 'assignedOrCreated' | 'assignedTeams' | 'newUnassigned' | 'all';
 export const settingsPageKeys = ['settings','roles','units','categories','subcategories','issueTypes','sla','email','assignment','faqs','members','schema'] as const;
 export type SettingsPageKey = typeof settingsPageKeys[number];
 export const settingsPageLabels:Record<SettingsPageKey,string> = {settings:'Settings Page',roles:'Settings: Users & Roles',units:'Settings: Support Teams',categories:'Settings: Categories',subcategories:'Settings: Subcategories',issueTypes:'Settings: Issue Types',sla:'Settings: SLA & Priorities',email:'Settings: Email & Notifications',assignment:'Settings: Assignment',faqs:'Settings: Knowledge Base',members:'Settings: Users',schema:'Settings: Ticket List Schema (Super Admin only)'};
-export interface IDeskPilotRole { pageAccess?: SettingsPageKey[]; id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
+export interface ITeamTicketVisibility { assignedTeams:boolean; categoryTeams:boolean; assigneeOnly:boolean; }
+export interface IDeskPilotRole { teamVisibility?:ITeamTicketVisibility; pageAccess?: SettingsPageKey[]; id: string; name: string; scope: TicketScope; actions: RoleAction[]; }
+export function roleTeamVisibility(role:IDeskPilotRole):ITeamTicketVisibility {
+  return role.teamVisibility || {assignedTeams:role.scope==='assignedTeams',categoryTeams:false,assigneeOnly:false};
+}
 export interface IRoleAssignment { userId: number; name: string; email: string; roleId: string; department?: string; addedAt?: string; disabled?: boolean; }
 export interface IWorkspaceSettings { title: string; description: string; listName: string; listId: string; resourceIds?: Record<string, string>; departmentFolders?: import('./IDepartmentFolders').IDepartmentFolderPolicy; }
 export interface IRoleConfiguration { roles: IDeskPilotRole[]; assignments: IRoleAssignment[]; workspace?: IWorkspaceSettings; }
@@ -37,8 +41,9 @@ export function validateRoleConfiguration(value: IRoleConfiguration): void {
   if (!value || !Array.isArray(value.roles) || ![2,3].includes(value.roles.length) || !Array.isArray(value.assignments)) throw new Error('Invalid role configuration.');
   if (new Set(value.roles.map(role => role.id)).size !== value.roles.length) throw new Error('Duplicate roles.');
   for (const role of value.roles) {
+    if(role.teamVisibility && (role.id!=='agent' || ['assignedTeams','categoryTeams','assigneeOnly'].some(key=>typeof role.teamVisibility![key as keyof ITeamTicketVisibility]!=='boolean')))throw new Error('Invalid team ticket visibility settings.');
     if(role.id==='requester' && (role.scope!=='own' || ![2,4].includes(role.actions.length) || !role.actions.includes('create') || !role.actions.includes('faqs') || role.actions.some(action=>!['create','faqs','tickets','comment'].includes(action)) || (role.actions.length===4 && (!role.actions.includes('tickets') || !role.actions.includes('comment')))))throw new Error('Requester permissions are fixed: create tickets, view and comment on own requests, and read published Knowledge Base articles.');
-    if (!ids.includes(role.id) || !role.name || !['own', 'assigned', 'assignedOrCreated', 'newUnassigned', 'all'].includes(role.scope) || !Array.isArray(role.actions) || role.actions.some(action => !roleActions.includes(action))) throw new Error('Invalid role rules.');
+    if (!ids.includes(role.id) || !role.name || !['own', 'assigned', 'assignedOrCreated', 'assignedTeams', 'newUnassigned', 'all'].includes(role.scope) || !Array.isArray(role.actions) || role.actions.some(action => !roleActions.includes(action))) throw new Error('Invalid role rules.');
     if (role.pageAccess !== undefined && (!Array.isArray(role.pageAccess) || role.pageAccess.some(page=>!settingsPageKeys.includes(page)) || new Set(role.pageAccess).size!==role.pageAccess.length)) throw new Error('Invalid settings page access.');
     if (role.actions.includes('manageFaqs') && !role.actions.includes('faqs')) throw new Error(`${role.name}: enable the FAQs page before enabling FAQ management.`);
   }

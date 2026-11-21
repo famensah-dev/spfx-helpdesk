@@ -19,7 +19,10 @@ const {GraphTicketService}=load('src/webparts/helpdeskSystem/services/graph/Grap
     author=8;const before=uploadCalls;await assert.rejects(()=>service.uploadCommentAttachments(5,'1',options.files),/own comment/);assert.equal(uploadCalls,before);author=7;
     await assert.rejects(()=>service.uploadCommentAttachments(6,'1',options.files),/own comment/);
     await service.addComment(5,'Progress',options);assert.equal(posts,1,'Retry must reuse the saved comment');
-    const comments=await service.getComments(5);assert.equal(comments[0].attachments[0].name,'report.pdf');
+    const comments=await service.getComments(5);assert.equal(comments[0].attachments[0].name,'report.pdf');assert(!comments[0].sharedWithRequester);
+    service.sharedCommentRequests=async()=>['post:'+options.requestId];assert.equal((await service.getComments(5))[0].sharedWithRequester,true,'Post sharing is restored from accepted email records on reload');
+    service.sharedCommentRequests=async()=>['comment:1'];assert.equal((await service.getComments(5))[0].sharedWithRequester,true,'Sharing an existing comment is recognized too');
+    service.sharedCommentRequests=async()=>{throw Error('History unavailable');};assert(!(await service.getComments(5))[0].sharedWithRequester,'Unavailable history never produces a false shared badge');
     lostResponse=true;const next={requestId:'44444444-4444-4444-4444-444444444444'};
     await assert.rejects(()=>service.addComment(5,'Next',next),/unknown/);await service.addComment(5,'Next',next);assert.equal(posts,2,'Uncertain save response should be reconciled by request ID');
     const richOptions={requestId:'55555555-5555-5555-5555-555555555555',html:'<p><strong>Formatted update</strong></p>'};

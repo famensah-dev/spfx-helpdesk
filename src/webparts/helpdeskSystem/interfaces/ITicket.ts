@@ -24,6 +24,7 @@ export interface ITicket {
   AssignedTo?: IUserLookup;
   AssignedUnit?: string;
   Category?: string;
+  CategoryId?: number;
   Subcategory?: string;
   IssueType?: string;
   TicketType?: string;

@@ -3,7 +3,7 @@ import { DefaultButton } from '@fluentui/react';
 import type { WebPartContext } from '@microsoft/sp-webpart-base';
 import styles from './HelpdeskSystem.module.scss';
 
-export function SharePointAccountMenu(props: { context: WebPartContext }): React.ReactElement {
+export function SharePointAccountMenu(props: { context: WebPartContext; role?: string }): React.ReactElement {
   const user = props.context.pageContext.user;
   const [photo, setPhoto] = React.useState<string>();
   const initials = (user.displayName || user.email || '?').trim().split(/\s+/).slice(0, 2).map(part => part[0]).join('').toUpperCase();
@@ -30,7 +30,10 @@ export function SharePointAccountMenu(props: { context: WebPartContext }): React
   const siteUrl = props.context.pageContext.web.absoluteUrl;
   const switchUrl = `${siteUrl}/_layouts/15/closeConnection.aspx?loginasanotheruser=true&Source=${encodeURIComponent(window.location.href)}`;
   return <div className={styles.accountIdentity}>
-    <span>{user.displayName}</span>
+    <span data-account-name="true">
+      <span>{user.displayName}</span>
+      {props.role && <small data-account-role="true">{({admin:'Helpdesk Admin',agent:'Agent',requester:'Requester',superAdmin:'Super Admin'} as Record<string,string>)[props.role] || props.role}</small>}
+    </span>
     <DefaultButton className={styles.accountAvatar} ariaLabel={`Account menu for ${user.displayName}`} title={user.email} menuIconProps={{ iconName: '' }}
       styles={{ root: { background: 'transparent', border: "1px solid var(--dp-line-c6d8f3, #c6d8f3)", borderRadius: '50%', width: 36, height: 36, minWidth: 36, padding: 0, color: "var(--dp-fg-fff, #fff)" }, rootHovered: { background: 'transparent', color: "var(--dp-fg-fff, #fff)", borderColor: "var(--dp-line-fff, #fff)" }, rootPressed: { background: 'transparent', color: "var(--dp-fg-fff, #fff)" }, rootExpanded: { background: 'transparent', color: "var(--dp-fg-fff, #fff)" }, label: { margin: 0 }, menuIcon: { display: 'none' } }}
       menuProps={{ calloutProps: { calloutWidth: 270 }, styles: { root: { width: 270, maxWidth: 'calc(100vw - 24px)' }, subComponentStyles: { menuItem: { label: { whiteSpace: 'normal', overflowWrap: 'anywhere', lineHeight: '18px' }, root: { height: 'auto', minHeight: 30 }, linkContent: { height: 'auto', minHeight: 30, boxSizing: 'border-box', padding: '4px 18px' } } } }, items: [
